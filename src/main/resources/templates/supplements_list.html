@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Supplemente Übersicht</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f7f7f7;
+            margin: 0;
+            padding: 0;
+        }
+
+        nav {
+            background: #2d6cdf;
+            padding: 12px 24px;
+        }
+
+        nav a {
+            color: #fff;
+            text-decoration: none;
+            margin-right: 18px;
+            font-weight: bold;
+        }
+
+        nav a:hover {
+            text-decoration: underline;
+        }
+
+        h1 {
+            margin: 32px 0 16px 0;
+            text-align: center;
+            color: #2d6cdf;
+        }
+
+        table {
+            margin: 32px auto;
+            border-collapse: collapse;
+            width: 60%;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+        }
+
+        th, td {
+            padding: 12px 18px;
+            border-bottom: 1px solid #e0e0e0;
+            text-align: left;
+        }
+
+        th {
+            background: #eaf1fb;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .edit-btn {
+            background: #2d6cdf;
+            color: #fff;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .edit-btn:hover {
+            background: #1b4e9b;
+        }
+    </style>
+</head>
+<body>
+<nav>
+    <a th:href="@{/supplements/new}">Neues Supplement anlegen</a> |
+    <a th:href="@{/supplements/ingredients/summary}">Tägliche Einnahme-Übersicht</a> |
+    <a th:href="@{/supplements}">Supplemente Übersicht</a>
+</nav>
+<h1>Supplemente Übersicht</h1>
+<table>
+    <thead>
+    <tr>
+        <th>Name</th>
+        <th>Zutaten</th>
+        <th>Aktion</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="supplement : ${supplements}">
+        <td th:text="${supplement.name}">Name</td>
+        <td>
+            <ul>
+                <li th:each="ing : ${supplement.ingredients}" th:text="|${ing.name} (${ing.mg} mg)|">Zutat</li>
+            </ul>
+        </td>
+        <td>
+            <a class="edit-btn" th:href="@{'/supplements/edit/' + ${supplement.name}}">Bearbeiten</a>
+            <form method="post" style="display:inline;" th:action="@{'/supplements/delete/' + ${supplement.name}}">
+                <button class="edit-btn" style="background:#e74c3c;" type="submit">Löschen</button>
+            </form>
+        </td>
+    </tr>
+    </tbody>
+</table>
+</body>
+</html>
