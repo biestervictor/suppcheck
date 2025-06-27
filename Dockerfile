@@ -20,7 +20,7 @@ COPY --from=build /app/target/*.jar app.jar
 ENV SPRING_PROFILES_ACTIVE=docker
 
 # Exponiere den Standardport der Spring-Boot-Anwendung
-EXPOSE 30800
+EXPOSE 8080
 
 # Starte die Anwendung
 ENTRYPOINT ["java", "-jar", "app.jar"]

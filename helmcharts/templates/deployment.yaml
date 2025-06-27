@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.suppcheck.name}}
+  namespace: {{ .Values.suppcheck.nameSpace}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.suppcheck.name}}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.suppcheck.name}}
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: {{ .Values.suppcheck.name}}
+          image: ghcr.io/biestervictor/suppcheck:latest
+          ports:
+            - containerPort: {{ .Values.suppcheck.deployment.port}}

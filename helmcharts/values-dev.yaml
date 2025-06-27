@@ -1,0 +1,19 @@
+## MongoDB Express configuration
+mongoexpress:
+  ingress:
+    host: mongoexpress.dev.biester.vip
+
+## general
+ingress:
+  className: traefik
+volume:
+  storageClassName: local-path
+  storageClassNameEnabled: true
+
+
+## Hedgedoc configuration
+suppcheck:
+
+  ingress:
+    host: suppcheck.dev.biester.vip
+    tlsEnabled: true
