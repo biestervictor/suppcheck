@@ -79,6 +79,9 @@
     <thead>
     <tr>
         <th>Name</th>
+        <th>Portionsgröße</th>
+        <th>Preis</th>
+        <th>Preis / Portion</th>
         <th>Zutaten</th>
         <th>Aktion</th>
     </tr>
@@ -86,6 +89,9 @@
     <tbody>
     <tr th:each="supplement : ${supplements}">
         <td th:text="${supplement.name}">Name</td>
+        <td th:text="${supplement.portionSize}">Portionsgröße</td>
+        <td th:text="${supplement.price}">Preis</td>
+       <td th:text="${(supplement.price != null and supplement.portionSize != null and supplement.portionSize > 0) ? T(java.lang.String).format('%.2f €', supplement.price.doubleValue() / supplement.portionSize) : '-'}">Preis/Portion</td>
         <td>
             <ul>
                 <li th:each="ing : ${supplement.ingredients}" th:text="|${ing.name} (${ing.mg} mg)|">Zutat</li>

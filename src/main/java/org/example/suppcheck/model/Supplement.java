@@ -20,6 +20,8 @@ public class Supplement {
   private String name;
   private List<Ingredient> ingredients = new ArrayList<>();
   private boolean isInactive;
+  private double price;
+  private int portionSize;
 
   /**
    * Selbst geschrieben, da hier das ein mutable Objekt weitergegeben wird.

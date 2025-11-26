@@ -88,6 +88,8 @@
 <form method="post" th:action="@{/supplements/save}" th:object="${supplement}">
     <label for="name">Name:</label>
     <input id="name" required th:field="*{name}" type="text"/><br/><br/>
+    <input id="price" required th:field="*{price}" type="number"/><br/><br/>
+    <input id="portions" required th:field="*{portionSize}" type="number"/><br/><br/>
     <label for="isInactive">Inaktiv:</label>
     <input id="isInactive" th:field="*{inactive}" type="checkbox"/><br/><br/>
     <div id="ingredients-list">
