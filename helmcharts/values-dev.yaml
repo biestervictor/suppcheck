@@ -15,5 +15,5 @@ volume:
 suppcheck:
 
   ingress:
-    host: suppcheck.dev.biester.vip
+    host: suppcheck-dev.biester.vip
     tlsEnabled: true

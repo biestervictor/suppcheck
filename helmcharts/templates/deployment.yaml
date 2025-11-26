@@ -18,5 +18,7 @@ spec:
       containers:
         - name: {{ .Values.suppcheck.name}}
           image: ghcr.io/biestervictor/suppcheck:latest
+          command: [ "java", "-jar", "app.jar" ]
+          args: [ "--spring.config.name=application-kubitos" ]
           ports:
             - containerPort: {{ .Values.suppcheck.deployment.port}}

@@ -1,0 +1,23 @@
+ingress:
+ className: nginx
+ pathType: ImplementationSpecific
+
+imagePullSecret: ChangeIt
+
+suppcheck:
+  name: suppcheck
+  nameSpace: suppcheck
+  volumeClaimTemplates:
+    resources:
+      requests:
+        storage: 1Gi
+  deployment:
+    port: 8080
+  service:
+    type: ClusterIP
+    port: 3000
+    nodePort: 30000
+    nodePortEnabled: false
+  ingress:
+    host: suppcheck-kubitos.biester.vip
+    tlsEnabled: true
