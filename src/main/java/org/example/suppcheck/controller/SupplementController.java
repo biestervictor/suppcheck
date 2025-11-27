@@ -1,9 +1,14 @@
 package org.example.suppcheck.controller;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+
 import org.example.suppcheck.model.Ingredient;
+import org.example.suppcheck.model.Shop;
 import org.example.suppcheck.model.Supplement;
+import org.example.suppcheck.model.SupplementType;
 import org.example.suppcheck.service.SupplementService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -47,6 +52,14 @@ public class SupplementController {
 
     supplement.getIngredients().add(ingredient);
     model.addAttribute("supplement", supplement);
+      List<String> types = Arrays.stream(SupplementType.values())
+              .map(SupplementType::name)
+              .collect(Collectors.toList());
+      model.addAttribute("types", types);
+      List<String> shops = Arrays.stream(Shop.values())
+              .map(Shop::name)
+              .collect(Collectors.toList());
+      model.addAttribute("shops", shops);
     return "supplement_form";
   }
 
@@ -61,6 +74,15 @@ public class SupplementController {
   public String editSupplement(@PathVariable String name, Model model) {
     Supplement supplement = supplementService.getSupplementById(name).orElseThrow();
     model.addAttribute("supplement", supplement);
+      List<String> types = Arrays.stream(SupplementType.values())
+              .map(SupplementType::name)
+              .collect(Collectors.toList());
+      model.addAttribute("types", types);
+
+      List<String> shops = Arrays.stream(Shop.values())
+              .map(Shop::name)
+              .collect(Collectors.toList());
+      model.addAttribute("shops", shops);
     return "supplement_form";
   }
 

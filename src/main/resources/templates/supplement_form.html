@@ -86,12 +86,33 @@
 </nav>
 <h1>Neues Supplement anlegen</h1>
 <form method="post" th:action="@{/supplements/save}" th:object="${supplement}">
+    <label for="shop">Shop:</label>
+    <select id="shop" th:field="*{shop}">
+        <option th:value="''" th:text="'-- bitte wählen --'"></option>
+        <option th:each="s : ${shops}"
+                th:value="${s}"
+                th:text="${s}">
+        </option>
+    </select>
     <label for="name">Name:</label>
     <input id="name" required th:field="*{name}" type="text"/><br/><br/>
-    <label for="price">price:</label>
+    <label for="price">Preis:</label>
     <input id="price" required th:field="*{price}" type="number"/><br/><br/>
     <label for="portions">Portionen:</label>
     <input id="portions" required th:field="*{portionSize}" type="number"/><br/><br/>
+    <!-- Supplement Type Dropdown -->
+
+    <br/><br/>
+    <!-- Supplement Type Dropdown -->
+    <label for="type">Typ:</label>
+    <select id="type" th:field="*{supplementType}">
+        <option th:value="''" th:text="'-- bitte wählen --'"></option>
+        <option th:each="t : ${types}"
+                th:value="${t}"
+                th:text="${t}">
+        </option>
+    </select>
+    <br/><br/>
     <label for="isInactive">Inaktiv:</label>
     <input id="isInactive" th:field="*{inactive}" type="checkbox"/><br/><br/>
     <div id="ingredients-list">
