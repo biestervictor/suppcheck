@@ -17,12 +17,14 @@ import org.springframework.data.mongodb.core.mapping.Document;
 public class Supplement {
 
   @Id
+  private String id;
+  private String shop;
   private String name;
   private List<Ingredient> ingredients = new ArrayList<>();
   private boolean isInactive;
   private double price;
   private int portionSize;
-
+  private String supplementType= SupplementType.BASIC.name();
   /**
    * Selbst geschrieben, da hier das ein mutable Objekt weitergegeben wird.
    *
