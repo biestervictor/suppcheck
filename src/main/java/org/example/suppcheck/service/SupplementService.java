@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.example.suppcheck.model.Ingredient;
 import org.example.suppcheck.model.Supplement;
+import org.example.suppcheck.model.SupplementType;
 import org.example.suppcheck.repository.SupplementRepository;
 import org.springframework.stereotype.Service;
 
@@ -34,14 +35,19 @@ public class SupplementService {
    * @param supplements the list of supplements to sum up
    * @return a list of summed ingredients
    */
-  public List<Ingredient> getSummedIngredients(List<Supplement> supplements) {
+  public List<Ingredient> getSummedIngredients(List<Supplement> supplements, boolean isWorkoutDay) {
     Map<String, Double> sumMap = new HashMap<>();
     for (Supplement supplement : supplements) {
-      if (supplement.isInactive()) {
-        continue; // Nur aktive Supplements berücksichtigen
+      if (supplement.isInactive() ||
+          (!isWorkoutDay && supplement.getSupplementType().equals(SupplementType.SPORT.name()))) {
+        continue; // Nur aktive Supplements berücksichtigen und nur WORKOUT Supplements an Trainingstagen
       }
       for (Ingredient ing : supplement.getIngredients()) {
+
         sumMap.merge(ing.getName(), ing.getMg(), Double::sum);
+          for (Ingredient subIng : ing.getSubIngredients()) {
+              sumMap.merge(subIng.getName(), subIng.getMg(), Double::sum);
+          }
       }
     }
     List<Ingredient> result = new ArrayList<>();
@@ -59,11 +65,11 @@ public class SupplementService {
    *
    * @param name the name of the supplement to delete
    */
-  public void deleteSupplementByName(String name) {
-    Supplement supplement = supplementRepository.findByName(name);
-    if (supplement != null) {
+  public void deleteSupplementById(String id) {
+    Supplement supplement = supplementRepository.findById(id).get();
+
       supplementRepository.delete(supplement);
-    }
+
   }
 
   /**

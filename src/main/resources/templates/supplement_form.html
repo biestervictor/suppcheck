@@ -1,3 +1,4 @@
+<!-- language: html -->
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
 <head>
@@ -9,29 +10,24 @@
             margin: 0;
             padding: 0;
         }
-
         nav {
             background: #2d6cdf;
             padding: 12px 24px;
         }
-
         nav a {
             color: #fff;
             text-decoration: none;
             margin-right: 18px;
             font-weight: bold;
         }
-
         nav a:hover {
             text-decoration: underline;
         }
-
         h1 {
             margin: 32px 0 16px 0;
             text-align: center;
             color: #2d6cdf;
         }
-
         form {
             background: #fff;
             padding: 32px;
@@ -40,18 +36,15 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
             border-radius: 6px;
         }
-
         label {
             font-weight: bold;
         }
-
         input[type="text"], input[type="number"] {
             padding: 6px;
             margin: 4px 8px 12px 0;
             border: 1px solid #bfc9d1;
             border-radius: 3px;
         }
-
         button {
             background: #2d6cdf;
             color: #fff;
@@ -61,21 +54,20 @@
             cursor: pointer;
             margin-right: 6px;
         }
-
         button:hover {
             background: #1b4e9b;
         }
-
         .success {
             color: #2d6cdf;
             text-align: center;
             margin-top: 16px;
         }
-
         .ingredient-row {
             margin-bottom: 8px;
         }
-
+        .subingredient-list {
+            margin-left: 32px;
+        }
     </style>
 </head>
 <body>
@@ -86,6 +78,8 @@
 </nav>
 <h1>Neues Supplement anlegen</h1>
 <form method="post" th:action="@{/supplements/save}" th:object="${supplement}">
+    <input type="hidden" th:if="*{id != null}" th:field="*{id}" />
+
     <label for="shop">Shop:</label>
     <select id="shop" th:field="*{shop}">
         <option th:value="''" th:text="'-- bitte wählen --'"></option>
@@ -97,13 +91,10 @@
     <label for="name">Name:</label>
     <input id="name" required th:field="*{name}" type="text"/><br/><br/>
     <label for="price">Preis:</label>
-    <input id="price" required th:field="*{price}" type="number"/><br/><br/>
+    <input id="price" required th:field="*{price}" type="number" step="any"/><br/><br/>
     <label for="portions">Portionen:</label>
     <input id="portions" required th:field="*{portionSize}" type="number"/><br/><br/>
-    <!-- Supplement Type Dropdown -->
-
     <br/><br/>
-    <!-- Supplement Type Dropdown -->
     <label for="type">Typ:</label>
     <select id="type" th:field="*{supplementType}">
         <option th:value="''" th:text="'-- bitte wählen --'"></option>
@@ -115,37 +106,101 @@
     <br/><br/>
     <label for="isInactive">Inaktiv:</label>
     <input id="isInactive" th:field="*{inactive}" type="checkbox"/><br/><br/>
+
     <div id="ingredients-list">
-        <div class="ingredient-row" th:each="ingredient, iterStat : *{ingredients}">
-            <input placeholder="Name" th:field="*{ingredients[__${iterStat.index}__].name}" type="text"/>
-            <input onfocus="this.select()" step="any" th:field="*{ingredients[__${iterStat.index}__].mg}"
-                   type="number"/>
+        <div class="ingredient-row" th:each="ingredient, iStat : *{ingredients}">
+            <input placeholder="Name" th:field="*{ingredients[__${iStat.index}__].name}" type="text"/>
+            <input class="ingredient-mg" onfocus="this.select()" step="any" th:field="*{ingredients[__${iStat.index}__].mg}" type="number" />
             <button onclick="removeIngredient(this)" type="button">Entfernen</button>
+
+            <div class="subingredient-list">
+                <div th:each="sub, sStat : *{ingredients[__${iStat.index}__].subIngredients}">
+                    <input th:field="*{ingredients[__${iStat.index}__].subIngredients[__${sStat.index}__].name}" placeholder="Sub-Name" type="text"/>
+                    <input class="subingredient-mg" th:field="*{ingredients[__${iStat.index}__].subIngredients[__${sStat.index}__].mg}" placeholder="mg" type="number" step="any"/>
+                    <button type="button" onclick="removeSubIngredient(this)">Entfernen</button>
+                </div>
+            </div>
+
+            <button type="button" onclick="addSubIngredient(this)">Sub-Ingridient hinzufügen</button>
         </div>
     </div>
+
     <button onclick="addIngredient()" type="button">Zutat hinzufügen</button>
     <button type="submit">Speichern</button>
 </form>
+
 <div class="success" th:if="${param.success}">
     Supplement erfolgreich gespeichert!
 </div>
+
 <script>
+    function updateIngredientIndices() {
+        const rows = document.querySelectorAll('#ingredients-list .ingredient-row');
+        rows.forEach((row, idx) => {
+            const nameInput = row.querySelector('input[type="text"]:not([placeholder="Sub-Name"])');
+            const mgInput = row.querySelector('input.ingredient-mg');
+            if (nameInput) nameInput.name = `ingredients[${idx}].name`;
+            if (mgInput) mgInput.name = `ingredients[${idx}].mg`;
+
+            const subList = row.querySelector('.subingredient-list');
+            if (subList) {
+                Array.from(subList.children).forEach((subDiv, sIdx) => {
+                    const subName = subDiv.querySelector('input[placeholder="Sub-Name"]');
+                    const subMg = subDiv.querySelector('input.subingredient-mg');
+                    if (subName) subName.name = `ingredients[${idx}].subIngredients[${sIdx}].name`;
+                    if (subMg) subMg.name = `ingredients[${idx}].subIngredients[${sIdx}].mg`;
+                });
+            }
+        });
+    }
+
     function addIngredient() {
         const list = document.getElementById('ingredients-list');
-        const index = list.children.length;
         const div = document.createElement('div');
         div.className = 'ingredient-row';
         div.innerHTML = `
-            <input type="text" name="ingredients[${index}].name" placeholder="Name" />
-            <input type="number" step="any" name="ingredients[${index}].mg" placeholder="mg" />
+            <input type="text" placeholder="Name" />
+            <input type="number" step="any" placeholder="mg" class="ingredient-mg" />
             <button type="button" onclick="removeIngredient(this)">Entfernen</button>
+            <div class="subingredient-list"></div>
+            <button type="button" onclick="addSubIngredient(this)">Sub-Ingridient hinzufügen</button>
         `;
         list.appendChild(div);
+        updateIngredientIndices();
     }
 
     function removeIngredient(btn) {
         btn.parentElement.remove();
+        updateIngredientIndices();
     }
+
+    function addSubIngredient(btn) {
+        const row = btn.closest('.ingredient-row');
+        const rows = Array.from(document.querySelectorAll('#ingredients-list .ingredient-row'));
+        const ingredientIdx = rows.indexOf(row);
+
+        const parent = row.querySelector('.subingredient-list');
+        if (!parent) {
+            alert('Fehler: subingredient-list nicht gefunden!');
+            return;
+        }
+        const idx = parent.children.length;
+        const div = document.createElement('div');
+        div.innerHTML = `
+            <input name="ingredients[${ingredientIdx}].subIngredients[${idx}].name" placeholder="Sub-Name" type="text"/>
+            <input name="ingredients[${ingredientIdx}].subIngredients[${idx}].mg" placeholder="mg" type="number" step="any" class="subingredient-mg"/>
+            <button type="button" onclick="removeSubIngredient(this)">Entfernen</button>
+        `;
+        parent.appendChild(div);
+        updateIngredientIndices();
+    }
+
+    function removeSubIngredient(btn) {
+        btn.parentElement.remove();
+        updateIngredientIndices();
+    }
+
+    window.addEventListener('DOMContentLoaded', updateIngredientIndices);
 </script>
 </body>
 </html>

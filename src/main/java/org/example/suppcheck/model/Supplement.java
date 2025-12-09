@@ -25,20 +25,5 @@ public class Supplement {
   private double price;
   private int portionSize;
   private String supplementType= SupplementType.BASIC.name();
-  /**
-   * Selbst geschrieben, da hier das ein mutable Objekt weitergegeben wird.
-   *
-   * @return list of ingredients
-   */
-  public List<Ingredient> getIngredients() {
-    return new ArrayList<>(ingredients);
-  }
-
-  /**
-   * Selbst geschrieben, da hier das ein mutable Objekt weitergegeben wird.
-   */
-  public void setIngredients(List<Ingredient> ingredients) {
-    this.ingredients = new ArrayList<>(ingredients);
-  }
 
 }
