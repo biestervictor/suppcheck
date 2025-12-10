@@ -5,5 +5,9 @@ public enum Shop {
     ESN,
     VIT4EVER,
     GEN,
-    BigZone
+    BigZone,
+    Gannikus,
+    Sinob,
+    GymNutrition,
+    MoreNutrition
 }
