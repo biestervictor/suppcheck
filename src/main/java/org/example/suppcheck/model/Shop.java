@@ -9,5 +9,6 @@ public enum Shop {
     Gannikus,
     Sinob,
     GymNutrition,
-    MoreNutrition
+    MoreNutrition,
+    Ruehl24
 }
