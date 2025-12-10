@@ -10,5 +10,6 @@ public enum Shop {
     Sinob,
     GymNutrition,
     MoreNutrition,
-    Ruehl24
+    Ruehl24,
+    PremiumBodyNutrition
 }
