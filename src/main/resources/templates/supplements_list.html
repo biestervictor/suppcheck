@@ -110,6 +110,8 @@
     <div style="width:60%;margin:32px auto 0 auto;background:#fff;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,0.07);border-radius:6px;">
         <span><b>Preis pro Tag:</b> <span th:text="${preisProTag != null ? T(java.lang.String).format('%.2f €', preisProTag) : '-'}"></span></span>
         &nbsp;&nbsp;
+        <span><b>Preis pro Tag Whey(2,5) Supp:</b> <span th:text="${preisProTagWhey != null ? T(java.lang.String).format('%.2f €', preisProTagWhey) : '-'}"></span></span>
+        &nbsp;&nbsp;
         <span><b>Preis pro Tag Extended Supp:</b> <span th:text="${preisProTagExtended != null ? T(java.lang.String).format('%.2f €', preisProTagExtended) : '-'}"></span></span>
         &nbsp;&nbsp;
         <span><b>Preis pro Workout:</b> <span th:text="${preisProWorkout != null ? T(java.lang.String).format('%.2f €', preisProWorkout) : '-'}"></span></span>

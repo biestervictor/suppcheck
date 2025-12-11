@@ -105,6 +105,8 @@ public class SupplementController {
         double preisProTag = 0;
         double preisWorkout = 0;
         double preisProTagExtended = 0;
+        double avgWheyPrice = 0;
+        int wheyCount = 0;
         for (Supplement supp : supplements) {
 
 
@@ -112,17 +114,30 @@ public class SupplementController {
                 preisProTag += supp.getPrice() / supp.getPortionSize();
             }else  if( !supp.isInactive() && supp.getSupplementType().equals(SupplementType.EXTENDED.name())) {
                  preisProTagExtended += supp.getPrice() / supp.getPortionSize();
+             }else  if( !supp.isInactive() && supp.getSupplementType().equals(SupplementType.WHEY.name())) {
+                 avgWheyPrice += supp.getPrice() / supp.getPortionSize();
+                 wheyCount++;
              }else if (!supp.isInactive()){
                 preisWorkout += supp.getPrice() / supp.getPortionSize();
             }
 
 
 
+
         }
-        double preisProMonat = preisProTag*30+preisWorkout*15;
+        avgWheyPrice= avgWheyPrice/wheyCount;
+        int daysMonth = 30;
+        int dayWorkout = 15;
+        // Whey an  normalen 2 Portionen, an Trainingstagen + 1 Portion also avg ist 2.5
+        double preisProTagWhey = 2* avgWheyPrice;
+        double preisProMonat = preisProTag* daysMonth +
+                (avgWheyPrice+preisWorkout)* dayWorkout +
+                preisProTagExtended* daysMonth
+                +2* preisProTagWhey;
         model.addAttribute("preisProMonat", preisProMonat);
         model.addAttribute("preisProTagExtended", preisProTagExtended);
         model.addAttribute("preisProTag", preisProTag);
+        model.addAttribute("preisProTagWhey", preisProTagWhey);
         model.addAttribute("preisProWorkout", preisWorkout);
         model.addAttribute("supplements", supplements);
 
