@@ -97,6 +97,7 @@
 <table>
     <thead>
     <tr>
+        <th>Hersteller</th>
         <th>Name</th>
         <th>Portionsgröße</th>
         <th>Preis</th>
@@ -120,7 +121,7 @@
     </div>
 
     <tr th:each="supplement : ${supplements}" th:classappend="${supplement.isInactive} ? 'inactive'">
-
+        <td th:text="${supplement.shop}">Shop</td>
         <td th:text="${supplement.name}">Name</td>
         <td th:text="${supplement.portionSize}">Portionsgröße</td>
         <td th:text="${supplement.price}">Preis</td>
