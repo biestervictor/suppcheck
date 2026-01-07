@@ -185,4 +185,25 @@ public class SupplementController {
         supplementService.saveSupplement(supplement);
         return "redirect:/supplements/new?success";
     }
+
+    /**
+     * Zeigt die Vergleichsseite für Supplements an.
+     */
+    @GetMapping("/compare")
+    public String showComparePage(Model model) {
+        List<Supplement> supplements = supplementService.getAllSupplements();
+        // Zutaten jedes Supplements alphabetisch sortieren
+        for (Supplement supp : supplements) {
+            if (supp.getIngredients() != null) {
+                supp.getIngredients().sort(Comparator.comparing(ing -> ing.getName() != null ? ing.getName().toLowerCase() : ""));
+            }
+        }
+        // Extrahiere alle Shops und Namen für die Dropdowns
+        Set<String> shops = supplements.stream().map(Supplement::getShop).collect(Collectors.toSet());
+        Set<String> names = supplements.stream().map(Supplement::getName).collect(Collectors.toSet());
+        model.addAttribute("supplements", supplements);
+        model.addAttribute("shops", shops);
+        model.addAttribute("names", names);
+        return "supplements_compare";
+    }
 }

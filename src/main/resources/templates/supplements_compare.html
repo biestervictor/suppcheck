@@ -1,0 +1,130 @@
+<!-- language: html -->
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Supplement Vergleich</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f7f7f7;
+            margin: 0;
+            padding: 0;
+        }
+        nav {
+            background: #2d6cdf;
+            padding: 12px 24px;
+        }
+        nav a {
+            color: #fff;
+            text-decoration: none;
+            margin-right: 18px;
+            font-weight: bold;
+        }
+        nav a:hover {
+            text-decoration: underline;
+        }
+        h1 {
+            margin: 32px 0 16px 0;
+            text-align: center;
+            color: #2d6cdf;
+        }
+        .vergleich-container {
+            width: 60%;
+            margin: 32px auto 0 auto;
+            background: #fff;
+            padding: 18px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            border-radius: 6px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 24px;
+        }
+        th, td {
+            padding: 12px 18px;
+            border-bottom: 1px solid #e0e0e0;
+            text-align: left;
+        }
+        th {
+            background: #eaf1fb;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+<nav>
+    <a th:href="@{/supplements}">Zurück zur Übersicht</a> |
+    <a th:href="@{/supplements/compare}">Supplement Vergleich</a>
+</nav>
+<h1>Supplement Vergleich</h1>
+<div class="vergleich-container">
+    <form id="compare-form" onsubmit="return false;">
+        <label for="suppSelect1">Supplement 1:</label>
+        <select id="suppSelect1">
+            <option value="">-- Supplement wählen --</option>
+            <option th:each="supp : ${supplements}"
+                    th:value="${supp.shop + '||' + supp.name}"
+                    th:text="${supp.shop + ' - ' + supp.name}"></option>
+        </select>
+        &nbsp;&nbsp;
+        <label for="suppSelect2">Supplement 2:</label>
+        <select id="suppSelect2">
+            <option value="">-- Supplement wählen --</option>
+            <option th:each="supp : ${supplements}"
+                    th:value="${supp.shop + '||' + supp.name}"
+                    th:text="${supp.shop + ' - ' + supp.name}"></option>
+        </select>
+    </form>
+    <div id="compare-result" style="margin-top:24px;"></div>
+</div>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    var supplements = /*[[${supplements}]]*/ [];
+    function getSupplementByShopName(shopName) {
+        var parts = shopName.split('||');
+        return supplements.find(function(s) {
+            return s.shop === parts[0] && s.name === parts[1];
+        });
+    }
+    function renderCompare() {
+        var sel1 = document.getElementById('suppSelect1').value;
+        var sel2 = document.getElementById('suppSelect2').value;
+        var supp1 = sel1 ? getSupplementByShopName(sel1) : null;
+        var supp2 = sel2 ? getSupplementByShopName(sel2) : null;
+        var html = '';
+        if (supp1 && supp2) {
+            html += '<table>';
+            html += '<tr><th>Eigenschaft</th><th>' + supp1.shop + ' - ' + supp1.name + '</th><th>' + supp2.shop + ' - ' + supp2.name + '</th></tr>';
+            html += '<tr><td>Preis</td><td>' + supp1.price + '</td><td>' + supp2.price + '</td></tr>';
+            html += '<tr><td>Portionsgröße</td><td>' + supp1.portionSize + '</td><td>' + supp2.portionSize + '</td></tr>';
+            html += '<tr><td>Typ</td><td>' + supp1.supplementType + '</td><td>' + supp2.supplementType + '</td></tr>';
+            html += '<tr><td>Zutaten</td>';
+            html += '<td>' + (supp1.ingredients ? supp1.ingredients.map(function(i){
+                var sub = (i.subIngredients && i.subIngredients.length > 0) ?
+                    '<ul style="margin:0 0 0 18px;padding:0;list-style-type:circle;">' +
+                    i.subIngredients.map(function(si){return '<li>' + si.name + ' (' + si.mg + 'mg)</li>';}).join('') + '</ul>' : '';
+                return i.name + ' (' + i.mg + 'mg)' + sub;
+            }).join('<br>') : '-') + '</td>';
+            html += '<td>' + (supp2.ingredients ? supp2.ingredients.map(function(i){
+                var sub = (i.subIngredients && i.subIngredients.length > 0) ?
+                    '<ul style="margin:0 0 0 18px;padding:0;list-style-type:circle;">' +
+                    i.subIngredients.map(function(si){return '<li>' + si.name + ' (' + si.mg + 'mg)</li>';}).join('') + '</ul>' : '';
+                return i.name + ' (' + i.mg + 'mg)' + sub;
+            }).join('<br>') : '-') + '</td>';
+            html += '</tr>';
+            html += '</table>';
+        } else {
+            html = '<span style="color:#888;">Bitte beide Supplements auswählen.</span>';
+        }
+        document.getElementById('compare-result').innerHTML = html;
+    }
+    document.getElementById('suppSelect1').addEventListener('change', renderCompare);
+    document.getElementById('suppSelect2').addEventListener('change', renderCompare);
+    /*]]>*/
+</script>
+</body>
+</html>
+
