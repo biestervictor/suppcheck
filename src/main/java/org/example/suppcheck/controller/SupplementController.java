@@ -3,6 +3,8 @@ package org.example.suppcheck.controller;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.example.suppcheck.dto.SupplementSaveDto;
+import org.example.suppcheck.mapper.SupplementMapper;
 import org.example.suppcheck.model.Ingredient;
 import org.example.suppcheck.model.Shop;
 import org.example.suppcheck.model.Supplement;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/supplements")
 public class SupplementController {
 
+    public static final String SHOPS = "shops";
     private final SupplementService supplementService;
 
     /**
@@ -48,12 +51,12 @@ public class SupplementController {
         model.addAttribute("supplement", supplement);
         List<String> types = Arrays.stream(SupplementType.values())
                 .map(SupplementType::name)
-                .collect(Collectors.toList());
+                .toList();
         model.addAttribute("types", types);
         List<String> shops = Arrays.stream(Shop.values())
                 .map(Shop::name)
-                .collect(Collectors.toList());
-        model.addAttribute("shops", shops);
+                .toList();
+        model.addAttribute(SHOPS, shops);
         return "supplement_form";
     }
 
@@ -70,20 +73,20 @@ public class SupplementController {
         model.addAttribute("supplement", supplement);
         List<String> types = Arrays.stream(SupplementType.values())
                 .map(SupplementType::name)
-                .collect(Collectors.toList());
+                .toList();
         model.addAttribute("types", types);
 
         List<String> shops = Arrays.stream(Shop.values())
                 .map(Shop::name)
-                .collect(Collectors.toList());
-        model.addAttribute("shops", shops);
+                .toList();
+        model.addAttribute(SHOPS, shops);
         return "supplement_form";
     }
 
     /**
      * Delete a supplement.
      *
-     * @param name the name of the supplement to delete
+     * @param id the id of the supplement to delete
      * @return a redirect to the supplements list
      */
     @PostMapping("/delete/{id}")
@@ -125,6 +128,7 @@ public class SupplementController {
 
 
         }
+        if(wheyCount==0) wheyCount=1; // Division durch 0 verhindern
         avgWheyPrice= avgWheyPrice/wheyCount;
         int daysMonth = 30;
         int dayWorkout = 15;
@@ -162,26 +166,12 @@ public class SupplementController {
     /**
      * Stores or edits supplements.
      *
-     * @param supplement the supplement to save
+     * @param supplementDto the supplement data to save
      * @return a redirect to the new supplement form with a success message
      */
     @PostMapping("/save")
-    public String saveSupplement(@ModelAttribute Supplement supplement) {
-
-        // Supplement-Details werden geloggt, um alle Inhalte anzuzeigen
-        System.out.println("Speichere Supplement: " + supplement);
-        if (supplement.getIngredients() != null) {
-            for (Ingredient ingredient : supplement.getIngredients()) {
-                System.out.println("  Ingredient: " + ingredient.getName());
-                System.out.println("  Ingredient: " + ingredient.getMg());
-            }
-        }
-        System.out.println("  Typ: " + supplement.getSupplementType());
-        System.out.println("  Shop: " + supplement.getShop());
-        System.out.println("  Preis: " + supplement.getPrice());
-        System.out.println("  Portionsgröße: " + supplement.getPortionSize());
-        System.out.println("  Inaktiv: " + supplement.isInactive());
-
+    public String saveSupplement(@ModelAttribute SupplementSaveDto supplementDto) {
+        Supplement supplement = SupplementMapper.toEntity(supplementDto);
         supplementService.saveSupplement(supplement);
         return "redirect:/supplements/new?success";
     }
@@ -202,7 +192,7 @@ public class SupplementController {
         Set<String> shops = supplements.stream().map(Supplement::getShop).collect(Collectors.toSet());
         Set<String> names = supplements.stream().map(Supplement::getName).collect(Collectors.toSet());
         model.addAttribute("supplements", supplements);
-        model.addAttribute("shops", shops);
+        model.addAttribute(SHOPS, shops);
         model.addAttribute("names", names);
         return "supplements_compare";
     }

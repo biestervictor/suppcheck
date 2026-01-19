@@ -63,10 +63,11 @@ public class SupplementService {
   /**
    * Delete a supplement.
    *
-   * @param name the name of the supplement to delete
+   * @param id the name of the supplement to delete
    */
   public void deleteSupplementById(String id) {
-    Supplement supplement = supplementRepository.findById(id).get();
+    Supplement supplement = supplementRepository.findById(id)
+        .orElseThrow(() -> new IllegalArgumentException("Supplement mit ID " + id + " nicht gefunden"));
 
       supplementRepository.delete(supplement);
 

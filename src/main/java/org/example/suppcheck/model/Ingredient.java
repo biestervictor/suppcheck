@@ -7,14 +7,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
-  * Ingredient is a class that represents an ingredient in a supplement.
+ * Ingredient is a class that represents an ingredient in a supplement.
  */
-
-@Getter
 @Setter
-
+@Getter
 public class Ingredient {
+
   private String name;
   private double mg;
   private List<Ingredient> subIngredients = new ArrayList<>();
+
 }

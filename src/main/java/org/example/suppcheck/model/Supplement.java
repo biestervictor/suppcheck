@@ -2,6 +2,7 @@ package org.example.suppcheck.model;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
@@ -11,8 +12,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
  * Supplement class it contains Ingredients.
  */
 
-@Getter
 @Setter
+@Getter
 @Document(collection = "supplements")
 public class Supplement {
 
@@ -24,6 +25,6 @@ public class Supplement {
   private boolean isInactive;
   private double price;
   private int portionSize;
-  private String supplementType= SupplementType.BASIC.name();
+  private String supplementType = SupplementType.BASIC.name();
 
 }
