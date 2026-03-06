@@ -7,6 +7,10 @@ imagePullSecret: ChangeIt
 suppcheck:
   name: suppcheck
   nameSpace: suppcheck
+  secrets: my-tls-secret
+  tls:
+    certKey: tls-crt
+    keyKey: tls-key
   volumeClaimTemplates:
     resources:
       requests:
