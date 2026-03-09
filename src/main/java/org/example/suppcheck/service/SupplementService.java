@@ -20,6 +20,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class SupplementService {
 
+  private static final LocalDate LEGACY_MIGRATION_DATE = LocalDate.of(2025, 12, 31);
+
   private final SupplementRepository supplementRepository;
 
   /**
@@ -91,6 +93,9 @@ public class SupplementService {
       return;
     }
 
+    // price entered in UI/DTO (transient). If not provided, keep current historical price.
+    Double incomingPrice = supplement.getCurrentPrice();
+
     Optional<Supplement> existingOpt = supplement.getId() == null
         ? Optional.empty()
         : supplementRepository.findById(supplement.getId());
@@ -98,21 +103,20 @@ public class SupplementService {
     if (existingOpt.isPresent()) {
       Supplement existing = existingOpt.get();
 
-      // We keep existing history and append if changed
-      double incomingPrice = supplement.getPrice();
-
-      boolean migrated = false;
-
-      // Migration: old docs may have null/empty price history
-      if (existing.getPrices() == null || existing.getPrices().isEmpty()) {
-        PriceEntry migratedEntry = new PriceEntry();
-        migratedEntry.setDate(LocalDate.now());
-        migratedEntry.setPrice(incomingPrice);
-        existing.setPrices(new ArrayList<>(List.of(migratedEntry)));
-        migrated = true;
+      // Ensure history list exists and is mutable
+      if (existing.getPrices() == null) {
+        existing.setPrices(new ArrayList<>());
       } else if (!(existing.getPrices() instanceof ArrayList)) {
-        // Ensure mutability for appends (e.g. List.of(...))
         existing.setPrices(new ArrayList<>(existing.getPrices()));
+      }
+
+      // Migration path: old docs had a root-level field "price".
+      // If prices are empty and legacyPrice exists, create the first history row for it.
+      if (existing.getPrices().isEmpty() && existing.getLegacyPrice() != null) {
+        PriceEntry legacy = new PriceEntry();
+        legacy.setDate(LEGACY_MIGRATION_DATE);
+        legacy.setPrice(existing.getLegacyPrice());
+        existing.getPrices().add(legacy);
       }
 
       double previousPrice = existing.getPrice();
@@ -125,27 +129,38 @@ public class SupplementService {
       existing.setSupplementType(supplement.getSupplementType());
       existing.setIngredients(supplement.getIngredients());
 
-      // If we just migrated today, we already created the entry for the incoming price.
-      if (!migrated && Double.compare(previousPrice, incomingPrice) != 0) {
+      // Only append a new history row when the UI actually sent a price.
+      // After legacy migration, previousPrice is the legacy value, so the new price will append.
+      if (incomingPrice != null && Double.compare(previousPrice, incomingPrice) != 0) {
         PriceEntry entry = new PriceEntry();
         entry.setDate(LocalDate.now());
         entry.setPrice(incomingPrice);
         existing.getPrices().add(entry);
       }
 
+      // We don't want to keep writing legacy field on new saves.
+      existing.setLegacyPrice(null);
+
       supplementRepository.save(existing);
       return;
     }
 
-    // New supplement: ensure exactly one price entry for today
-    if (supplement.getPrices() == null || supplement.getPrices().isEmpty()) {
+    // New supplement
+    if (supplement.getPrices() == null) {
+      supplement.setPrices(new ArrayList<>());
+    } else if (!(supplement.getPrices() instanceof ArrayList)) {
+      supplement.setPrices(new ArrayList<>(supplement.getPrices()));
+    }
+
+    if (incomingPrice != null) {
       PriceEntry entry = new PriceEntry();
       entry.setDate(LocalDate.now());
-      entry.setPrice(supplement.getPrice());
-      List<PriceEntry> list = new ArrayList<>();
-      list.add(entry);
-      supplement.setPrices(list);
+      entry.setPrice(incomingPrice);
+      supplement.getPrices().add(entry);
     }
+
+    // don't persist legacyPrice for new ones
+    supplement.setLegacyPrice(null);
 
     supplementRepository.save(supplement);
   }

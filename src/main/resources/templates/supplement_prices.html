@@ -83,7 +83,7 @@
         </thead>
         <tbody>
         <tr th:each="p : ${supplement.prices}">
-            <td th:text="${p.date}">2026-01-01</td>
+            <td th:text="${#temporals.format(p.date, 'yyyy-MM-dd')}">2026-01-01</td>
             <td th:text="${T(java.lang.String).format('%.2f €', p.price)}">0.00 €</td>
         </tr>
         </tbody>
@@ -99,6 +99,7 @@
     const ctx = canvas.getContext('2d');
 
     const padding = 40;
+    const bottomPadding = 60; // more space for rotated date labels
     const w = canvas.width;
     const h = canvas.height;
 
@@ -108,9 +109,9 @@
         ctx.beginPath();
         // y-axis
         ctx.moveTo(padding, padding);
-        ctx.lineTo(padding, h - padding);
+        ctx.lineTo(padding, h - bottomPadding);
         // x-axis
-        ctx.lineTo(w - padding, h - padding);
+        ctx.lineTo(w - padding, h - bottomPadding);
         ctx.stroke();
     }
 
@@ -125,15 +126,35 @@
             return;
         }
 
+        const monthMap = {
+            'JANUARY': 1, 'FEBRUARY': 2, 'MARCH': 3, 'APRIL': 4, 'MAY': 5, 'JUNE': 6,
+            'JULY': 7, 'AUGUST': 8, 'SEPTEMBER': 9, 'OCTOBER': 10, 'NOVEMBER': 11, 'DECEMBER': 12
+        };
+
         const values = prices.map(p => Number(p.price));
-        const dates = prices.map(p => String(p.date));
+        const dates = prices.map(p => {
+            // p.date can be an object {year, month, day} from Thymeleaf serialization
+            if (typeof p.date === 'object' && p.date !== null) {
+                const year = p.date.year || p.date.Year;
+                let month = p.date.monthValue || p.date.Month || p.date.month;
+
+                // Convert month enum string to number
+                if (typeof month === 'string') {
+                    month = monthMap[month.toUpperCase()] || 1;
+                }
+
+                const day = p.date.dayOfMonth || p.date.Day || p.date.day || 1;
+                return `${day}.${month}.${year}`;
+            }
+            return String(p.date);
+        });
 
         const min = Math.min(...values);
         const max = Math.max(...values);
         const range = (max - min) || 1;
 
         const plotW = (w - 2 * padding);
-        const plotH = (h - 2 * padding);
+        const plotH = (h - padding - bottomPadding);
 
         const xStep = prices.length === 1 ? 0 : plotW / (prices.length - 1);
 
@@ -141,7 +162,7 @@
         ctx.fillStyle = '#333';
         ctx.font = '12px Arial';
         ctx.fillText(max.toFixed(2) + ' €', 6, padding + 4);
-        ctx.fillText(min.toFixed(2) + ' €', 6, h - padding);
+        ctx.fillText(min.toFixed(2) + ' €', 6, h - bottomPadding);
 
         // line
         ctx.strokeStyle = '#2d6cdf';
@@ -150,29 +171,37 @@
 
         prices.forEach((p, i) => {
             const x = padding + i * xStep;
-            const y = (h - padding) - ((Number(p.price) - min) / range) * plotH;
+            const y = (h - bottomPadding) - ((Number(p.price) - min) / range) * plotH;
             if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         });
         ctx.stroke();
 
-        // points + date labels
+        // points + price labels (above point) + date labels (below x-axis)
         prices.forEach((p, i) => {
             const x = padding + i * xStep;
-            const y = (h - padding) - ((Number(p.price) - min) / range) * plotH;
+            const y = (h - bottomPadding) - ((Number(p.price) - min) / range) * plotH;
 
             // point
             ctx.fillStyle = '#2d6cdf';
             ctx.beginPath();
-            ctx.arc(x, y, 3, 0, Math.PI * 2);
+            ctx.arc(x, y, 4, 0, Math.PI * 2);
             ctx.fill();
 
-            // date label (every point, but stagger a bit)
-            ctx.fillStyle = '#666';
-            const label = dates[i];
+            // price label above point
+            ctx.fillStyle = '#2d6cdf';
+            ctx.font = 'bold 11px Arial';
+            const priceLabel = Number(p.price).toFixed(2) + ' €';
+            const priceWidth = ctx.measureText(priceLabel).width;
+            ctx.fillText(priceLabel, x - priceWidth / 2, y - 8);
+
+            // date label on x-axis (full numeric format: DD.MM.YYYY)
+            ctx.fillStyle = '#333';
+            ctx.font = '12px Arial';
+            const dateLabel = dates[i]; // use full DD.MM.YYYY
             ctx.save();
-            ctx.translate(x, h - padding + 8);
-            ctx.rotate(-Math.PI / 6);
-            ctx.fillText(label, 0, 0);
+            ctx.translate(x, h - bottomPadding + 12);
+            ctx.rotate(-Math.PI / 4); // 45 degree angle for better readability
+            ctx.fillText(dateLabel, 0, 0);
             ctx.restore();
         });
     }
