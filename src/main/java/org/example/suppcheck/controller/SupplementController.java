@@ -1,7 +1,6 @@
 package org.example.suppcheck.controller;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import org.example.suppcheck.dto.SupplementSaveDto;
 import org.example.suppcheck.mapper.SupplementMapper;
@@ -23,6 +22,8 @@ import org.springframework.web.bind.annotation.*;
 public class SupplementController {
 
     public static final String SHOPS = "shops";
+    private static final String MODEL_SUPPLEMENT = "supplement";
+
     private final SupplementService supplementService;
 
     /**
@@ -48,7 +49,7 @@ public class SupplementController {
         Ingredient ingredient = new Ingredient();
 
         supplement.getIngredients().add(ingredient);
-        model.addAttribute("supplement", supplement);
+        model.addAttribute(MODEL_SUPPLEMENT, supplement);
         List<String> types = Arrays.stream(SupplementType.values())
                 .map(SupplementType::name)
                 .toList();
@@ -61,16 +62,17 @@ public class SupplementController {
     }
 
     /**
-     * Shows the edit Supplemtn page.
+     * Shows the edit Supplement page.
      *
-     * @param name  the name of the supplement to edit
+     * @param id    the id of the supplement to edit
      * @param model the model to add attributes to
      * @return the name of the view to render
      */
-    @GetMapping("/edit/{name}")
-    public String editSupplement(@PathVariable String name, Model model) {
-        Supplement supplement = supplementService.getSupplementById(name).orElseThrow();
-        model.addAttribute("supplement", supplement);
+    @GetMapping("/edit/{id}")
+    public String editSupplement(@PathVariable String id, Model model) {
+        Supplement supplement = supplementService.getSupplementById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Supplement mit ID " + id + " nicht gefunden"));
+        model.addAttribute(MODEL_SUPPLEMENT, supplement);
         List<String> types = Arrays.stream(SupplementType.values())
                 .map(SupplementType::name)
                 .toList();
@@ -81,6 +83,17 @@ public class SupplementController {
                 .toList();
         model.addAttribute(SHOPS, shops);
         return "supplement_form";
+    }
+
+    /**
+     * Detailseite für Preisentwicklung eines Supplements.
+     */
+    @GetMapping("/{id}/prices")
+    public String showPriceHistory(@PathVariable String id, Model model) {
+        Supplement supplement = supplementService.getSupplementById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Supplement mit ID " + id + " nicht gefunden"));
+        model.addAttribute(MODEL_SUPPLEMENT, supplement);
+        return "supplement_prices";
     }
 
     /**
@@ -113,31 +126,29 @@ public class SupplementController {
         for (Supplement supp : supplements) {
 
 
-             if( !supp.isInactive() && supp.getSupplementType().equals(SupplementType.BASIC.name())) {
+            if (!supp.isInactive() && supp.getSupplementType().equals(SupplementType.BASIC.name())) {
                 preisProTag += supp.getPrice() / supp.getPortionSize();
-            }else  if( !supp.isInactive() && supp.getSupplementType().equals(SupplementType.EXTENDED.name())) {
-                 preisProTagExtended += supp.getPrice() / supp.getPortionSize();
-             }else  if( !supp.isInactive() && supp.getSupplementType().equals(SupplementType.WHEY.name())) {
-                 avgWheyPrice += supp.getPrice() / supp.getPortionSize();
-                 wheyCount++;
-             }else if (!supp.isInactive()){
+            } else if (!supp.isInactive() && supp.getSupplementType().equals(SupplementType.EXTENDED.name())) {
+                preisProTagExtended += supp.getPrice() / supp.getPortionSize();
+            } else if (!supp.isInactive() && supp.getSupplementType().equals(SupplementType.WHEY.name())) {
+                avgWheyPrice += supp.getPrice() / supp.getPortionSize();
+                wheyCount++;
+            } else if (!supp.isInactive()) {
                 preisWorkout += supp.getPrice() / supp.getPortionSize();
             }
 
 
-
-
         }
-        if(wheyCount==0) wheyCount=1; // Division durch 0 verhindern
-        avgWheyPrice= avgWheyPrice/wheyCount;
+        if (wheyCount == 0) wheyCount = 1; // Division durch 0 verhindern
+        avgWheyPrice = avgWheyPrice / wheyCount;
         int daysMonth = 30;
         int dayWorkout = 15;
         // Whey an  normalen 2 Portionen, an Trainingstagen + 1 Portion also avg ist 2.5
-        double preisProTagWhey = 2* avgWheyPrice;
-        double preisProMonat = preisProTag* daysMonth +
-                (avgWheyPrice+preisWorkout)* dayWorkout +
-                preisProTagExtended* daysMonth
-                +2* preisProTagWhey;
+        double preisProTagWhey = 2 * avgWheyPrice;
+        double preisProMonat = preisProTag * daysMonth +
+                (avgWheyPrice + preisWorkout) * dayWorkout +
+                preisProTagExtended * daysMonth
+                + 2 * preisProTagWhey;
         model.addAttribute("preisProMonat", preisProMonat);
         model.addAttribute("preisProTagExtended", preisProTagExtended);
         model.addAttribute("preisProTag", preisProTag);
@@ -155,9 +166,9 @@ public class SupplementController {
      * @return the name of the view to render
      */
     @GetMapping("/ingredients/summary")
-    public String showIngredientsSummaryWithWorkout(@RequestParam(defaultValue = "false")boolean isWorkoutDay, Model model){
+    public String showIngredientsSummaryWithWorkout(@RequestParam(defaultValue = "false") boolean isWorkoutDay, Model model) {
         List<Supplement> supplements = supplementService.getAllSupplements();
-        List<Ingredient> summedIngredients = supplementService.getSummedIngredients(supplements,isWorkoutDay);
+        List<Ingredient> summedIngredients = supplementService.getSummedIngredients(supplements, isWorkoutDay);
         model.addAttribute("summedIngredients", summedIngredients);
         model.addAttribute("isWorkoutDay", isWorkoutDay);
         return "ingredients_summary";
@@ -188,12 +199,8 @@ public class SupplementController {
                 supp.getIngredients().sort(Comparator.comparing(ing -> ing.getName() != null ? ing.getName().toLowerCase() : ""));
             }
         }
-        // Extrahiere alle Shops und Namen für die Dropdowns
-        Set<String> shops = supplements.stream().map(Supplement::getShop).collect(Collectors.toSet());
-        Set<String> names = supplements.stream().map(Supplement::getName).collect(Collectors.toSet());
         model.addAttribute("supplements", supplements);
-        model.addAttribute(SHOPS, shops);
-        model.addAttribute("names", names);
         return "supplements_compare";
     }
 }
+

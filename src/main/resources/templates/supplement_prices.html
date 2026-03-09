@@ -1,0 +1,184 @@
+<!-- language: html -->
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Preisentwicklung</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f7f7f7;
+            margin: 0;
+            padding: 0;
+        }
+
+        nav {
+            background: #2d6cdf;
+            padding: 12px 24px;
+        }
+
+        nav a {
+            color: #fff;
+            text-decoration: none;
+            margin-right: 18px;
+            font-weight: bold;
+        }
+
+        nav a:hover {
+            text-decoration: underline;
+        }
+
+        h1 {
+            margin: 32px 0 16px 0;
+            text-align: center;
+            color: #2d6cdf;
+        }
+
+        .container {
+            width: 70%;
+            margin: 24px auto;
+            background: #fff;
+            padding: 18px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            border-radius: 6px;
+        }
+
+        canvas {
+            width: 100%;
+            height: 360px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 24px;
+        }
+
+        th, td {
+            padding: 10px 14px;
+            border-bottom: 1px solid #e0e0e0;
+            text-align: left;
+        }
+
+        th {
+            background: #eaf1fb;
+        }
+    </style>
+</head>
+<body>
+<nav>
+    <a th:href="@{/supplements}">Zurück zur Übersicht</a>
+</nav>
+
+<h1 th:text="|Preisentwicklung: ${supplement.shop} - ${supplement.name}|">Preisentwicklung</h1>
+
+<div class="container">
+    <canvas id="priceChart" width="900" height="360"></canvas>
+
+    <table>
+        <thead>
+        <tr>
+            <th>Datum</th>
+            <th>Preis</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="p : ${supplement.prices}">
+            <td th:text="${p.date}">2026-01-01</td>
+            <td th:text="${T(java.lang.String).format('%.2f €', p.price)}">0.00 €</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    const prices = /*[[${supplement.prices}]]*/ [];
+
+    // simple canvas line chart without extra dependencies
+    const canvas = document.getElementById('priceChart');
+    const ctx = canvas.getContext('2d');
+
+    const padding = 40;
+    const w = canvas.width;
+    const h = canvas.height;
+
+    function drawAxes() {
+        ctx.strokeStyle = '#c9d6ea';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        // y-axis
+        ctx.moveTo(padding, padding);
+        ctx.lineTo(padding, h - padding);
+        // x-axis
+        ctx.lineTo(w - padding, h - padding);
+        ctx.stroke();
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, w, h);
+        drawAxes();
+
+        if (!prices || prices.length === 0) {
+            ctx.fillStyle = '#888';
+            ctx.font = '16px Arial';
+            ctx.fillText('Keine Preisdaten vorhanden.', padding, padding + 20);
+            return;
+        }
+
+        const values = prices.map(p => Number(p.price));
+        const dates = prices.map(p => String(p.date));
+
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const range = (max - min) || 1;
+
+        const plotW = (w - 2 * padding);
+        const plotH = (h - 2 * padding);
+
+        const xStep = prices.length === 1 ? 0 : plotW / (prices.length - 1);
+
+        // labels
+        ctx.fillStyle = '#333';
+        ctx.font = '12px Arial';
+        ctx.fillText(max.toFixed(2) + ' €', 6, padding + 4);
+        ctx.fillText(min.toFixed(2) + ' €', 6, h - padding);
+
+        // line
+        ctx.strokeStyle = '#2d6cdf';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+
+        prices.forEach((p, i) => {
+            const x = padding + i * xStep;
+            const y = (h - padding) - ((Number(p.price) - min) / range) * plotH;
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // points + date labels
+        prices.forEach((p, i) => {
+            const x = padding + i * xStep;
+            const y = (h - padding) - ((Number(p.price) - min) / range) * plotH;
+
+            // point
+            ctx.fillStyle = '#2d6cdf';
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // date label (every point, but stagger a bit)
+            ctx.fillStyle = '#666';
+            const label = dates[i];
+            ctx.save();
+            ctx.translate(x, h - padding + 8);
+            ctx.rotate(-Math.PI / 6);
+            ctx.fillText(label, 0, 0);
+            ctx.restore();
+        });
+    }
+
+    draw();
+    /*]]>*/
+</script>
+</body>
+</html>
