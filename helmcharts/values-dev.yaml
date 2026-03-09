@@ -12,7 +12,6 @@ volume:
 
 
 suppcheck:
-  imagePullSecretDecodingStrategy: Base64
   ingress:
     host: suppcheck-dev.biester.vip
     tlsEnabled: true
