@@ -36,7 +36,10 @@ class SupplementMapperTest {
     assertEquals("123", entity.getId());
     assertEquals("Bodylab24", entity.getShop());
     assertEquals("TestSupp", entity.getName());
-    assertEquals(12.88, entity.getPrice(), 0.00001);
+    assertEquals(12.88, entity.getCurrentPrice(), 0.00001);
+    assertEquals(0.0, entity.getPrice(), 0.00001);
+    assertNotNull(entity.getPrices());
+    assertTrue(entity.getPrices().isEmpty());
     assertEquals(2, entity.getPortionSize());
     assertEquals("BASIC", entity.getSupplementType());
     assertFalse(entity.isInactive());
@@ -52,4 +55,3 @@ class SupplementMapperTest {
     assertEquals(44.0, entity.getIngredients().getFirst().getSubIngredients().getFirst().getMg(), 0.00001);
   }
 }
-
