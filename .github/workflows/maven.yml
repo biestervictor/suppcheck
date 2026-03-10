@@ -5,8 +5,12 @@ env:
 on:
   push:
     branches: [ "main" ]
+    paths-ignore:
+      - 'helmcharts/**'
   pull_request:
     branches: [ "main" ]
+    paths-ignore:
+      - 'helmcharts/**'
 
 permissions:
   contents: write
