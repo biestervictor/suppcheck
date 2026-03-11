@@ -1,0 +1,30 @@
+<th:block xmlns:th="http://www.thymeleaf.org">
+    <th:block th:fragment="nav-styles">
+        <style>
+            nav {
+                background: #2d6cdf;
+                padding: 12px 24px;
+            }
+
+            nav a {
+                color: #fff;
+                text-decoration: none;
+                margin-right: 18px;
+                font-weight: bold;
+            }
+
+            nav a:hover {
+                text-decoration: underline;
+            }
+        </style>
+    </th:block>
+
+    <nav th:fragment="main-nav">
+        <a th:href="@{/supplements/new}">Neues Supplement anlegen</a> |
+        <a th:href="@{/supplements/ingredients/summary}">Tägliche Einnahme-Übersicht</a> |
+        <a th:href="@{/supplements}">Supplemente Übersicht</a> |
+        <a th:href="@{/supplements/compare}">Supplement Vergleich</a> |
+        <a th:href="@{/costs/history}">Kostenentwicklung</a>
+    </nav>
+</th:block>
+
