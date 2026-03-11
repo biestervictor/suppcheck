@@ -36,6 +36,15 @@ public class SupplementController {
         this.supplementService = supplementService;
     }
 
+    private void addFormAttributes(Model model) {
+        model.addAttribute("types", Arrays.stream(SupplementType.values())
+                .map(SupplementType::name)
+                .toList());
+        model.addAttribute(SHOPS, Arrays.stream(Shop.values())
+                .map(Shop::name)
+                .toList());
+    }
+
     /**
      * Shows a Form to create a new Supplement.
      *
@@ -46,18 +55,9 @@ public class SupplementController {
     public String showCreateForm(Model model) {
         Supplement supplement = new Supplement();
         supplement.setIngredients(new ArrayList<>());
-        Ingredient ingredient = new Ingredient();
-
-        supplement.getIngredients().add(ingredient);
+        supplement.getIngredients().add(new Ingredient());
         model.addAttribute(MODEL_SUPPLEMENT, supplement);
-        List<String> types = Arrays.stream(SupplementType.values())
-                .map(SupplementType::name)
-                .toList();
-        model.addAttribute("types", types);
-        List<String> shops = Arrays.stream(Shop.values())
-                .map(Shop::name)
-                .toList();
-        model.addAttribute(SHOPS, shops);
+        addFormAttributes(model);
         return "supplement_form";
     }
 
@@ -73,15 +73,7 @@ public class SupplementController {
         Supplement supplement = supplementService.getSupplementById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Supplement mit ID " + id + " nicht gefunden"));
         model.addAttribute(MODEL_SUPPLEMENT, supplement);
-        List<String> types = Arrays.stream(SupplementType.values())
-                .map(SupplementType::name)
-                .toList();
-        model.addAttribute("types", types);
-
-        List<String> shops = Arrays.stream(Shop.values())
-                .map(Shop::name)
-                .toList();
-        model.addAttribute(SHOPS, shops);
+        addFormAttributes(model);
         return "supplement_form";
     }
 
