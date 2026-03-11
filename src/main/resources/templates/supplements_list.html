@@ -93,16 +93,49 @@
         .price-link:hover {
             text-decoration: underline;
         }
+
+        .save-btn {
+            background: #27ae60;
+            color: #fff;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.95em;
+            margin-left: 6px;
+        }
+
+        .save-btn:hover {
+            background: #1e8449;
+        }
+
+        .chart-link {
+            color: #2d6cdf;
+            text-decoration: none;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+
+        .chart-link:hover {
+            text-decoration: underline;
+        }
+
     </style>
+    <th:block th:replace="~{fragments/banner :: banner-styles}"></th:block>
 </head>
 <body>
 <nav>
     <a th:href="@{/supplements/new}">Neues Supplement anlegen</a> |
     <a th:href="@{/supplements/ingredients/summary}">Tägliche Einnahme-Übersicht</a> |
     <a th:href="@{/supplements}">Supplemente Übersicht</a> |
-    <a th:href="@{/supplements/compare}">Supplement Vergleich</a>
+    <a th:href="@{/supplements/compare}">Supplement Vergleich</a> |
+    <a th:href="@{/costs/history}">Kostenentwicklung</a>
 </nav>
 <h1>Supplemente Übersicht</h1>
+
+<th:block th:if="${param.saved}">
+    <th:block th:replace="~{fragments/banner :: banner('success', 'Kostenwerte wurden erfolgreich gespeichert.')}"></th:block>
+</th:block>
 
 <table>
     <thead>

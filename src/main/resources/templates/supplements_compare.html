@@ -53,13 +53,18 @@
             border-bottom: none;
         }
     </style>
+    <th:block th:replace="~{fragments/banner :: banner-styles}"></th:block>
 </head>
 <body>
 <nav>
-    <a th:href="@{/supplements}">Zurück zur Übersicht</a> |
-    <a th:href="@{/supplements/compare}">Supplement Vergleich</a>
+    <a th:href="@{/supplements/new}">Neues Supplement anlegen</a> |
+    <a th:href="@{/supplements/ingredients/summary}">Tägliche Einnahme-Übersicht</a> |
+    <a th:href="@{/supplements}">Supplemente Übersicht</a> |
+    <a th:href="@{/supplements/compare}">Supplement Vergleich</a> |
+    <a th:href="@{/costs/history}">Kostenentwicklung</a>
 </nav>
 <h1>Supplement Vergleich</h1>
+<th:block th:replace="~{fragments/banner :: banner('info', 'Waehle zwei Supplements aus, um Werte und Zutaten direkt zu vergleichen.')}"></th:block>
 <div class="vergleich-container">
     <form id="compare-form" onsubmit="return false;">
         <label for="suppSelect1">Supplement 1:</label>
@@ -117,7 +122,7 @@
             html += '</tr>';
             html += '</table>';
         } else {
-            html = '<span style="color:#888;">Bitte beide Supplements auswählen.</span>';
+            html = '<div class="banner banner-info" style="width:auto;margin:0;">Bitte beide Supplements auswählen.</div>';
         }
         document.getElementById('compare-result').innerHTML = html;
     }
