@@ -147,6 +147,8 @@ public class SupplementController {
         model.addAttribute("preisProTagWhey", preisProTagWhey);
         model.addAttribute("preisProWorkout", preisWorkout);
         model.addAttribute("supplements", supplements);
+        model.addAttribute("types", Arrays.stream(SupplementType.values())
+            .map(Enum::name).toList());
 
         return "supplements_list";
     }
