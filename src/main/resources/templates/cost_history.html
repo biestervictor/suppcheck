@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Kostenentwicklung</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f7f7f7;
+            margin: 0;
+            padding: 0;
+        }
+        nav {
+            background: #2d6cdf;
+            padding: 12px 24px;
+        }
+        nav a {
+            color: #fff;
+            text-decoration: none;
+            margin-right: 18px;
+            font-weight: bold;
+        }
+        nav a:hover { text-decoration: underline; }
+        h1 {
+            margin: 32px 0 16px 0;
+            text-align: center;
+            color: #2d6cdf;
+        }
+        .chart-container {
+            width: 85%;
+            max-width: 1100px;
+            margin: 32px auto;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            border-radius: 8px;
+            padding: 28px 32px;
+        }
+        .no-data {
+            text-align: center;
+            color: #888;
+            font-size: 1.1em;
+            margin: 60px 0;
+        }
+        table {
+            margin: 32px auto;
+            border-collapse: collapse;
+            width: 85%;
+            max-width: 1100px;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        }
+        th, td {
+            padding: 10px 16px;
+            border-bottom: 1px solid #e0e0e0;
+            text-align: right;
+        }
+        th:first-child, td:first-child { text-align: left; }
+        th { background: #eaf1fb; }
+        tr:last-child td { border-bottom: none; }
+    </style>
+</head>
+<body>
+<nav>
+    <a th:href="@{/supplements/new}">Neues Supplement anlegen</a> |
+    <a th:href="@{/supplements/ingredients/summary}">Tägliche Einnahme-Übersicht</a> |
+    <a th:href="@{/supplements}">Supplemente Übersicht</a> |
+    <a th:href="@{/supplements/compare}">Supplement Vergleich</a> |
+    <a th:href="@{/costs/history}">Kostenentwicklung</a>
+</nav>
+
+<h1>📈 Kostenentwicklung</h1>
+
+<div th:if="${snapshots == null or snapshots.isEmpty()}" class="no-data">
+    Noch keine Kosten-Snapshots gespeichert. Gehe zur
+    <a th:href="@{/supplements}">Supplemente-Übersicht</a> und klicke auf
+    <b>💾 Kosten speichern</b>.
+</div>
+
+<div th:if="${snapshots != null and !snapshots.isEmpty()}">
+    <div class="chart-container">
+        <canvas id="costChart" height="80"></canvas>
+    </div>
+
+    <table>
+        <thead>
+        <tr>
+            <th>Datum</th>
+            <th>Preis/Tag</th>
+            <th>Preis/Tag Whey</th>
+            <th>Preis/Tag Extended</th>
+            <th>Preis/Workout</th>
+            <th>Preis/Monat</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="s : ${snapshots}">
+            <td th:text="${s.date}">-</td>
+            <td th:text="${T(java.lang.String).format('%.2f €', s.preisProTag)}">-</td>
+            <td th:text="${T(java.lang.String).format('%.2f €', s.preisProTagWhey)}">-</td>
+            <td th:text="${T(java.lang.String).format('%.2f €', s.preisProTagExtended)}">-</td>
+            <td th:text="${T(java.lang.String).format('%.2f €', s.preisProWorkout)}">-</td>
+            <td th:text="${T(java.lang.String).format('%.2f €', s.preisProMonat)}">-</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Chart.js Daten via Thymeleaf -->
+<script th:if="${snapshots != null and !snapshots.isEmpty()}" th:inline="javascript">
+    const labels         = /*[[${snapshots.![date.toString()]}]]*/ [];
+    const preisProTag    = /*[[${snapshots.![preisProTag]}]]*/ [];
+    const preisProTagWhey      = /*[[${snapshots.![preisProTagWhey]}]]*/ [];
+    const preisProTagExtended  = /*[[${snapshots.![preisProTagExtended]}]]*/ [];
+    const preisProWorkout      = /*[[${snapshots.![preisProWorkout]}]]*/ [];
+    const preisProMonat        = /*[[${snapshots.![preisProMonat]}]]*/ [];
+
+    const ctx = document.getElementById('costChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Preis/Tag (€)',
+                    data: preisProTag,
+                    borderColor: '#2d6cdf',
+                    backgroundColor: 'rgba(45,108,223,0.08)',
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 5
+                },
+                {
+                    label: 'Preis/Tag Whey (€)',
+                    data: preisProTagWhey,
+                    borderColor: '#e67e22',
+                    backgroundColor: 'rgba(230,126,34,0.08)',
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 5
+                },
+                {
+                    label: 'Preis/Tag Extended (€)',
+                    data: preisProTagExtended,
+                    borderColor: '#8e44ad',
+                    backgroundColor: 'rgba(142,68,173,0.08)',
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 5
+                },
+                {
+                    label: 'Preis/Workout (€)',
+                    data: preisProWorkout,
+                    borderColor: '#27ae60',
+                    backgroundColor: 'rgba(39,174,96,0.08)',
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 5
+                },
+                {
+                    label: 'Preis/Monat (€)',
+                    data: preisProMonat,
+                    borderColor: '#e74c3c',
+                    backgroundColor: 'rgba(231,76,60,0.08)',
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 5,
+                    yAxisID: 'yMonth'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { position: 'top' },
+                title: {
+                    display: true,
+                    text: 'Kostenentwicklung der Supplemente'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ctx.dataset.label + ': ' +
+                            ctx.parsed.y.toFixed(2).replace('.', ',') + ' €'
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    type: 'linear',
+                    position: 'left',
+                    title: { display: true, text: 'Preis pro Tag / Workout (€)' },
+                    ticks: {
+                        callback: val => val.toFixed(2).replace('.', ',') + ' €'
+                    }
+                },
+                yMonth: {
+                    type: 'linear',
+                    position: 'right',
+                    title: { display: true, text: 'Preis pro Monat (€)' },
+                    grid: { drawOnChartArea: false },
+                    ticks: {
+                        callback: val => val.toFixed(2).replace('.', ',') + ' €'
+                    }
+                }
+            }
+        }
+    });
+</script>
+</body>
+</html>
+
