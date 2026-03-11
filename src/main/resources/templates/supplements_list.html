@@ -18,6 +18,29 @@
             color: #2d6cdf;
         }
 
+        .filter-bar {
+            width: 90%;
+            max-width: 1400px;
+            margin: 16px auto 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .filter-bar label {
+            font-weight: bold;
+            color: #000;
+        }
+
+        .filter-bar select {
+            padding: 6px 12px;
+            border: 1px solid #bfc9d1;
+            border-radius: 4px;
+            font-size: 0.95em;
+            background: #fff;
+            cursor: pointer;
+        }
+
         table {
             margin: 32px auto;
             border-collapse: collapse;
@@ -182,6 +205,13 @@
         <button type="submit" class="save-btn">💾 Kosten speichern</button>
     </form>
     <a class="chart-link" th:href="@{/costs/history}">📈 Verlauf anzeigen</a>
+    <span style="margin-left:auto; display:flex; align-items:center; gap:8px;">
+        <label for="typeFilter" style="font-weight:bold; color:#000;">🔍 Typ:</label>
+        <select id="typeFilter" style="padding:6px 12px; border:1px solid #bfc9d1; border-radius:4px; font-size:0.95em; background:#fff; cursor:pointer;">
+            <option value="">Alle anzeigen</option>
+            <option th:each="t : ${types}" th:value="${t}" th:text="${t}"></option>
+        </select>
+    </span>
 </div>
 
 <table>
@@ -199,7 +229,7 @@
     </thead>
     <tbody>
 
-    <tr th:each="supplement : ${supplements}" th:classappend="${supplement.isInactive} ? 'inactive'">
+    <tr th:each="supplement : ${supplements}" th:classappend="${supplement.isInactive} ? 'inactive'" th:data-supplementtype="${supplement.supplementType}">
         <td th:text="${supplement.shop}">Shop</td>
         <td>
             <a class="price-link" th:href="@{'/supplements/' + ${supplement.id} + '/prices'}" th:text="${supplement.name}">Name</a>
@@ -232,5 +262,21 @@
     </tr>
     </tbody>
 </table>
+
+<script>
+    document.getElementById('typeFilter').addEventListener('change', function() {
+        var selectedType = this.value;
+        var rows = document.querySelectorAll('table tbody tr');
+
+        rows.forEach(function(row) {
+            var rowType = row.getAttribute('data-supplementtype');
+            if (selectedType === '' || rowType === selectedType) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+</script>
 </body>
 </html>
