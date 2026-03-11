@@ -57,11 +57,6 @@
         button:hover {
             background: #1b4e9b;
         }
-        .success {
-            color: #2d6cdf;
-            text-align: center;
-            margin-top: 16px;
-        }
         .ingredient-row {
             margin-bottom: 8px;
         }
@@ -69,12 +64,15 @@
             margin-left: 32px;
         }
     </style>
+    <th:block th:replace="~{fragments/banner :: banner-styles}"></th:block>
 </head>
 <body>
 <nav>
     <a th:href="@{/supplements/new}">Neues Supplement anlegen</a> |
     <a th:href="@{/supplements/ingredients/summary}">Tägliche Einnahme-Übersicht</a> |
-    <a th:href="@{/supplements}">Supplemente Übersicht</a>
+    <a th:href="@{/supplements}">Supplemente Übersicht</a> |
+    <a th:href="@{/supplements/compare}">Supplement Vergleich</a> |
+    <a th:href="@{/costs/history}">Kostenentwicklung</a>
 </nav>
 <h1>Neues Supplement anlegen</h1>
 <form method="post" th:action="@{/supplements/save}" th:object="${supplement}">
@@ -129,9 +127,9 @@
     <button type="submit">Speichern</button>
 </form>
 
-<div class="success" th:if="${param.success}">
-    Supplement erfolgreich gespeichert!
-</div>
+<th:block th:if="${param.success}">
+    <th:block th:replace="~{fragments/banner :: banner('success', 'Supplement erfolgreich gespeichert!')}"></th:block>
+</th:block>
 
 <script>
     function updateIngredientIndices() {

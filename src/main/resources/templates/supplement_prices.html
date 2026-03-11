@@ -62,14 +62,24 @@
         th {
             background: #eaf1fb;
         }
+
     </style>
+    <th:block th:replace="~{fragments/banner :: banner-styles}"></th:block>
 </head>
 <body>
 <nav>
-    <a th:href="@{/supplements}">Zurück zur Übersicht</a>
+    <a th:href="@{/supplements/new}">Neues Supplement anlegen</a> |
+    <a th:href="@{/supplements/ingredients/summary}">Tägliche Einnahme-Übersicht</a> |
+    <a th:href="@{/supplements}">Supplemente Übersicht</a> |
+    <a th:href="@{/supplements/compare}">Supplement Vergleich</a> |
+    <a th:href="@{/costs/history}">Kostenentwicklung</a>
 </nav>
 
 <h1 th:text="|Preisentwicklung: ${supplement.shop} - ${supplement.name}|">Preisentwicklung</h1>
+
+<th:block th:if="${supplement.prices == null or supplement.prices.isEmpty()}">
+    <th:block th:replace="~{fragments/banner :: banner('info', 'Fuer dieses Supplement sind aktuell noch keine Preiswerte gespeichert.')}"></th:block>
+</th:block>
 
 <div class="container">
     <canvas id="priceChart" width="900" height="360"></canvas>

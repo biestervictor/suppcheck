@@ -72,14 +72,18 @@
             text-overflow: ellipsis;
         }
     </style>
+    <th:block th:replace="~{fragments/banner :: banner-styles}"></th:block>
 </head>
 <body>
 <nav>
     <a th:href="@{/supplements/new}">Neues Supplement anlegen</a> |
     <a th:href="@{/supplements/ingredients/summary}">Tägliche Einnahme-Übersicht</a> |
-    <a th:href="@{/supplements}">Supplemente Übersicht</a>
+    <a th:href="@{/supplements}">Supplemente Übersicht</a> |
+    <a th:href="@{/supplements/compare}">Supplement Vergleich</a> |
+    <a th:href="@{/costs/history}">Kostenentwicklung</a>
 </nav>
 <h1>Zutaten-Übersicht</h1>
+<th:block th:replace="~{fragments/banner :: banner('info', 'Aktiviere den Workout-Tag, um die Summen inklusive SPORT-Supplements zu sehen.')}"></th:block>
 <div style="width:60%;margin:32px auto 0 auto;background:#fff;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,0.07);border-radius:6px;">
     <label>
         <input type="checkbox" id="isWorkoutDay" /> Workout-Tag
