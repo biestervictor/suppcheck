@@ -17,7 +17,7 @@ spec:
         - name: regcred
       containers:
         - name: {{ .Values.suppcheck.name}}
-          image: ghcr.io/biestervictor/suppcheck:17f7f56c0815249b213de72cc047da451c5906e2
+          image: ghcr.io/biestervictor/suppcheck:ba120e24f56b368cc62b4b64d860a354f64c160b
           command: [ "java", "-jar", "app.jar" ]
           args: [ "--spring.config.name=application-kubitos" ]
           ports:
