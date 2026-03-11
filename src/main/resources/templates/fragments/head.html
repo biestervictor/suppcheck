@@ -1,0 +1,12 @@
+<th:block xmlns:th="http://www.thymeleaf.org">
+    <th:block th:fragment="common-meta">
+        <meta charset="UTF-8">
+        <meta content="width=device-width, initial-scale=1" name="viewport">
+    </th:block>
+
+    <th:block th:fragment="common-ui-styles">
+        <th:block th:replace="~{fragments/nav :: nav-styles}"></th:block>
+        <th:block th:replace="~{fragments/banner :: banner-styles}"></th:block>
+    </th:block>
+</th:block>
+

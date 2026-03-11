@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
 <head>
+    <th:block th:replace="~{fragments/head :: common-meta}"></th:block>
     <title>Preisentwicklung</title>
     <style>
         body {
@@ -48,8 +49,7 @@
         }
 
     </style>
-    <th:block th:replace="~{fragments/nav :: nav-styles}"></th:block>
-    <th:block th:replace="~{fragments/banner :: banner-styles}"></th:block>
+    <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
 </head>
 <body>
 <th:block th:replace="~{fragments/nav :: main-nav}"></th:block>
