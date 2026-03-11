@@ -41,16 +41,42 @@
         }
 
         .edit-btn {
-            background: #2d6cdf;
-            color: #fff;
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            background: #a8c8f0;
+            color: #1a3a5a;
             border: none;
-            padding: 6px 14px;
+            margin: 0;
+            padding: 6px 10px;
             border-radius: 4px;
             cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            font-size: 0.85em;
+            line-height: 1.4;
+            font-family: Arial, sans-serif;
         }
 
         .edit-btn:hover {
-            background: #1b4e9b;
+            background: #88b0e0;
+            color: #1a3a5a;
+        }
+
+        .action-buttons form {
+            display: block;
+            margin: 0;
+            padding: 0;
+        }
+
+        .delete-btn {
+            background: #e8a0a0;
+            color: #5a1a1a;
+        }
+
+        .delete-btn:hover {
+            background: #d98080;
+            color: #5a1a1a;
         }
 
         .inactive {
@@ -63,11 +89,11 @@
             padding-left: 0;
         }
 
-        /* Abstand zwischen Bearbeiten- und Löschen-Button */
         .action-buttons {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 6px;
+            align-items: stretch;
         }
 
         .price-link {
@@ -190,9 +216,9 @@
 
         <td>
             <div class="action-buttons">
-                <a class="edit-btn" th:href="@{'/supplements/edit/' + ${supplement.id}}">Bearbeiten</a>
+                <a class="edit-btn" th:href="@{'/supplements/edit/' + ${supplement.id}}">✏️ Bearbeiten</a>
                 <form method="post" th:action="@{'/supplements/delete/' + ${supplement.id}}">
-                    <button class="edit-btn" style="background:#e74c3c;" type="submit">Löschen</button>
+                    <button class="edit-btn delete-btn" type="submit">🗑️ Löschen</button>
                 </form>
             </div>
         </td>
