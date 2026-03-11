@@ -120,7 +120,7 @@
     <tbody>
     <tr>
         <td colspan="8">
-            <div style="width:100%;margin:0;background:#fff;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,0.07);border-radius:6px;">
+            <div style="width:100%;margin:0;background:#fff;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,0.07);border-radius:6px;display:flex;align-items:center;flex-wrap:wrap;gap:8px;">
                 <span><b>Preis pro Tag:</b>
                     <span th:text="${preisProTag != null ? T(java.lang.String).format('%.2f €', preisProTag) : '-'}"></span>
                 </span>
@@ -140,6 +140,16 @@
                 <span><b>Preis pro Monat:</b>
                     <span th:text="${preisProMonat != null ? T(java.lang.String).format('%.2f €', preisProMonat) : '-'}"></span>
                 </span>
+                &nbsp;&nbsp;
+                <form method="post" th:action="@{/costs/save}" style="display:inline;">
+                    <input type="hidden" name="preisProTag"         th:value="${preisProTag}"/>
+                    <input type="hidden" name="preisProTagWhey"     th:value="${preisProTagWhey}"/>
+                    <input type="hidden" name="preisProTagExtended" th:value="${preisProTagExtended}"/>
+                    <input type="hidden" name="preisProWorkout"     th:value="${preisProWorkout}"/>
+                    <input type="hidden" name="preisProMonat"       th:value="${preisProMonat}"/>
+                    <button type="submit" class="save-btn">💾 Kosten speichern</button>
+                </form>
+                <a class="chart-link" th:href="@{/costs/history}">📈 Verlauf anzeigen</a>
             </div>
         </td>
     </tr>
