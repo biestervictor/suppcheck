@@ -18,5 +18,8 @@ public class SupplementSaveDto {
   private double price;
   private int portionSize;
   private String supplementType;
+  private Double ovp;
+  private Double discount;
+  private boolean mhdProdukt;
 
 }

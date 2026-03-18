@@ -29,6 +29,9 @@ class SupplementMapperTest {
     dto.setPortionSize(2);
     dto.setSupplementType("BASIC");
     dto.setInactive(false);
+    dto.setOvp(29.99);
+    dto.setDiscount(5.0);
+    dto.setMhdProdukt(true);
     dto.setIngredients(List.of(ing));
 
     Supplement entity = SupplementMapper.toEntity(dto);
@@ -43,6 +46,10 @@ class SupplementMapperTest {
     assertEquals(2, entity.getPortionSize());
     assertEquals("BASIC", entity.getSupplementType());
     assertFalse(entity.isInactive());
+    assertEquals(29.99, entity.getCurrentOvp(), 0.00001);
+    assertEquals(0.0, entity.getOvp(), 0.00001); // no history yet -> 0
+    assertEquals(5.0, entity.getDiscount(), 0.00001);
+    assertTrue(entity.isMhdProdukt());
 
     assertNotNull(entity.getIngredients());
     assertEquals(1, entity.getIngredients().size());

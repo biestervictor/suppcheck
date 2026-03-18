@@ -219,10 +219,13 @@
     <tr>
         <th>Hersteller</th>
         <th>Name</th>
+        <th>OVP</th>
+        <th>Rabatt</th>
         <th>Portionsgröße</th>
         <th>Preis</th>
         <th>Preis / Portion</th>
         <th>Preis pro Monat</th>
+        <th>MHD</th>
         <th>Zutaten</th>
         <th>Aktion</th>
     </tr>
@@ -234,12 +237,15 @@
         <td>
             <a class="price-link" th:href="@{'/supplements/' + ${supplement.id} + '/prices'}" th:text="${supplement.name}">Name</a>
         </td>
+        <td th:text="${supplement.ovp > 0 ? T(java.lang.String).format('%.2f €', supplement.ovp) : '-'}">OVP</td>
+        <td th:text="${supplement.discount != null ? T(java.lang.String).format('%.1f %%', supplement.discount) : '-'}">Rabatt</td>
         <td th:text="${supplement.portionSize}">Portionsgröße</td>
         <td th:text="${supplement.price}">Preis</td>
         <td th:text="${(supplement.price != null and supplement.portionSize != null and supplement.portionSize > 0) ? T(java.lang.String).format('%.2f €', supplement.price.doubleValue() / supplement.portionSize) : '-'}">Preis/Portion</td>
         <td th:text="${(supplement.price != null and supplement.portionSize != null and supplement.portionSize > 0)
                ? T(java.lang.String).format('%.2f €', (supplement.price.doubleValue() / supplement.portionSize) * (supplement.supplementType == 'SPORT' ? 15 : 30))
                : '-'}">Preis/Monat</td>
+        <td th:text="${supplement.mhdProdukt ? '✅' : ''}">MHD</td>
         <td>
             <ul>
                 <li th:each="ing : ${supplement.ingredients}">

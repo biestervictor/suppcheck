@@ -70,8 +70,13 @@
     </select>
     <label for="name">Name:</label>
     <input id="name" required th:field="*{name}" type="text"/><br/><br/>
-    <label for="price">Preis:</label>
-    <input id="price" required th:field="*{price}" type="number" step="any"/><br/><br/>
+    <label for="ovp">OVP (Originalpreis):</label>
+    <input id="ovp" th:field="*{ovp}" type="number" step="any"/><br/><br/>
+    <label for="discount">Rabatt (%):</label>
+    <input id="discount" th:field="*{discount}" type="number" step="any" min="0" max="100"/><br/><br/>
+    <label for="price">Preis (berechnet):</label>
+    <input id="price" required th:field="*{price}" type="number" step="any" readonly
+           style="background:#eef3fa; cursor:not-allowed;"/><br/><br/>
     <label for="portions">Portionen:</label>
     <input id="portions" required th:field="*{portionSize}" type="number"/><br/><br/>
     <br/><br/>
@@ -86,6 +91,8 @@
     <br/><br/>
     <label for="isInactive">Inaktiv:</label>
     <input id="isInactive" th:field="*{inactive}" type="checkbox"/><br/><br/>
+    <label for="mhdProdukt">MHD-Produkt:</label>
+    <input id="mhdProdukt" th:field="*{mhdProdukt}" type="checkbox"/><br/><br/>
 
     <div id="ingredients-list">
         <div class="ingredient-row" th:each="ingredient, iStat : *{ingredients}">
@@ -181,6 +188,24 @@
     }
 
     window.addEventListener('DOMContentLoaded', updateIngredientIndices);
+
+    // Preis automatisch berechnen: OVP * (1 - Rabatt/100)
+    function calculatePrice() {
+        const ovpField = document.getElementById('ovp');
+        const discountField = document.getElementById('discount');
+        const priceField = document.getElementById('price');
+
+        const ovp = parseFloat(ovpField.value);
+        const discount = parseFloat(discountField.value) || 0;
+
+        if (!isNaN(ovp) && ovp > 0) {
+            const calculated = ovp * (1 - discount / 100);
+            priceField.value = Math.round(calculated * 100) / 100;
+        }
+    }
+
+    document.getElementById('ovp').addEventListener('blur', calculatePrice);
+    document.getElementById('discount').addEventListener('blur', calculatePrice);
 </script>
 </body>
 </html>

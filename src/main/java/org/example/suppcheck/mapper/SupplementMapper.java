@@ -23,6 +23,9 @@ public final class SupplementMapper {
     supp.setPrice(dto.getPrice());
     supp.setPortionSize(dto.getPortionSize());
     supp.setSupplementType(trimToNull(dto.getSupplementType()));
+    supp.setOvp(dto.getOvp() != null ? dto.getOvp() : 0d);
+    supp.setDiscount(dto.getDiscount());
+    supp.setMhdProdukt(dto.isMhdProdukt());
 
     List<Ingredient> ingredients = new ArrayList<>();
     if (dto.getIngredients() != null) {

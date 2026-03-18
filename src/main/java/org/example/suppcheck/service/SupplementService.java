@@ -94,6 +94,7 @@ public class SupplementService {
 
     // price entered in UI/DTO (transient). If not provided, keep current historical price.
     Double incomingPrice = supplement.getCurrentPrice();
+    Double incomingOvp = supplement.getCurrentOvp();
 
     Optional<Supplement> existingOpt = supplement.getId() == null
         ? Optional.empty()
@@ -103,14 +104,11 @@ public class SupplementService {
       Supplement existing = existingOpt.get();
 
       // Ensure history list exists and is mutable
-      if (existing.getPrices() == null) {
-        existing.setPrices(new ArrayList<>());
-      } else if (!(existing.getPrices() instanceof ArrayList)) {
-        existing.setPrices(new ArrayList<>(existing.getPrices()));
-      }
+      ensureMutablePricesList(existing);
 
 
       double previousPrice = existing.getPrice();
+      double previousOvp = existing.getOvp();
 
       // Copy non-price fields onto existing entity
       existing.setShop(supplement.getShop());
@@ -119,13 +117,18 @@ public class SupplementService {
       existing.setPortionSize(supplement.getPortionSize());
       existing.setSupplementType(supplement.getSupplementType());
       existing.setIngredients(supplement.getIngredients());
+      existing.setDiscount(supplement.getDiscount());
+      existing.setMhdProdukt(supplement.isMhdProdukt());
 
-      // Only append a new history row when the UI actually sent a price.
-      // After legacy migration, previousPrice is the legacy value, so the new price will append.
-      if (incomingPrice != null && Double.compare(previousPrice, incomingPrice) != 0) {
+      // Append a new combined entry when either price or OVP changed
+      boolean priceChanged = incomingPrice != null && Double.compare(previousPrice, incomingPrice) != 0;
+      boolean ovpChanged = incomingOvp != null && Double.compare(previousOvp, incomingOvp) != 0;
+
+      if (priceChanged || ovpChanged) {
         PriceEntry entry = new PriceEntry();
         entry.setDate(LocalDate.now());
-        entry.setPrice(incomingPrice);
+        entry.setPrice(incomingPrice != null ? incomingPrice : previousPrice);
+        entry.setOvp(incomingOvp != null ? incomingOvp : previousOvp);
         existing.getPrices().add(entry);
       }
 
@@ -135,21 +138,29 @@ public class SupplementService {
     }
 
     // New supplement
-    if (supplement.getPrices() == null) {
-      supplement.setPrices(new ArrayList<>());
-    } else if (!(supplement.getPrices() instanceof ArrayList)) {
-      supplement.setPrices(new ArrayList<>(supplement.getPrices()));
-    }
+    ensureMutablePricesList(supplement);
 
-    if (incomingPrice != null) {
+    if (incomingPrice != null || incomingOvp != null) {
       PriceEntry entry = new PriceEntry();
       entry.setDate(LocalDate.now());
-      entry.setPrice(incomingPrice);
+      entry.setPrice(incomingPrice != null ? incomingPrice : 0d);
+      entry.setOvp(incomingOvp != null ? incomingOvp : 0d);
       supplement.getPrices().add(entry);
     }
 
 
     supplementRepository.save(supplement);
+  }
+
+  /**
+   * Ensures the prices list on the supplement is mutable.
+   */
+  private void ensureMutablePricesList(Supplement supp) {
+    if (supp.getPrices() == null) {
+      supp.setPrices(new ArrayList<>());
+    } else if (!(supp.getPrices() instanceof ArrayList)) {
+      supp.setPrices(new ArrayList<>(supp.getPrices()));
+    }
   }
 
   /**
