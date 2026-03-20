@@ -68,12 +68,14 @@
         <tr>
             <th>Datum</th>
             <th>Preis</th>
+            <th>OVP</th>
         </tr>
         </thead>
         <tbody>
         <tr th:each="p : ${supplement.prices}">
             <td th:text="${#temporals.format(p.date, 'yyyy-MM-dd')}">2026-01-01</td>
             <td th:text="${T(java.lang.String).format('%.2f €', p.price)}">0.00 €</td>
+            <td th:text="${p.ovp > 0 ? T(java.lang.String).format('%.2f €', p.ovp) : '-'}">0.00 €</td>
         </tr>
         </tbody>
     </table>
@@ -83,23 +85,36 @@
     /*<![CDATA[*/
     const prices = /*[[${supplement.prices}]]*/ [];
 
-    // simple canvas line chart without extra dependencies
     const canvas = document.getElementById('priceChart');
     const ctx = canvas.getContext('2d');
 
     const padding = 40;
-    const bottomPadding = 60; // more space for rotated date labels
+    const bottomPadding = 60;
     const w = canvas.width;
     const h = canvas.height;
+
+    const monthMap = {
+        'JANUARY': 1, 'FEBRUARY': 2, 'MARCH': 3, 'APRIL': 4, 'MAY': 5, 'JUNE': 6,
+        'JULY': 7, 'AUGUST': 8, 'SEPTEMBER': 9, 'OCTOBER': 10, 'NOVEMBER': 11, 'DECEMBER': 12
+    };
+
+    function parseDate(d) {
+        if (typeof d === 'object' && d !== null) {
+            const year = d.year || d.Year;
+            let month = d.monthValue || d.Month || d.month;
+            if (typeof month === 'string') month = monthMap[month.toUpperCase()] || 1;
+            const day = d.dayOfMonth || d.Day || d.day || 1;
+            return `${day}.${month}.${year}`;
+        }
+        return String(d);
+    }
 
     function drawAxes() {
         ctx.strokeStyle = '#c9d6ea';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        // y-axis
         ctx.moveTo(padding, padding);
         ctx.lineTo(padding, h - bottomPadding);
-        // x-axis
         ctx.lineTo(w - padding, h - bottomPadding);
         ctx.stroke();
     }
@@ -115,83 +130,88 @@
             return;
         }
 
-        const monthMap = {
-            'JANUARY': 1, 'FEBRUARY': 2, 'MARCH': 3, 'APRIL': 4, 'MAY': 5, 'JUNE': 6,
-            'JULY': 7, 'AUGUST': 8, 'SEPTEMBER': 9, 'OCTOBER': 10, 'NOVEMBER': 11, 'DECEMBER': 12
-        };
+        const priceValues = prices.map(p => Number(p.price));
+        const ovpValues = prices.map(p => Number(p.ovp));
+        const dates = prices.map(p => parseDate(p.date));
 
-        const values = prices.map(p => Number(p.price));
-        const dates = prices.map(p => {
-            // p.date can be an object {year, month, day} from Thymeleaf serialization
-            if (typeof p.date === 'object' && p.date !== null) {
-                const year = p.date.year || p.date.Year;
-                let month = p.date.monthValue || p.date.Month || p.date.month;
-
-                // Convert month enum string to number
-                if (typeof month === 'string') {
-                    month = monthMap[month.toUpperCase()] || 1;
-                }
-
-                const day = p.date.dayOfMonth || p.date.Day || p.date.day || 1;
-                return `${day}.${month}.${year}`;
-            }
-            return String(p.date);
-        });
-
-        const min = Math.min(...values);
-        const max = Math.max(...values);
+        const allValues = [...priceValues.filter(v => v > 0), ...ovpValues.filter(v => v > 0)];
+        if (allValues.length === 0) { return; }
+        const min = Math.min(...allValues);
+        const max = Math.max(...allValues);
         const range = (max - min) || 1;
 
         const plotW = (w - 2 * padding);
         const plotH = (h - padding - bottomPadding);
-
         const xStep = prices.length === 1 ? 0 : plotW / (prices.length - 1);
 
-        // labels
+        // Y-axis labels
         ctx.fillStyle = '#333';
         ctx.font = '12px Arial';
         ctx.fillText(max.toFixed(2) + ' €', 6, padding + 4);
         ctx.fillText(min.toFixed(2) + ' €', 6, h - bottomPadding);
 
-        // line
-        ctx.strokeStyle = '#2d6cdf';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-
-        prices.forEach((p, i) => {
-            const x = padding + i * xStep;
-            const y = (h - bottomPadding) - ((Number(p.price) - min) / range) * plotH;
-            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        });
-        ctx.stroke();
-
-        // points + price labels (above point) + date labels (below x-axis)
-        prices.forEach((p, i) => {
-            const x = padding + i * xStep;
-            const y = (h - bottomPadding) - ((Number(p.price) - min) / range) * plotH;
-
-            // point
-            ctx.fillStyle = '#2d6cdf';
+        // Draw a line for a given value extractor
+        function drawLine(extractFn, color) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.arc(x, y, 4, 0, Math.PI * 2);
-            ctx.fill();
+            let started = false;
+            prices.forEach((p, i) => {
+                const val = extractFn(p);
+                if (val <= 0) return;
+                const x = padding + i * xStep;
+                const y = (h - bottomPadding) - ((val - min) / range) * plotH;
+                if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
+            });
+            ctx.stroke();
 
-            // price label above point
-            ctx.fillStyle = '#2d6cdf';
-            ctx.font = 'bold 11px Arial';
-            const priceLabel = Number(p.price).toFixed(2) + ' €';
-            const priceWidth = ctx.measureText(priceLabel).width;
-            ctx.fillText(priceLabel, x - priceWidth / 2, y - 8);
+            // Points + labels
+            prices.forEach((p, i) => {
+                const val = extractFn(p);
+                if (val <= 0) return;
+                const x = padding + i * xStep;
+                const y = (h - bottomPadding) - ((val - min) / range) * plotH;
 
-            // date label on x-axis (full numeric format: DD.MM.YYYY)
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.font = 'bold 11px Arial';
+                const label = val.toFixed(2) + ' €';
+                const lw = ctx.measureText(label).width;
+                ctx.fillText(label, x - lw / 2, y - 8);
+            });
+        }
+
+        // Date labels on x-axis
+        prices.forEach((p, i) => {
+            const x = padding + i * xStep;
             ctx.fillStyle = '#333';
             ctx.font = '12px Arial';
-            const dateLabel = dates[i]; // use full DD.MM.YYYY
             ctx.save();
             ctx.translate(x, h - bottomPadding + 12);
-            ctx.rotate(-Math.PI / 4); // 45 degree angle for better readability
-            ctx.fillText(dateLabel, 0, 0);
+            ctx.rotate(-Math.PI / 4);
+            ctx.fillText(dates[i], 0, 0);
             ctx.restore();
+        });
+
+        drawLine(p => Number(p.price), '#2d6cdf');
+        drawLine(p => Number(p.ovp), '#e68a00');
+
+        // Legend
+        const legends = [
+            { label: 'Preis', color: '#2d6cdf' },
+            { label: 'OVP', color: '#e68a00' }
+        ];
+        let lx = padding;
+        ctx.font = '13px Arial';
+        legends.forEach(l => {
+            ctx.fillStyle = l.color;
+            ctx.fillRect(lx, 6, 16, 12);
+            ctx.fillStyle = '#333';
+            ctx.fillText(l.label, lx + 20, 16);
+            lx += ctx.measureText(l.label).width + 40;
         });
     }
 

@@ -44,6 +44,7 @@ class SupplementServicePriceHistoryTest {
     incomingUpdate.setSupplementType("BASIC");
     incomingUpdate.setInactive(false);
     incomingUpdate.setPrice(12.34);
+    incomingUpdate.setOvp(19.99);
 
     service.saveSupplement(incomingUpdate);
 
@@ -57,6 +58,7 @@ class SupplementServicePriceHistoryTest {
     PriceEntry entry = saved.getPrices().getFirst();
     assertEquals(LocalDate.now(), entry.getDate());
     assertEquals(12.34, entry.getPrice(), 0.00001);
+    assertEquals(19.99, entry.getOvp(), 0.00001);
   }
 
   @Test
@@ -75,6 +77,7 @@ class SupplementServicePriceHistoryTest {
     PriceEntry old = new PriceEntry();
     old.setDate(LocalDate.now().minusDays(1));
     old.setPrice(10.0);
+    old.setOvp(25.0);
     existing.setPrices(new ArrayList<>(List.of(old)));
 
     when(repo.findById("id-2")).thenReturn(Optional.of(existing));
@@ -87,6 +90,7 @@ class SupplementServicePriceHistoryTest {
     incomingUpdate.setSupplementType("BASIC");
     incomingUpdate.setInactive(false);
     incomingUpdate.setPrice(11.0);
+    incomingUpdate.setOvp(30.0);
 
     service.saveSupplement(incomingUpdate);
 
@@ -100,6 +104,7 @@ class SupplementServicePriceHistoryTest {
     PriceEntry latest = saved.getPrices().getLast();
     assertEquals(LocalDate.now(), latest.getDate());
     assertEquals(11.0, latest.getPrice(), 0.00001);
+    assertEquals(30.0, latest.getOvp(), 0.00001);
   }
 
   @Test
@@ -118,6 +123,7 @@ class SupplementServicePriceHistoryTest {
     PriceEntry old = new PriceEntry();
     old.setDate(LocalDate.now().minusDays(1));
     old.setPrice(10.0);
+    old.setOvp(25.0);
     existing.setPrices(new ArrayList<>(List.of(old)));
 
     when(repo.findById("id-3")).thenReturn(Optional.of(existing));
@@ -130,6 +136,7 @@ class SupplementServicePriceHistoryTest {
     incomingUpdate.setSupplementType("BASIC");
     incomingUpdate.setInactive(false);
     incomingUpdate.setPrice(10.0);
+    incomingUpdate.setOvp(25.0);
 
     service.saveSupplement(incomingUpdate);
 
@@ -138,7 +145,7 @@ class SupplementServicePriceHistoryTest {
 
     Supplement saved = captor.getValue();
     assertNotNull(saved.getPrices());
-    assertEquals(1, saved.getPrices().size(), "Price unchanged -> must not add a new entry");
+    assertEquals(1, saved.getPrices().size(), "Price+OVP unchanged -> must not add a new entry");
   }
 
   @Test
@@ -155,6 +162,7 @@ class SupplementServicePriceHistoryTest {
     supp.setSupplementType("BASIC");
     supp.setInactive(false);
     supp.setPrice(20.0);
+    supp.setOvp(35.0);
 
     service.saveSupplement(supp);
 
@@ -166,5 +174,6 @@ class SupplementServicePriceHistoryTest {
     assertEquals(1, saved.getPrices().size());
     assertEquals(LocalDate.now(), saved.getPrices().getFirst().getDate());
     assertEquals(20.0, saved.getPrices().getFirst().getPrice(), 0.00001);
+    assertEquals(35.0, saved.getPrices().getFirst().getOvp(), 0.00001);
   }
 }

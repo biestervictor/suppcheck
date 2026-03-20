@@ -26,7 +26,7 @@ public class Supplement {
   private boolean isInactive;
 
   /**
-   * Price history. The current price is the last element.
+   * Price history. The current price/OVP is the last element.
    */
   private List<PriceEntry> prices = new ArrayList<>();
 
@@ -37,8 +37,24 @@ public class Supplement {
   @Transient
   private Double currentPrice;
 
+  /**
+   * OVP coming from forms/DTOs. This is NOT persisted and must be merged into {@link #prices} by the service.
+   */
+  @Transient
+  private Double currentOvp;
+
   private int portionSize;
   private String supplementType = SupplementType.BASIC.name();
+
+  /**
+   * Rabatt in Prozent.
+   */
+  private Double discount;
+
+  /**
+   * Ist MHD-Produkt (Mindesthaltbarkeitsdatum-Ware).
+   */
+  private boolean mhdProdukt;
 
   /**
    * Returns the latest historical price if present.
@@ -56,5 +72,23 @@ public class Supplement {
    */
   public void setPrice(double price) {
     this.currentPrice = price;
+  }
+
+  /**
+   * Returns the latest historical OVP if present.
+   */
+  public double getOvp() {
+    if (prices == null || prices.isEmpty()) {
+      return 0d;
+    }
+    PriceEntry last = prices.getLast();
+    return last != null ? last.getOvp() : 0d;
+  }
+
+  /**
+   * Used by data-binding (Thymeleaf form) / mapper to capture the entered OVP.
+   */
+  public void setOvp(double ovp) {
+    this.currentOvp = ovp;
   }
 }
