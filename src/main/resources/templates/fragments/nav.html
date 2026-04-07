@@ -19,12 +19,18 @@
         </style>
     </th:block>
 
-    <nav th:fragment="main-nav">
-        <a th:href="@{/supplements/new}">Neues Supplement anlegen</a> |
-        <a th:href="@{/supplements/ingredients/summary}">Tägliche Einnahme-Übersicht</a> |
-        <a th:href="@{/supplements}">Supplemente Übersicht</a> |
-        <a th:href="@{/supplements/compare}">Supplement Vergleich</a> |
-        <a th:href="@{/costs/history}">Kostenentwicklung</a>
+    <nav th:fragment="main-nav" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+        <span>
+            <a th:href="@{/supplements/new}">Neues Supplement anlegen</a> |
+            <a th:href="@{/supplements/ingredients/summary}">Tägliche Einnahme-Übersicht</a> |
+            <a th:href="@{/supplements}">Supplemente Übersicht</a> |
+            <a th:href="@{/supplements/compare}">Supplement Vergleich</a> |
+            <a th:href="@{/costs/history}">Kostenentwicklung</a>
+        </span>
+        <span style="font-size:0.75em; color:#c0d4f5; font-weight:normal; white-space:nowrap;">
+            v<span th:text="${@environment.getProperty('app.version') ?: '-'}"></span>
+            · Build <span th:text="${@environment.getProperty('app.build.timestamp') ?: '-'}"></span>
+        </span>
     </nav>
 </th:block>
 

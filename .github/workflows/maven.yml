@@ -44,6 +44,13 @@ jobs:
       - name: Build with Maven
         run: mvn clean install -Dspring.profiles.active=ci
 
+      - name: Extract version from pom.xml
+        id: version
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Extracted version: $VERSION"
+
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
@@ -70,17 +77,29 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ github.sha }}
+            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
 
       - name: Update Helm values with new image tag
         if: github.actor != 'dependabot[bot]' && github.event_name == 'push'
         run: |
+          VERSION="${{ steps.version.outputs.version }}"
           sed -i "s|^  tag: .*|  tag: \"${{ github.sha }}\"|" helmcharts/values.yaml
+          sed -i "s|^appVersion: .*|appVersion: \"${VERSION}\"|" helmcharts/Chart.yaml
 
       - name: Commit and push updated image tag
         if: github.actor != 'dependabot[bot]' && github.event_name == 'push'
         run: |
+          VERSION="${{ steps.version.outputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add helmcharts/values.yaml
-          git diff --cached --quiet || git commit -m "ci: update image tag to ${{ github.sha }}"
+          git add helmcharts/values.yaml helmcharts/Chart.yaml
+          git diff --cached --quiet || git commit -m "ci: update image tag to ${{ github.sha }} (v${VERSION})"
           git push
+
+      - name: Create Git version tag
+        if: github.actor != 'dependabot[bot]' && github.event_name == 'push'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git tag -f "v${VERSION}" -m "Release v${VERSION}"
+          git push -f origin "v${VERSION}"
+
