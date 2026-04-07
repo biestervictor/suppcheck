@@ -4,6 +4,10 @@ ingress:
 
 imagePullSecret: ChangeIt
 
+image:
+  repository: ghcr.io/biestervictor/suppcheck
+  tag: "78113bb6feaf26268dbdcabe36549342c0102b26"
+
 suppcheck:
   name: suppcheck
   nameSpace: suppcheck

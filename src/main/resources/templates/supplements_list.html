@@ -205,10 +205,19 @@
         <button type="submit" class="save-btn">💾 Kosten speichern</button>
     </form>
     <a class="chart-link" th:href="@{/costs/history}">📈 Verlauf anzeigen</a>
-    <span style="margin-left:auto; display:flex; align-items:center; gap:8px;">
-        <label for="typeFilter" style="font-weight:bold; color:#000;">🔍 Typ:</label>
+    <span style="margin-left:auto; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <label for="hideInactive" style="font-weight:bold; color:#000;">👁️ Inaktive ausblenden:</label>
+        <input type="checkbox" id="hideInactive" checked style="width:18px; height:18px; cursor:pointer;" />
+
+        <label for="shopFilter" style="font-weight:bold; color:#000; margin-left:12px;">🏭 Hersteller:</label>
+        <select id="shopFilter" style="padding:6px 12px; border:1px solid #bfc9d1; border-radius:4px; font-size:0.95em; background:#fff; cursor:pointer;">
+            <option value="">Alle</option>
+            <option th:each="s : ${shops}" th:value="${s}" th:text="${s}"></option>
+        </select>
+
+        <label for="typeFilter" style="font-weight:bold; color:#000; margin-left:12px;">🔍 Typ:</label>
         <select id="typeFilter" style="padding:6px 12px; border:1px solid #bfc9d1; border-radius:4px; font-size:0.95em; background:#fff; cursor:pointer;">
-            <option value="">Alle anzeigen</option>
+            <option value="">Alle</option>
             <option th:each="t : ${types}" th:value="${t}" th:text="${t}"></option>
         </select>
     </span>
@@ -232,7 +241,7 @@
     </thead>
     <tbody>
 
-    <tr th:each="supplement : ${supplements}" th:classappend="${supplement.isInactive} ? 'inactive'" th:data-supplementtype="${supplement.supplementType}">
+    <tr th:each="supplement : ${supplements}" th:classappend="${supplement.isInactive} ? 'inactive'" th:data-supplementtype="${supplement.supplementType}" th:data-shop="${supplement.shop}" th:data-inactive="${supplement.isInactive}">
         <td th:text="${supplement.shop}">Shop</td>
         <td>
             <a class="price-link" th:href="@{'/supplements/' + ${supplement.id} + '/prices'}" th:text="${supplement.name}">Name</a>
@@ -270,19 +279,31 @@
 </table>
 
 <script>
-    document.getElementById('typeFilter').addEventListener('change', function() {
-        var selectedType = this.value;
+    function applyFilters() {
+        var selectedType = document.getElementById('typeFilter').value;
+        var selectedShop = document.getElementById('shopFilter').value;
+        var hideInactive = document.getElementById('hideInactive').checked;
         var rows = document.querySelectorAll('table tbody tr');
 
         rows.forEach(function(row) {
             var rowType = row.getAttribute('data-supplementtype');
-            if (selectedType === '' || rowType === selectedType) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
+            var rowShop = row.getAttribute('data-shop');
+            var rowInactive = row.getAttribute('data-inactive') === 'true';
+
+            var typeMatch = (selectedType === '' || rowType === selectedType);
+            var shopMatch = (selectedShop === '' || rowShop === selectedShop);
+            var inactiveMatch = (!hideInactive || !rowInactive);
+
+            row.style.display = (typeMatch && shopMatch && inactiveMatch) ? '' : 'none';
         });
-    });
+    }
+
+    document.getElementById('typeFilter').addEventListener('change', applyFilters);
+    document.getElementById('shopFilter').addEventListener('change', applyFilters);
+    document.getElementById('hideInactive').addEventListener('change', applyFilters);
+
+    // Filter sofort beim Laden anwenden
+    applyFilters();
 </script>
 </body>
 </html>

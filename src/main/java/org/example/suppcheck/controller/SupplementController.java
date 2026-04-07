@@ -149,6 +149,8 @@ public class SupplementController {
         model.addAttribute("supplements", supplements);
         model.addAttribute("types", Arrays.stream(SupplementType.values())
             .map(Enum::name).toList());
+        model.addAttribute(SHOPS, Arrays.stream(Shop.values())
+            .map(Enum::name).toList());
 
         return "supplements_list";
     }
