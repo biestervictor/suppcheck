@@ -19,6 +19,6 @@ spec:
         - name: {{ .Values.suppcheck.name}}
           image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
           command: [ "java", "-jar", "app.jar" ]
-          args: [ "--spring.config.name=application-kubitos" ]
+          args: [ "--spring.profiles.active=kubitos" ]
           ports:
             - containerPort: {{ .Values.suppcheck.deployment.port}}
