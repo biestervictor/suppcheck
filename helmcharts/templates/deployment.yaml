@@ -20,5 +20,8 @@ spec:
           image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
           command: [ "java", "-jar", "app.jar" ]
           args: [ "--spring.profiles.active=kubitos" ]
+          env:
+            - name: TZ
+              value: "Europe/Berlin"
           ports:
             - containerPort: {{ .Values.suppcheck.deployment.port}}
