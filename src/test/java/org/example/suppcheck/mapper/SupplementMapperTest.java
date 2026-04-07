@@ -11,6 +11,57 @@ import org.junit.jupiter.api.Test;
 class SupplementMapperTest {
 
   @Test
+  void toEntity_nullDto_returnsNull() {
+    assertNull(SupplementMapper.toEntity(null));
+  }
+
+  @Test
+  void toEntity_emptyIngredients_resultsInEmptyList() {
+    SupplementSaveDto dto = new SupplementSaveDto();
+    dto.setName("Test");
+    dto.setShop("ESN");
+    dto.setPortionSize(1);
+    dto.setSupplementType("BASIC");
+    dto.setIngredients(null);
+
+    Supplement entity = SupplementMapper.toEntity(dto);
+
+    assertNotNull(entity.getIngredients());
+    assertTrue(entity.getIngredients().isEmpty());
+  }
+
+  @Test
+  void toEntity_blankFields_trimmedToNull() {
+    SupplementSaveDto dto = new SupplementSaveDto();
+    dto.setId("   ");
+    dto.setShop("  ");
+    dto.setName("  ");
+    dto.setSupplementType("  ");
+    dto.setPortionSize(1);
+
+    Supplement entity = SupplementMapper.toEntity(dto);
+
+    assertNull(entity.getId());
+    assertNull(entity.getShop());
+    assertNull(entity.getName());
+    assertNull(entity.getSupplementType());
+  }
+
+  @Test
+  void toEntity_nullOvp_defaultsToZero() {
+    SupplementSaveDto dto = new SupplementSaveDto();
+    dto.setName("Test");
+    dto.setShop("ESN");
+    dto.setPortionSize(1);
+    dto.setSupplementType("BASIC");
+    dto.setOvp(null);
+
+    Supplement entity = SupplementMapper.toEntity(dto);
+
+    assertEquals(0.0, entity.getCurrentOvp(), 0.00001);
+  }
+
+  @Test
   void toEntity_mapsNestedIngredients() {
     IngredientDto sub = new IngredientDto();
     sub.setName("Sub");

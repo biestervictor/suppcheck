@@ -28,8 +28,8 @@
             <a th:href="@{/costs/history}">Kostenentwicklung</a>
         </span>
         <span style="font-size:0.75em; color:#c0d4f5; font-weight:normal; white-space:nowrap;">
-            v<span th:text="${@environment.getProperty('app.version') ?: '-'}"></span>
-            · Build <span th:text="${@environment.getProperty('app.build.timestamp') ?: '-'}"></span>
+            v<span th:text="${appVersion}"></span>
+            · Build <span th:text="${buildTimestamp}"></span>
         </span>
     </nav>
 </th:block>
