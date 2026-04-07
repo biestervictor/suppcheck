@@ -13,6 +13,13 @@ RUN mvn clean package -DskipTests
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
+# Zeitzone setzen
+RUN apt-get update && apt-get install -y --no-install-recommends tzdata \
+    && ln -sf /usr/share/zoneinfo/Europe/Berlin /etc/localtime \
+    && echo "Europe/Berlin" > /etc/timezone \
+    && rm -rf /var/lib/apt/lists/*
+ENV TZ=Europe/Berlin
+
 # Kopiere das erstellte JAR-File aus dem Build-Container
 COPY --from=build /app/target/*.jar app.jar
 
