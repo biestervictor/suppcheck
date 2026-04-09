@@ -24,9 +24,13 @@ spec:
             - name: TZ
               value: "Europe/Berlin"
             - name: SPRING_MONGODB_URI
+              {{- if .Values.mongodb.auth }}
               valueFrom:
                 secretKeyRef:
                   name: mongodb-credentials
                   key: MONGODB_URI
+              {{- else }}
+              value: "mongodb://{{ .Values.mongodb.host }}:{{ .Values.mongodb.port }}/{{ .Values.mongodb.database }}"
+              {{- end }}
           ports:
             - containerPort: {{ .Values.suppcheck.deployment.port}}
