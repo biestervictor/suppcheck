@@ -23,5 +23,10 @@ spec:
           env:
             - name: TZ
               value: "Europe/Berlin"
+            - name: SPRING_MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-credentials
+                  key: MONGODB_URI
           ports:
             - containerPort: {{ .Values.suppcheck.deployment.port}}

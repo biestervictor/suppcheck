@@ -36,3 +36,9 @@ secretstore:
   vaultUrl: "https://treasurykeyvault.vault.azure.net/"
 servicePrincipal:
   name: azure-sp
+
+mongodb:
+mongodb:
+  host: mongodb-service.treasury.svc.cluster.local
+  port: 27017
+  database: suppcheck
