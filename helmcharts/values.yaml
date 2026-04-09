@@ -6,7 +6,7 @@ imagePullSecret: ChangeIt
 
 image:
   repository: ghcr.io/biestervictor/suppcheck
-  tag: "f002270e1054ac093664f797abfe0e1d89f88b5f"
+  tag: "1978491e063a1f602ff6f414528e1bcbf7bdb7dd"
 
 suppcheck:
   name: suppcheck
@@ -36,3 +36,10 @@ secretstore:
   vaultUrl: "https://treasurykeyvault.vault.azure.net/"
 servicePrincipal:
   name: azure-sp
+
+
+mongodb:
+  host: 192.168.178.141
+  port: 27017
+  database: suppcheck
+  auth: true

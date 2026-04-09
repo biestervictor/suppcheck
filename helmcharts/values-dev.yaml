@@ -15,3 +15,6 @@ suppcheck:
   ingress:
     host: suppcheck-dev.biester.vip
     tlsEnabled: true
+mongodb:
+  host: mongodb-service.treasury.svc.cluster.local
+  auth: false

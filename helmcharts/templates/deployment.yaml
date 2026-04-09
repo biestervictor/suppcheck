@@ -23,5 +23,36 @@ spec:
           env:
             - name: TZ
               value: "Europe/Berlin"
+            - name: SPRING_MONGODB_URI
+              {{- if .Values.mongodb.auth }}
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-credentials
+                  key: MONGODB_URI
+              {{- else }}
+              value: "mongodb://{{ .Values.mongodb.host }}:{{ .Values.mongodb.port }}/{{ .Values.mongodb.database }}"
+              {{- end }}
           ports:
             - containerPort: {{ .Values.suppcheck.deployment.port}}
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: {{ .Values.suppcheck.deployment.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 30
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: {{ .Values.suppcheck.deployment.port }}
+            periodSeconds: 15
+            failureThreshold: 3
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: {{ .Values.suppcheck.deployment.port }}
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 5

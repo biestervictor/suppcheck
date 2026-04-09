@@ -45,3 +45,24 @@ Bodylab24, ESN, VIT4EVER, GEN, BigZone, Gannikus, Sinob, GymNutrition, MoreNutri
 | `SPORT`    | Sport-Supplements, nur an Trainingstagen           | 15 Tage / Monat     |
 | `WHEY`     | Whey-Protein, Sonderberechnung (2,5 Portionen/Tag)| täglich             |
 
+## 6. Funktionsweise Secrets-Management
+
+```
+Azure Key Vault
+  ├── mongoLogin    (z.B. "suppcheck")
+  └── mongoSecret   (z.B. "meinPasswort123")
+        │
+        ▼
+ExternalSecret (mongodb-external-secret)
+  → Zieht beide Keys aus dem ClusterSecretStore
+  → Baut daraus die URI: mongodb://suppcheck:meinPasswort123@mongodb-service:27017/suppcheck?authSource=admin
+  → Erstellt Kubernetes Secret "mongodb-credentials"
+        │
+        ▼
+Deployment (env: SPRING_MONGODB_URI)
+  → Liest MONGODB_URI aus Secret "mongodb-credentials"
+        │
+        ▼
+Spring Boot (application-kubitos.properties)
+  → spring.mongodb.uri=${SPRING_MONGODB_URI:...}
+```
