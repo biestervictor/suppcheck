@@ -36,22 +36,23 @@ spec:
             - containerPort: {{ .Values.suppcheck.deployment.port}}
           startupProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/liveness
               port: {{ .Values.suppcheck.deployment.port }}
-            initialDelaySeconds: 15
-            periodSeconds: 5
-            failureThreshold: 20
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 30
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: {{ .Values.suppcheck.deployment.port }}
-            initialDelaySeconds: 30
             periodSeconds: 15
             failureThreshold: 3
+            timeoutSeconds: 5
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: {{ .Values.suppcheck.deployment.port }}
-            initialDelaySeconds: 10
             periodSeconds: 10
             failureThreshold: 3
+            timeoutSeconds: 5
