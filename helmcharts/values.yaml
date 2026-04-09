@@ -37,8 +37,8 @@ secretstore:
 servicePrincipal:
   name: azure-sp
 
+
 mongodb:
-mongodb:
-  host: mongodb-service.treasury.svc.cluster.local
+  host: 192.168.178.141
   port: 27017
   database: suppcheck
