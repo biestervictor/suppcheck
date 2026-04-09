@@ -17,3 +17,4 @@ suppcheck:
     tlsEnabled: true
 mongodb:
   host: mongodb-service.treasury.svc.cluster.local
+  auth: false
