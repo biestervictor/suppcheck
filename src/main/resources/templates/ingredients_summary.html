@@ -17,44 +17,77 @@
             color: #2d6cdf;
         }
 
-        table {
-            margin: 32px auto;
-            border-collapse: collapse;
-            width: 60%;
+        .controls {
+            width: 860px;
+            margin: 32px auto 0 auto;
             background: #fff;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+            padding: 14px 18px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 24px;
         }
 
-        th, td {
-            padding: 12px 18px;
-            border-bottom: 1px solid #e0e0e0;
-            text-align: left;
+        .btn-snapshot {
+            background: #2d6cdf;
+            color: #fff;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.95em;
+            font-weight: bold;
+            text-decoration: none;
         }
+        .btn-snapshot:hover { background: #1a4fa8; }
 
-        th {
-            background: #eaf1fb;
+        .btn-history {
+            background: #27ae60;
+            color: #fff;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.95em;
+            font-weight: bold;
+            text-decoration: none;
         }
-
-        tr:last-child td {
-            border-bottom: none;
-        }
+        .btn-history:hover { background: #1e8449; }
 
         table {
-            margin: 32px auto;
+            margin: 24px auto;
             border-collapse: collapse;
-            width: 800px;
+            width: 860px;
             background: #fff;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
             table-layout: fixed;
         }
+
         th, td {
-            width: 800px;
-            padding: 12px 18px;
+            padding: 10px 14px;
             border-bottom: 1px solid #e0e0e0;
             text-align: left;
             overflow: hidden;
-            white-space: nowrap;
             text-overflow: ellipsis;
+        }
+
+        th { background: #eaf1fb; }
+        tr:last-child td { border-bottom: none; }
+
+        .col-name  { width: 220px; }
+        .col-mg    { width: 120px; }
+        .col-src   { width: auto; font-size: 0.85em; color: #555; }
+
+        .source-pill {
+            display: inline-block;
+            background: #eaf1fb;
+            border-radius: 4px;
+            padding: 2px 8px;
+            margin: 2px 3px 2px 0;
+            white-space: nowrap;
+            font-size: 0.82em;
+            color: #2d6cdf;
         }
     </style>
     <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
@@ -62,26 +95,43 @@
 <body>
 <th:block th:replace="~{fragments/nav :: main-nav}"></th:block>
 <h1>Zutaten-Übersicht</h1>
+
+<th:block th:if="${param.snapshotSaved}">
+    <th:block th:replace="~{fragments/banner :: banner('info', 'Intake-Snapshot erfolgreich gespeichert.')}"></th:block>
+</th:block>
 <th:block th:replace="~{fragments/banner :: banner('info', 'Aktiviere den Workout-Tag, um die Summen inklusive SPORT-Supplements zu sehen.')}"></th:block>
-<div style="width:60%;margin:32px auto 0 auto;background:#fff;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,0.07);border-radius:6px;">
-    <label>
-        <input type="checkbox" id="isWorkoutDay" /> Workout-Tag
+
+<div class="controls">
+    <label style="display:flex;align-items:center;gap:8px;font-weight:bold;">
+        <input type="checkbox" id="isWorkoutDay" th:checked="${isWorkoutDay}"/> Workout-Tag
     </label>
+
+    <form method="post" action="/intake/snapshot" style="margin:0;">
+        <button type="submit" class="btn-snapshot">Intake-Snapshot speichern</button>
+    </form>
+
+    <a href="/intake/history" class="btn-history">Verlauf anzeigen</a>
 </div>
+
 <table id="ingredients-table">
     <thead>
     <tr>
-        <th>Name</th>
-        <th>Summe mg</th>
+        <th class="col-name">Name</th>
+        <th class="col-mg">Summe mg</th>
+        <th class="col-src">Quellen</th>
     </tr>
     </thead>
     <tbody>
     <tr th:each="ing : ${summedIngredients}">
-        <td th:text="${ing.name}">Name</td>
-        <td th:text="${ing.mg}">mg</td>
+        <td class="col-name" th:text="${ing.name}">Name</td>
+        <td class="col-mg" th:text="${#numbers.formatDecimal(ing.mg, 1, 'POINT', 1, 'COMMA')}">mg</td>
+        <td class="col-src">
+            <span th:each="src : ${ing.sources}" class="source-pill" th:text="${src}"></span>
+        </td>
     </tr>
     </tbody>
 </table>
+
 <script>
     document.getElementById('isWorkoutDay').addEventListener('change', function() {
         fetch('/supplements/ingredients/summary?isWorkoutDay=' + (this.checked ? 'true' : 'false'))

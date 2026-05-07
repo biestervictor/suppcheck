@@ -2,12 +2,14 @@ package org.example.suppcheck.controller;
 
 import java.util.*;
 
+import org.example.suppcheck.dto.IngredientWithSources;
 import org.example.suppcheck.dto.SupplementSaveDto;
 import org.example.suppcheck.mapper.SupplementMapper;
 import org.example.suppcheck.model.Ingredient;
 import org.example.suppcheck.model.Shop;
 import org.example.suppcheck.model.Supplement;
 import org.example.suppcheck.model.SupplementType;
+import org.example.suppcheck.service.DailyIntakeSnapshotService;
 import org.example.suppcheck.service.SupplementService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -25,15 +27,19 @@ public class SupplementController {
     private static final String MODEL_SUPPLEMENT = "supplement";
 
     private final SupplementService supplementService;
+    private final DailyIntakeSnapshotService snapshotService;
 
     /**
      * Constructor for SupplementController.
      *
      * @param supplementService the SupplementService instance
+     * @param snapshotService   the DailyIntakeSnapshotService instance
      */
     @SuppressWarnings("java:S2384")
-    public SupplementController(SupplementService supplementService) {
+    public SupplementController(SupplementService supplementService,
+                                DailyIntakeSnapshotService snapshotService) {
         this.supplementService = supplementService;
+        this.snapshotService = snapshotService;
     }
 
     private void addFormAttributes(Model model) {
@@ -79,12 +85,15 @@ public class SupplementController {
 
     /**
      * Detailseite für Preisentwicklung eines Supplements.
+     * Löst dabei auch einen Daily-Intake-Snapshot aus (idempotent: max. 1 pro Tag).
      */
     @GetMapping("/{id}/prices")
     public String showPriceHistory(@PathVariable String id, Model model) {
         Supplement supplement = supplementService.getSupplementById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Supplement mit ID " + id + " nicht gefunden"));
         model.addAttribute(MODEL_SUPPLEMENT, supplement);
+        // Auto-Snapshot: speichert den aktuellen Intake-Stand (max. 1× pro Tag)
+        snapshotService.saveSnapshot(supplementService.getAllSupplements());
         return "supplement_prices";
     }
 
@@ -156,7 +165,7 @@ public class SupplementController {
     }
 
     /**
-     * Shows daily Intake.
+     * Shows daily Intake with per-ingredient source breakdown.
      *
      * @param model the model to add attributes to
      * @return the name of the view to render
@@ -164,7 +173,8 @@ public class SupplementController {
     @GetMapping("/ingredients/summary")
     public String showIngredientsSummaryWithWorkout(@RequestParam(defaultValue = "false") boolean isWorkoutDay, Model model) {
         List<Supplement> supplements = supplementService.getAllSupplements();
-        List<Ingredient> summedIngredients = supplementService.getSummedIngredients(supplements, isWorkoutDay);
+        List<IngredientWithSources> summedIngredients =
+                supplementService.getSummedIngredientsWithSources(supplements, isWorkoutDay);
         model.addAttribute("summedIngredients", summedIngredients);
         model.addAttribute("isWorkoutDay", isWorkoutDay);
         return "ingredients_summary";

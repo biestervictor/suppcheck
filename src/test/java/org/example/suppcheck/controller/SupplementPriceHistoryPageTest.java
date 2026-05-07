@@ -1,13 +1,17 @@
 package org.example.suppcheck.controller;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import org.example.suppcheck.model.DailyIntakeSnapshot;
 import org.example.suppcheck.model.PriceEntry;
 import org.example.suppcheck.model.Supplement;
+import org.example.suppcheck.service.DailyIntakeSnapshotService;
 import org.example.suppcheck.service.SupplementService;
 import org.junit.jupiter.api.Test;
 import org.springframework.ui.ConcurrentModel;
@@ -16,8 +20,9 @@ class SupplementPriceHistoryPageTest {
 
   @Test
   void showPriceHistory_setsSupplementInModel_andReturnsViewName() {
-    SupplementService supplementService = org.mockito.Mockito.mock(SupplementService.class);
-    SupplementController controller = new SupplementController(supplementService);
+    SupplementService supplementService = mock(SupplementService.class);
+    DailyIntakeSnapshotService snapshotService = mock(DailyIntakeSnapshotService.class);
+    SupplementController controller = new SupplementController(supplementService, snapshotService);
 
     Supplement supp = new Supplement();
     supp.setId("id-1");
@@ -35,6 +40,9 @@ class SupplementPriceHistoryPageTest {
     supp.setPrices(List.of(p1, p2));
 
     when(supplementService.getSupplementById("id-1")).thenReturn(Optional.of(supp));
+    when(supplementService.getAllSupplements()).thenReturn(List.of());
+    DailyIntakeSnapshot snap = new DailyIntakeSnapshot();
+    when(snapshotService.saveSnapshot(anyList())).thenReturn(snap);
 
     ConcurrentModel model = new ConcurrentModel();
     String view = controller.showPriceHistory("id-1", model);
@@ -44,3 +52,4 @@ class SupplementPriceHistoryPageTest {
     assertSame(supp, model.getAttribute("supplement"));
   }
 }
+

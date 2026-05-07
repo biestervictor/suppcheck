@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/head :: common-meta}"></th:block>
+    <title>Intake-Verlauf</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 0; }
+        h1 { margin: 32px 0 16px 0; text-align: center; color: #2d6cdf; }
+        h2 { color: #2d6cdf; margin: 0 0 12px 0; font-size: 1.1em; }
+
+        .chart-container {
+            width: 90%; max-width: 1200px; margin: 32px auto;
+            background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            border-radius: 8px; padding: 28px 32px;
+        }
+
+        .toggle-row {
+            width: 90%; max-width: 1200px; margin: 0 auto 8px auto;
+            display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+        }
+        .toggle-btn {
+            padding: 5px 14px; border-radius: 4px; border: 1px solid #2d6cdf;
+            background: #eaf1fb; color: #2d6cdf; cursor: pointer; font-size: 0.85em;
+        }
+        .toggle-btn:hover { background: #2d6cdf; color: #fff; }
+
+        table {
+            margin: 24px auto; border-collapse: collapse;
+            width: 90%; max-width: 1200px;
+            background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        }
+        th, td { padding: 9px 14px; border-bottom: 1px solid #e0e0e0; text-align: left; font-size: 0.88em; }
+        th { background: #eaf1fb; }
+        tr:last-child td { border-bottom: none; }
+
+        .changes-section {
+            width: 90%; max-width: 1200px; margin: 32px auto;
+        }
+        .change-card {
+            background: #fff; border-radius: 8px; padding: 18px 24px; margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        }
+        .change-card-header { font-weight: bold; color: #2d6cdf; margin-bottom: 8px; font-size: 1em; }
+        .change-line { font-size: 0.88em; color: #333; margin: 3px 0; padding-left: 10px; }
+        .pill-added    { display:inline-block; background:#d5f5e3; color:#1e8449; border-radius:4px; padding:2px 8px; margin:2px 3px 2px 0; font-size:0.82em; }
+        .pill-removed  { display:inline-block; background:#fadbd8; color:#c0392b; border-radius:4px; padding:2px 8px; margin:2px 3px 2px 0; font-size:0.82em; }
+        .delta-pos { color: #1e8449; font-weight: bold; }
+        .delta-neg { color: #c0392b; font-weight: bold; }
+    </style>
+    <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{fragments/nav :: main-nav}"></th:block>
+
+<h1>Intake-Verlauf</h1>
+
+<!-- No data yet -->
+<th:block th:if="${snapshots == null or snapshots.isEmpty()}">
+    <th:block th:replace="~{fragments/banner :: banner('info', 'Noch keine Intake-Snapshots vorhanden. Gehe zur Täglichen Einnahme-Übersicht und klicke auf Intake-Snapshot speichern.')}"></th:block>
+</th:block>
+
+<th:block th:if="${snapshots != null and !snapshots.isEmpty()}">
+
+    <!-- Toggle workout / rest day -->
+    <div class="toggle-row">
+        <strong>Ansicht:</strong>
+        <button class="toggle-btn" onclick="switchMode('rest')">Ruhetag</button>
+        <button class="toggle-btn" onclick="switchMode('workout')">Trainingstag</button>
+    </div>
+
+    <!-- Chart -->
+    <div class="chart-container">
+        <canvas id="intakeChart" height="90"></canvas>
+    </div>
+
+    <!-- Data table -->
+    <table id="intakeTable">
+        <thead>
+        <tr>
+            <th>Datum</th>
+            <!-- Ingredient columns are rendered from the union of all ingredient names -->
+            <th th:each="ing : ${allIngredientNames}" th:text="${ing}">Ingredient</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="snap : ${snapshots}">
+            <td th:text="${snap.date}">-</td>
+            <td th:each="ing : ${allIngredientNames}"
+                th:text="${snap.restDay != null and snap.restDay.containsKey(ing) ?
+                           #numbers.formatDecimal(snap.restDay[ing], 1, 'POINT', 1, 'COMMA') : '-'}">-</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <!-- Change summaries -->
+    <th:block th:if="${changes != null and !changes.isEmpty()}">
+        <div class="changes-section">
+            <h2>Änderungs-Protokoll</h2>
+
+            <div th:each="change : ${changes}" class="change-card">
+                <div class="change-card-header">
+                    <span th:text="${change.summaryLines[0]}">Änderungen von ... → ...</span>
+                </div>
+
+                <th:block th:if="${!change.removedSupplements.isEmpty()}">
+                    <div style="margin: 6px 0 4px 0; font-size:0.85em; color:#555;">Entfernt:</div>
+                    <span th:each="s : ${change.removedSupplements}" class="pill-removed" th:text="${s}"></span>
+                </th:block>
+
+                <th:block th:if="${!change.addedSupplements.isEmpty()}">
+                    <div style="margin: 6px 0 4px 0; font-size:0.85em; color:#555;">Hinzugefügt:</div>
+                    <span th:each="s : ${change.addedSupplements}" class="pill-added" th:text="${s}"></span>
+                </th:block>
+
+                <th:block th:if="${!change.ingredientDeltas.isEmpty()}">
+                    <div style="margin: 8px 0 4px 0; font-size:0.85em; color:#555;">Netto-Änderungen:</div>
+                    <th:block th:each="entry : ${change.ingredientDeltas}">
+                        <div class="change-line">
+                            <span th:text="${entry.key}">Ingredient</span>:
+                            <span th:class="${entry.value > 0 ? 'delta-pos' : 'delta-neg'}"
+                                  th:text="${(entry.value > 0 ? '+' : '') + #numbers.formatDecimal(entry.value, 1, 'POINT', 1, 'COMMA') + ' mg'}">delta</span>
+                        </div>
+                    </th:block>
+                </th:block>
+
+                <!-- Detailed summary lines (skip index 0 = header line) -->
+                <th:block th:if="${change.summaryLines.size() > 1}">
+                    <div style="margin: 8px 0 4px 0; font-size:0.85em; color:#555;">Details:</div>
+                    <div th:each="line, stat : ${change.summaryLines}" th:if="${stat.index > 0}"
+                         class="change-line" th:text="${line}"></div>
+                </th:block>
+            </div>
+        </div>
+    </th:block>
+
+</th:block>
+
+<!-- Chart.js data injection -->
+<script th:if="${snapshots != null and !snapshots.isEmpty()}" th:inline="javascript">
+    const labels           = /*[[${snapshots.![date.toString()]}]]*/ [];
+    const ingredientNames  = /*[[${allIngredientNames}]]*/ [];
+
+    // restDay data per ingredient: array parallel to labels
+    const restDayRaw   = /*[[${restDayMatrix}]]*/ {};
+    const workoutDayRaw= /*[[${workoutDayMatrix}]]*/ {};
+
+    // Colour palette – cycles through 20 colours
+    const PALETTE = [
+        '#2d6cdf','#e67e22','#27ae60','#e74c3c','#8e44ad',
+        '#16a085','#d35400','#2980b9','#c0392b','#7f8c8d',
+        '#f39c12','#1abc9c','#9b59b6','#3498db','#e91e63',
+        '#00bcd4','#8bc34a','#ff5722','#607d8b','#795548'
+    ];
+
+    function buildDatasets(matrix) {
+        return ingredientNames.map((name, idx) => ({
+            label: name,
+            data: matrix[name] || [],
+            borderColor: PALETTE[idx % PALETTE.length],
+            backgroundColor: PALETTE[idx % PALETTE.length] + '18',
+            tension: 0.3,
+            fill: false,
+            pointRadius: 5
+        }));
+    }
+
+    const ctx = document.getElementById('intakeChart').getContext('2d');
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: labels, datasets: buildDatasets(restDayRaw) },
+        options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { position: 'top' },
+                title: { display: true, text: 'Tägliche Inhaltsstoff-Aufnahme (Ruhetag)' },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ctx.dataset.label + ': ' +
+                            ctx.parsed.y.toFixed(1).replace('.', ',') + ' mg'
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    title: { display: true, text: 'mg' },
+                    ticks: { callback: val => val.toFixed(1).replace('.', ',') + ' mg' }
+                }
+            }
+        }
+    });
+
+    function switchMode(mode) {
+        const matrix = mode === 'workout' ? workoutDayRaw : restDayRaw;
+        const label  = mode === 'workout' ? 'Tägliche Inhaltsstoff-Aufnahme (Trainingstag)'
+                                          : 'Tägliche Inhaltsstoff-Aufnahme (Ruhetag)';
+        chart.data.datasets = buildDatasets(matrix);
+        chart.options.plugins.title.text = label;
+        chart.update();
+    }
+</script>
+</body>
+</html>
