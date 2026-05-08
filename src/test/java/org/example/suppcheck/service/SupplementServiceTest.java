@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.example.suppcheck.dto.IngredientWithSources;
 import org.example.suppcheck.model.Ingredient;
 import org.example.suppcheck.model.PriceEntry;
 import org.example.suppcheck.model.Supplement;
@@ -267,6 +268,54 @@ class SupplementServiceTest {
         supp.setInactive(false);
         supp.setIngredients(new ArrayList<>(ingredients));
         return supp;
+    }
+
+    // --- getSummedIngredientsWithSources ---
+
+    @Test
+    void getSummedIngredientsWithSources_showsContributingSupplements() {
+        Ingredient d3 = new Ingredient();
+        d3.setName("Vitamin D3"); d3.setMg(5000); d3.setSubIngredients(new ArrayList<>());
+        Supplement s1 = new Supplement();
+        s1.setName("D3 Tropfen"); s1.setSupplementType("BASIC"); s1.setInactive(false);
+        s1.setIngredients(List.of(d3));
+
+        Ingredient d3b = new Ingredient();
+        d3b.setName("Vitamin D3"); d3b.setMg(3000); d3b.setSubIngredients(new ArrayList<>());
+        Supplement s2 = new Supplement();
+        s2.setName("Multivitamin"); s2.setSupplementType("BASIC"); s2.setInactive(false);
+        s2.setIngredients(List.of(d3b));
+
+        List<IngredientWithSources> result = service.getSummedIngredientsWithSources(
+                List.of(s1, s2), false);
+
+        assertEquals(1, result.size());
+        IngredientWithSources ing = result.get(0);
+        assertEquals("Vitamin D3", ing.getName());
+        assertEquals(8000.0, ing.getMg(), 0.001);
+        assertEquals(2, ing.getSources().size());
+        assertTrue(ing.getSources().stream().anyMatch(src -> src.contains("D3 Tropfen")));
+        assertTrue(ing.getSources().stream().anyMatch(src -> src.contains("Multivitamin")));
+    }
+
+    @Test
+    void getSummedIngredientsWithSources_excludesInactiveAndSportOnRestDay() {
+        Ingredient mg = new Ingredient();
+        mg.setName("Magnesium"); mg.setMg(300); mg.setSubIngredients(new ArrayList<>());
+        Supplement inactive = new Supplement();
+        inactive.setName("Inaktiv"); inactive.setSupplementType("BASIC"); inactive.setInactive(true);
+        inactive.setIngredients(List.of(mg));
+
+        Ingredient leu = new Ingredient();
+        leu.setName("L-Leucin"); leu.setMg(2000); leu.setSubIngredients(new ArrayList<>());
+        Supplement sport = new Supplement();
+        sport.setName("BCAA"); sport.setSupplementType("SPORT"); sport.setInactive(false);
+        sport.setIngredients(List.of(leu));
+
+        List<IngredientWithSources> result = service.getSummedIngredientsWithSources(
+                List.of(inactive, sport), false);
+
+        assertTrue(result.isEmpty(), "Inactive and SPORT supplements must be excluded on rest day");
     }
 }
 

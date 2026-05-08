@@ -3,9 +3,12 @@ package org.example.suppcheck.service;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
+import org.example.suppcheck.dto.IngredientWithSources;
 import org.example.suppcheck.model.Ingredient;
 import org.example.suppcheck.model.PriceEntry;
 import org.example.suppcheck.model.Supplement;
@@ -46,9 +49,10 @@ public class SupplementService {
         continue; // Nur aktive Supplements berücksichtigen und nur WORKOUT Supplements an Trainingstagen
       }
       for (Ingredient ing : supplement.getIngredients()) {
-
+        if (ing.getName() == null || ing.getName().isBlank()) continue;
         sumMap.merge(ing.getName(), ing.getMg(), Double::sum);
         for (Ingredient subIng : ing.getSubIngredients()) {
+          if (subIng.getName() == null || subIng.getName().isBlank()) continue;
           sumMap.merge(subIng.getName(), subIng.getMg(), Double::sum);
         }
       }
@@ -61,6 +65,56 @@ public class SupplementService {
       result.add(ing);
     });
     return result;
+  }
+
+  /**
+   * Daily intake summarized with per-supplement source information.
+   * Each entry contains the total mg plus a list of contributing supplement names and their amounts.
+   *
+   * @param supplements  all supplements (active + inactive – filtering happens here)
+   * @param isWorkoutDay true to include SPORT-type supplements
+   * @return list of ingredients with source details, sorted by name
+   */
+  public List<IngredientWithSources> getSummedIngredientsWithSources(
+      List<Supplement> supplements, boolean isWorkoutDay) {
+    // ingredient name → (supplement name → contributed mg)
+    Map<String, Map<String, Double>> sourceMap = new TreeMap<>();
+
+    for (Supplement supplement : supplements) {
+      if (supplement.isInactive()
+          || (!isWorkoutDay && SupplementType.SPORT.name().equals(supplement.getSupplementType()))) {
+        continue;
+      }
+      for (Ingredient ing : supplement.getIngredients()) {
+        if (ing.getName() == null || ing.getName().isBlank()) continue;
+        sourceMap
+            .computeIfAbsent(ing.getName(), k -> new LinkedHashMap<>())
+            .merge(supplement.getName(), ing.getMg(), Double::sum);
+        for (Ingredient sub : ing.getSubIngredients()) {
+          if (sub.getName() == null || sub.getName().isBlank()) continue;
+          sourceMap
+              .computeIfAbsent(sub.getName(), k -> new LinkedHashMap<>())
+              .merge(supplement.getName(), sub.getMg(), Double::sum);
+        }
+      }
+    }
+
+    List<IngredientWithSources> result = new ArrayList<>();
+    sourceMap.forEach((ingName, sources) -> {
+      double total = sources.values().stream().mapToDouble(Double::doubleValue).sum();
+      List<String> sourceLabels = sources.entrySet().stream()
+          .map(e -> e.getKey() + ": " + formatMg(e.getValue()))
+          .toList();
+      result.add(new IngredientWithSources(ingName, total, sourceLabels));
+    });
+    return result;
+  }
+
+  private String formatMg(double mg) {
+    if (Math.abs(mg) >= 1000) {
+      return String.format("%,.0f mg", mg).replace(",", ".");
+    }
+    return String.format("%.1f mg", mg).replace(".", ",");
   }
 
   /**

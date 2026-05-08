@@ -7,9 +7,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.example.suppcheck.dto.IngredientWithSources;
 import org.example.suppcheck.model.Ingredient;
 import org.example.suppcheck.model.PriceEntry;
 import org.example.suppcheck.model.Supplement;
+import org.example.suppcheck.service.DailyIntakeSnapshotService;
 import org.example.suppcheck.service.SupplementService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,12 +20,16 @@ import org.springframework.ui.ConcurrentModel;
 class SupplementControllerTest {
 
     private SupplementService service;
+    private DailyIntakeSnapshotService snapshotService;
     private SupplementController controller;
 
     @BeforeEach
     void setUp() {
         service = mock(SupplementService.class);
-        controller = new SupplementController(service);
+        snapshotService = mock(DailyIntakeSnapshotService.class);
+        controller = new SupplementController(service, snapshotService);
+        // Default: getAllSupplements returns empty list (needed by snapshot trigger)
+        lenient().when(service.getAllSupplements()).thenReturn(List.of());
     }
 
     // --- showCreateForm ---
@@ -192,11 +198,8 @@ class SupplementControllerTest {
 
     @Test
     void showIngredientsSummary_returnsViewAndPopulatesModel() {
-        Ingredient ing = new Ingredient();
-        ing.setName("Kreatin");
-        ing.setMg(5000);
-        when(service.getAllSupplements()).thenReturn(List.of());
-        when(service.getSummedIngredients(anyList(), eq(false))).thenReturn(List.of(ing));
+        IngredientWithSources ing = new IngredientWithSources("Kreatin", 5000, List.of("Kreatin Mono: 5.000 mg"));
+        when(service.getSummedIngredientsWithSources(anyList(), eq(false))).thenReturn(List.of(ing));
 
         ConcurrentModel model = new ConcurrentModel();
         String view = controller.showIngredientsSummaryWithWorkout(false, model);
@@ -208,8 +211,7 @@ class SupplementControllerTest {
 
     @Test
     void showIngredientsSummary_workoutDay_setsFlag() {
-        when(service.getAllSupplements()).thenReturn(List.of());
-        when(service.getSummedIngredients(anyList(), eq(true))).thenReturn(List.of());
+        when(service.getSummedIngredientsWithSources(anyList(), eq(true))).thenReturn(List.of());
 
         ConcurrentModel model = new ConcurrentModel();
         controller.showIngredientsSummaryWithWorkout(true, model);
