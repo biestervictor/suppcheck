@@ -49,9 +49,10 @@ public class SupplementService {
         continue; // Nur aktive Supplements berücksichtigen und nur WORKOUT Supplements an Trainingstagen
       }
       for (Ingredient ing : supplement.getIngredients()) {
-
+        if (ing.getName() == null || ing.getName().isBlank()) continue;
         sumMap.merge(ing.getName(), ing.getMg(), Double::sum);
         for (Ingredient subIng : ing.getSubIngredients()) {
+          if (subIng.getName() == null || subIng.getName().isBlank()) continue;
           sumMap.merge(subIng.getName(), subIng.getMg(), Double::sum);
         }
       }
@@ -85,10 +86,12 @@ public class SupplementService {
         continue;
       }
       for (Ingredient ing : supplement.getIngredients()) {
+        if (ing.getName() == null || ing.getName().isBlank()) continue;
         sourceMap
             .computeIfAbsent(ing.getName(), k -> new LinkedHashMap<>())
             .merge(supplement.getName(), ing.getMg(), Double::sum);
         for (Ingredient sub : ing.getSubIngredients()) {
+          if (sub.getName() == null || sub.getName().isBlank()) continue;
           sourceMap
               .computeIfAbsent(sub.getName(), k -> new LinkedHashMap<>())
               .merge(supplement.getName(), sub.getMg(), Double::sum);
