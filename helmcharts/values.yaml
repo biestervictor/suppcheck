@@ -6,7 +6,7 @@ imagePullSecret: ChangeIt
 
 image:
   repository: ghcr.io/biestervictor/suppcheck
-  tag: "ef91467b0cb8b08e7418c8d2675473fc6975e02b"
+  tag: "c06acdc08f0d73726fda5054665be15d511d448e"
 
 suppcheck:
   name: suppcheck
