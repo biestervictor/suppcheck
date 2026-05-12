@@ -260,6 +260,140 @@ class SupplementServiceTest {
         assertTrue(result.isEmpty());
     }
 
+    // --- nonDaily / consumptionIntervalDays ---
+
+    @Test
+    void getSummedIngredients_nonDailySupplement_dividesMgByInterval() {
+        Ingredient vitD = new Ingredient();
+        vitD.setName("Vitamin D3");
+        vitD.setMg(5000);
+        vitD.setSubIngredients(new ArrayList<>());
+
+        Supplement s = createActiveSupplement("BASIC", List.of(vitD));
+        s.setNonDaily(true);
+        s.setConsumptionIntervalDays(5);
+
+        List<Ingredient> result = service.getSummedIngredients(List.of(s), false);
+
+        assertEquals(1, result.size());
+        assertEquals("Vitamin D3", result.getFirst().getName());
+        assertEquals(1000.0, result.getFirst().getMg(), 0.001); // 5000 / 5
+    }
+
+    @Test
+    void getSummedIngredients_nonDailySubIngredient_dividesMgByInterval() {
+        Ingredient sub = new Ingredient();
+        sub.setName("Sub");
+        sub.setMg(3000);
+
+        Ingredient main = new Ingredient();
+        main.setName("Main");
+        main.setMg(6000);
+        main.setSubIngredients(new ArrayList<>(List.of(sub)));
+
+        Supplement s = createActiveSupplement("BASIC", List.of(main));
+        s.setNonDaily(true);
+        s.setConsumptionIntervalDays(3);
+
+        List<Ingredient> result = service.getSummedIngredients(List.of(s), false);
+
+        assertEquals(2000.0, result.stream().filter(i -> i.getName().equals("Main"))
+                .findFirst().orElseThrow().getMg(), 0.001);
+        assertEquals(1000.0, result.stream().filter(i -> i.getName().equals("Sub"))
+                .findFirst().orElseThrow().getMg(), 0.001);
+    }
+
+    @Test
+    void getSummedIngredients_nonDailyWithIntervalOne_treatedAsDaily() {
+        Ingredient ing = new Ingredient();
+        ing.setName("Kreatin");
+        ing.setMg(3000);
+        ing.setSubIngredients(new ArrayList<>());
+
+        Supplement s = createActiveSupplement("BASIC", List.of(ing));
+        s.setNonDaily(true);
+        s.setConsumptionIntervalDays(1); // interval 1 → effectively daily
+
+        List<Ingredient> result = service.getSummedIngredients(List.of(s), false);
+
+        assertEquals(3000.0, result.getFirst().getMg(), 0.001); // no division
+    }
+
+    @Test
+    void getSummedIngredientsWithSources_nonDaily_showsIntervalLabelInSource() {
+        Ingredient d3 = new Ingredient();
+        d3.setName("Vitamin D3");
+        d3.setMg(6000);
+        d3.setSubIngredients(new ArrayList<>());
+
+        Supplement s = new Supplement();
+        s.setName("D3 Wochendepot");
+        s.setSupplementType("BASIC");
+        s.setInactive(false);
+        s.setIngredients(List.of(d3));
+        s.setNonDaily(true);
+        s.setConsumptionIntervalDays(3);
+
+        List<IngredientWithSources> result =
+                service.getSummedIngredientsWithSources(List.of(s), false);
+
+        assertEquals(1, result.size());
+        assertEquals(2000.0, result.getFirst().getMg(), 0.001); // 6000 / 3
+        String src = result.getFirst().getSources().getFirst();
+        assertTrue(src.contains("D3 Wochendepot"), "Source should contain supplement name");
+        assertTrue(src.contains("(Alle 3 Tage)"), "Source should contain interval hint");
+    }
+
+    @Test
+    void getSummedIngredientsWithSources_dailyAndNonDailyMixed_correctTotals() {
+        Ingredient d3a = new Ingredient();
+        d3a.setName("Vitamin D3"); d3a.setMg(5000); d3a.setSubIngredients(new ArrayList<>());
+        Supplement daily = new Supplement();
+        daily.setName("D3 täglich"); daily.setSupplementType("BASIC"); daily.setInactive(false);
+        daily.setIngredients(List.of(d3a));
+        daily.setNonDaily(false);
+
+        Ingredient d3b = new Ingredient();
+        d3b.setName("Vitamin D3"); d3b.setMg(6000); d3b.setSubIngredients(new ArrayList<>());
+        Supplement triDay = new Supplement();
+        triDay.setName("D3 alle3"); triDay.setSupplementType("BASIC"); triDay.setInactive(false);
+        triDay.setIngredients(List.of(d3b));
+        triDay.setNonDaily(true);
+        triDay.setConsumptionIntervalDays(3);
+
+        List<IngredientWithSources> result =
+                service.getSummedIngredientsWithSources(List.of(daily, triDay), false);
+
+        assertEquals(1, result.size());
+        // 5000 + 6000/3 = 5000 + 2000 = 7000
+        assertEquals(7000.0, result.getFirst().getMg(), 0.001);
+        assertTrue(result.getFirst().getSources().stream()
+                .anyMatch(s -> s.contains("D3 alle3") && s.contains("(Alle 3 Tage)")));
+        assertTrue(result.getFirst().getSources().stream()
+                .anyMatch(s -> s.contains("D3 täglich") && !s.contains("(Alle")));
+    }
+
+    @Test
+    void saveSupplement_existingSavesNonDailyFields() {
+        Supplement existing = new Supplement();
+        existing.setId("id-1");
+        PriceEntry entry = new PriceEntry();
+        entry.setPrice(10.0); entry.setOvp(20.0);
+        existing.setPrices(new ArrayList<>(List.of(entry)));
+        when(repository.findById("id-1")).thenReturn(Optional.of(existing));
+
+        Supplement incoming = new Supplement();
+        incoming.setId("id-1");
+        incoming.setPrice(10.0); incoming.setOvp(20.0);
+        incoming.setNonDaily(true);
+        incoming.setConsumptionIntervalDays(7);
+
+        service.saveSupplement(incoming);
+
+        assertTrue(existing.isNonDaily());
+        assertEquals(7, existing.getConsumptionIntervalDays());
+    }
+
     // --- Hilfsmethode ---
 
     private Supplement createActiveSupplement(String type, List<Ingredient> ingredients) {

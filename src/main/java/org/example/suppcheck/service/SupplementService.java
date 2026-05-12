@@ -49,12 +49,13 @@ public class SupplementService {
           (!isWorkoutDay && supplement.getSupplementType().equals(SupplementType.SPORT.name()))) {
         continue; // Nur aktive Supplements berücksichtigen und nur WORKOUT Supplements an Trainingstagen
       }
+      int intervalDays = effectiveIntervalDays(supplement);
       for (Ingredient ing : supplement.getIngredients()) {
         if (ing.getName() == null || ing.getName().isBlank()) continue;
-        sumMap.merge(ing.getName(), ing.getMg(), Double::sum);
+        sumMap.merge(ing.getName(), ing.getMg() / intervalDays, Double::sum);
         for (Ingredient subIng : ing.getSubIngredients()) {
           if (subIng.getName() == null || subIng.getName().isBlank()) continue;
-          sumMap.merge(subIng.getName(), subIng.getMg(), Double::sum);
+          sumMap.merge(subIng.getName(), subIng.getMg() / intervalDays, Double::sum);
         }
       }
     }
@@ -78,24 +79,30 @@ public class SupplementService {
    */
   public List<IngredientWithSources> getSummedIngredientsWithSources(
       List<Supplement> supplements, boolean isWorkoutDay) {
-    // ingredient name → (supplement name → contributed mg)
+    // ingredient name → (supplement name → contributed daily mg)
     Map<String, Map<String, Double>> sourceMap = new TreeMap<>();
+    // supplement name → interval (only stored when > 1, for label generation)
+    Map<String, Integer> supplementIntervals = new HashMap<>();
 
     for (Supplement supplement : supplements) {
       if (supplement.isInactive()
           || (!isWorkoutDay && SupplementType.SPORT.name().equals(supplement.getSupplementType()))) {
         continue;
       }
+      int intervalDays = effectiveIntervalDays(supplement);
+      if (intervalDays > 1) {
+        supplementIntervals.put(supplement.getName(), intervalDays);
+      }
       for (Ingredient ing : supplement.getIngredients()) {
         if (ing.getName() == null || ing.getName().isBlank()) continue;
         sourceMap
             .computeIfAbsent(ing.getName(), k -> new LinkedHashMap<>())
-            .merge(supplement.getName(), ing.getMg(), Double::sum);
+            .merge(supplement.getName(), ing.getMg() / intervalDays, Double::sum);
         for (Ingredient sub : ing.getSubIngredients()) {
           if (sub.getName() == null || sub.getName().isBlank()) continue;
           sourceMap
               .computeIfAbsent(sub.getName(), k -> new LinkedHashMap<>())
-              .merge(supplement.getName(), sub.getMg(), Double::sum);
+              .merge(supplement.getName(), sub.getMg() / intervalDays, Double::sum);
         }
       }
     }
@@ -104,7 +111,13 @@ public class SupplementService {
     sourceMap.forEach((ingName, sources) -> {
       double total = sources.values().stream().mapToDouble(Double::doubleValue).sum();
       List<String> sourceLabels = sources.entrySet().stream()
-          .map(e -> e.getKey() + ": " + formatMg(e.getValue()))
+          .map(e -> {
+            String suppName = e.getKey();
+            String intervalSuffix = supplementIntervals.containsKey(suppName)
+                ? " (Alle " + supplementIntervals.get(suppName) + " Tage)"
+                : "";
+            return suppName + intervalSuffix + ": " + formatMg(e.getValue());
+          })
           .toList();
       result.add(new IngredientWithSources(ingName, total, sourceLabels));
     });
@@ -116,6 +129,17 @@ public class SupplementService {
       return String.format("%,.0f mg", mg).replace(",", ".");
     }
     return String.format("%.1f mg", mg).replace(".", ",");
+  }
+
+  /**
+   * Returns the effective interval in days for a supplement.
+   * Returns 1 for daily supplements; returns the configured interval (≥ 2) for non-daily ones.
+   */
+  private int effectiveIntervalDays(Supplement supplement) {
+    if (supplement.isNonDaily() && supplement.getConsumptionIntervalDays() > 1) {
+      return supplement.getConsumptionIntervalDays();
+    }
+    return 1;
   }
 
   /**
@@ -174,6 +198,8 @@ public class SupplementService {
       existing.setIngredients(supplement.getIngredients());
       existing.setDiscount(supplement.getDiscount());
       existing.setMhdProdukt(supplement.isMhdProdukt());
+      existing.setNonDaily(supplement.isNonDaily());
+      existing.setConsumptionIntervalDays(supplement.getConsumptionIntervalDays());
 
       // Append a new combined entry when either price or OVP changed
       boolean priceChanged = incomingPrice != null && Double.compare(previousPrice, incomingPrice) != 0;

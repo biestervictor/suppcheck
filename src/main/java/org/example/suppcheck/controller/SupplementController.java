@@ -51,8 +51,19 @@ public class SupplementController {
         this.ocrService = ocrService;
     }
 
-    private void addFormAttributes(Model model) {
-        model.addAttribute("types", Arrays.stream(SupplementType.values())
+    /**
+     * Calculates the effective daily price for a supplement.
+     * For non-daily supplements the per-portion cost is divided by the consumption interval.
+     */
+    private static double pricePerDay(Supplement supp) {
+        double perPortion = supp.getPrice() / supp.getPortionSize();
+        if (supp.isNonDaily() && supp.getConsumptionIntervalDays() > 1) {
+            return perPortion / supp.getConsumptionIntervalDays();
+        }
+        return perPortion;
+    }
+
+    private void addFormAttributes(Model model) {        model.addAttribute("types", Arrays.stream(SupplementType.values())
                 .map(SupplementType::name)
                 .toList());
         model.addAttribute(SHOPS, Arrays.stream(Shop.values())
@@ -136,15 +147,15 @@ public class SupplementController {
         for (Supplement supp : supplements) {
 
 
-            if (!supp.isInactive() && supp.getSupplementType().equals(SupplementType.BASIC.name())) {
-                preisProTag += supp.getPrice() / supp.getPortionSize();
+        if (!supp.isInactive() && supp.getSupplementType().equals(SupplementType.BASIC.name())) {
+                preisProTag += pricePerDay(supp);
             } else if (!supp.isInactive() && supp.getSupplementType().equals(SupplementType.EXTENDED.name())) {
-                preisProTagExtended += supp.getPrice() / supp.getPortionSize();
+                preisProTagExtended += pricePerDay(supp);
             } else if (!supp.isInactive() && supp.getSupplementType().equals(SupplementType.WHEY.name())) {
-                avgWheyPrice += supp.getPrice() / supp.getPortionSize();
+                avgWheyPrice += pricePerDay(supp);
                 wheyCount++;
             } else if (!supp.isInactive()) {
-                preisWorkout += supp.getPrice() / supp.getPortionSize();
+                preisWorkout += pricePerDay(supp);
             }
 
 

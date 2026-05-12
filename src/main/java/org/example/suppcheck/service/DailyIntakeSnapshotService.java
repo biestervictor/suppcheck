@@ -76,12 +76,14 @@ public class DailyIntakeSnapshotService {
     for (Supplement s : supplements) {
       if (s.isInactive()) continue;
       if (!isWorkoutDay && SupplementType.SPORT.name().equals(s.getSupplementType())) continue;
+      int intervalDays = (s.isNonDaily() && s.getConsumptionIntervalDays() > 1)
+          ? s.getConsumptionIntervalDays() : 1;
       s.getIngredients().forEach(ing -> {
         if (ing.getName() == null || ing.getName().isBlank()) return;
-        totals.merge(ing.getName(), ing.getMg(), Double::sum);
+        totals.merge(ing.getName(), ing.getMg() / intervalDays, Double::sum);
         ing.getSubIngredients().forEach(sub -> {
           if (sub.getName() == null || sub.getName().isBlank()) return;
-          totals.merge(sub.getName(), sub.getMg(), Double::sum);
+          totals.merge(sub.getName(), sub.getMg() / intervalDays, Double::sum);
         });
       });
     }

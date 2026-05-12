@@ -57,6 +57,20 @@ public class Supplement {
   private boolean mhdProdukt;
 
   /**
+   * True wenn dieses Supplement nicht täglich eingenommen wird.
+   * In diesem Fall gibt {@link #consumptionIntervalDays} an, alle wie viele Tage
+   * eine Portion eingenommen wird.
+   */
+  private boolean nonDaily = false;
+
+  /**
+   * Einnahmeintervall in Tagen (nur relevant wenn {@link #nonDaily} true ist).
+   * Beispiel: 3 = alle 3 Tage. Minimaler sinnvoller Wert: 2.
+   * Für tägliche Einnahme wird immer 1 angenommen.
+   */
+  private int consumptionIntervalDays = 1;
+
+  /**
    * Returns the latest historical price if present.
    */
   public double getPrice() {

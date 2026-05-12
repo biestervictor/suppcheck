@@ -122,6 +122,13 @@
     <input id="isInactive" th:field="*{inactive}" type="checkbox"/><br/><br/>
     <label for="mhdProdukt">MHD-Produkt:</label>
     <input id="mhdProdukt" th:field="*{mhdProdukt}" type="checkbox"/><br/><br/>
+    <label for="nonDaily">Nicht täglich:</label>
+    <input id="nonDaily" th:field="*{nonDaily}" type="checkbox" onchange="toggleIntervalField(this.checked)"/><br/><br/>
+    <div id="interval-container" th:style="${supplement.nonDaily} ? 'display:block' : 'display:none'">
+        <label for="consumptionIntervalDays">Einnahme alle X Tage:</label>
+        <input id="consumptionIntervalDays" th:field="*{consumptionIntervalDays}" type="number" min="2" step="1" style="width:80px;"/>
+        <span style="color:#777;font-size:0.9em;margin-left:6px;">Tage (z.B. 3 = alle 3 Tage)</span><br/><br/>
+    </div>
 
     <div id="ingredients-list">
         <div class="ingredient-row" th:each="ingredient, iStat : *{ingredients}">
@@ -340,6 +347,10 @@
                   .replace(/"/g, '&quot;')
                   .replace(/</g, '&lt;')
                   .replace(/>/g, '&gt;');
+    }
+
+    function toggleIntervalField(checked) {
+        document.getElementById('interval-container').style.display = checked ? 'block' : 'none';
     }
 </script>
 </body>
