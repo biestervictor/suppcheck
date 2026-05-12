@@ -9,6 +9,7 @@ import java.util.Optional;
 
 import org.example.suppcheck.dto.IngredientDto;
 import org.example.suppcheck.dto.IngredientWithSources;
+import org.example.suppcheck.dto.OcrResult;
 import org.example.suppcheck.model.Ingredient;
 import org.example.suppcheck.model.PriceEntry;
 import org.example.suppcheck.model.Supplement;
@@ -339,14 +340,15 @@ class SupplementControllerTest {
 
         MockMultipartFile file = new MockMultipartFile(
                 "image", "label.jpg", "image/jpeg", new byte[]{1, 2, 3});
-        when(ocrService.extractIngredients(file)).thenReturn(List.of(dto));
+        OcrResult ocrResult = new OcrResult("raw ocr text", List.of(dto));
+        when(ocrService.extractIngredients(file)).thenReturn(ocrResult);
 
-        ResponseEntity<List<IngredientDto>> response = controller.ocrExtract(file);
+        ResponseEntity<OcrResult> response = controller.ocrExtract(file);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(1, response.getBody().size());
-        assertEquals("L-Leucin", response.getBody().getFirst().getName());
+        assertEquals(1, response.getBody().getIngredients().size());
+        assertEquals("L-Leucin", response.getBody().getIngredients().getFirst().getName());
     }
 
     @Test
@@ -355,7 +357,7 @@ class SupplementControllerTest {
                 "image", "label.jpg", "image/jpeg", new byte[]{1, 2, 3});
         when(ocrService.extractIngredients(file)).thenThrow(new RuntimeException("tesseract not found"));
 
-        ResponseEntity<List<IngredientDto>> response = controller.ocrExtract(file);
+        ResponseEntity<OcrResult> response = controller.ocrExtract(file);
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
     }

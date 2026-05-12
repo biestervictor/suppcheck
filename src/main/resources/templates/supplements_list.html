@@ -251,9 +251,20 @@
         <td th:text="${supplement.portionSize}">Portionsgröße</td>
         <td th:text="${supplement.price}">Preis</td>
         <td th:text="${(supplement.price != null and supplement.portionSize != null and supplement.portionSize > 0) ? T(java.lang.String).format('%.2f €', supplement.price.doubleValue() / supplement.portionSize) : '-'}">Preis/Portion</td>
-        <td th:text="${(supplement.price != null and supplement.portionSize != null and supplement.portionSize > 0)
-               ? T(java.lang.String).format('%.2f €', (supplement.price.doubleValue() / supplement.portionSize) * (supplement.supplementType == 'SPORT' ? 15 : 30))
-               : '-'}">Preis/Monat</td>
+        <td th:with="intervalDays=${supplement.nonDaily and supplement.consumptionIntervalDays != null and supplement.consumptionIntervalDays > 1 ? supplement.consumptionIntervalDays : 1}">
+            <span th:if="${supplement.price != null and supplement.portionSize != null and supplement.portionSize > 0}"
+                  th:text="${T(java.lang.String).format('%.2f €',
+                      (supplement.price.doubleValue() / supplement.portionSize / intervalDays)
+                      * (supplement.supplementType == 'SPORT' ? 15 : 30))}">
+            </span>
+            <span th:if="${supplement.price == null or supplement.portionSize == null or supplement.portionSize <= 0}"
+                  th:text="'-'">
+            </span>
+            <span th:if="${supplement.nonDaily and supplement.consumptionIntervalDays != null and supplement.consumptionIntervalDays > 1}"
+                  style="font-size:0.8em; color:#888; display:block;"
+                  th:text="'(alle ' + ${supplement.consumptionIntervalDays} + ' Tage)'">
+            </span>
+        </td>
         <td th:text="${supplement.mhdProdukt ? '✅' : ''}">MHD</td>
         <td>
             <ul>

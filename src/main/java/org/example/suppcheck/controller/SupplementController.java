@@ -4,6 +4,7 @@ import java.util.*;
 
 import org.example.suppcheck.dto.IngredientDto;
 import org.example.suppcheck.dto.IngredientWithSources;
+import org.example.suppcheck.dto.OcrResult;
 import org.example.suppcheck.dto.SupplementSaveDto;
 import org.example.suppcheck.mapper.SupplementMapper;
 import org.example.suppcheck.model.Ingredient;
@@ -251,11 +252,11 @@ public class SupplementController {
      */
     @PostMapping(value = "/ocr-extract", produces = "application/json")
     @ResponseBody
-    public ResponseEntity<List<IngredientDto>> ocrExtract(
+    public ResponseEntity<OcrResult> ocrExtract(
             @RequestParam("image") MultipartFile file) {
         try {
-            List<IngredientDto> ingredients = ocrService.extractIngredients(file);
-            return ResponseEntity.ok(ingredients);
+            OcrResult result = ocrService.extractIngredients(file);
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }

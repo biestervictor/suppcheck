@@ -157,6 +157,10 @@
         <input type="file" id="ocr-image" accept="image/*"/>
         <button type="button" onclick="extractFromImage()">Zutaten erkennen</button>
         <span id="ocr-status"></span>
+        <details id="ocr-raw-box" style="display:none; margin-top:10px;">
+            <summary style="cursor:pointer; color:#555; font-style:italic;">OCR-Rohtext anzeigen</summary>
+            <pre id="ocr-raw-text" style="background:#f8f8f8; border:1px solid #ddd; padding:8px; font-size:0.8em; white-space:pre-wrap; max-height:200px; overflow-y:auto; margin-top:6px;"></pre>
+        </details>
     </div>
 </form>
 
@@ -323,7 +327,18 @@
             if (!r.ok) throw new Error('OCR-Fehler (HTTP ' + r.status + ')');
             return r.json();
         })
-        .then(function(ingredients) {
+        .then(function(result) {
+            const ingredients = result.ingredients || [];
+            const rawText = result.rawText || '';
+
+            // Show raw text in collapsible box
+            const rawBox = document.getElementById('ocr-raw-box');
+            const rawPre = document.getElementById('ocr-raw-text');
+            if (rawText && rawBox) {
+                rawPre.textContent = rawText;
+                rawBox.style.display = 'block';
+            }
+
             if (!ingredients || ingredients.length === 0) {
                 status.textContent = 'Keine Zutaten erkannt – bitte manuell eintragen.';
                 return;

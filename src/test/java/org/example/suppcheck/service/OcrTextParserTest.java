@@ -171,7 +171,7 @@ class OcrTextParserTest {
         assertEquals("Protein", result.getFirst().getName());
         assertEquals(1, result.getFirst().getSubIngredients().size());
         IngredientDto sub = result.getFirst().getSubIngredients().getFirst();
-        assertEquals("davon Whey-Konzentrat", sub.getName());
+        assertEquals("Whey-Konzentrat", sub.getName());
         assertEquals(20_000.0, sub.getMg(), 0.001);
     }
 
@@ -210,7 +210,7 @@ class OcrTextParserTest {
         assertEquals("Konjakwurzel-Extrakt", result.getFirst().getName());
         assertEquals(1, result.getFirst().getSubIngredients().size());
         IngredientDto sub = result.getFirst().getSubIngredients().getFirst();
-        assertEquals("davon Glucomannan", sub.getName());
+        assertEquals("Glucomannan", sub.getName());
         assertEquals(4500.0, sub.getMg(), 0.001);
     }
 
@@ -248,8 +248,8 @@ class OcrTextParserTest {
 
         assertEquals(1, result.size());
         assertEquals(2, result.getFirst().getSubIngredients().size());
-        assertEquals("davon Whey-Konzentrat", result.getFirst().getSubIngredients().get(0).getName());
-        assertEquals("davon Whey-Isolat",     result.getFirst().getSubIngredients().get(1).getName());
+        assertEquals("Whey-Konzentrat", result.getFirst().getSubIngredients().get(0).getName());
+        assertEquals("Whey-Isolat",     result.getFirst().getSubIngredients().get(1).getName());
     }
 
     @Test
@@ -264,10 +264,10 @@ class OcrTextParserTest {
         assertEquals(2, result.size());
         assertEquals("Protein", result.get(0).getName());
         assertEquals(1, result.get(0).getSubIngredients().size());
-        assertEquals("davon Whey-Konzentrat", result.get(0).getSubIngredients().getFirst().getName());
+        assertEquals("Whey-Konzentrat", result.get(0).getSubIngredients().getFirst().getName());
         assertEquals("Fett", result.get(1).getName());
         assertEquals(1, result.get(1).getSubIngredients().size());
-        assertEquals("davon gesättigte Fettsäuren", result.get(1).getSubIngredients().getFirst().getName());
+        assertEquals("gesättigte Fettsäuren", result.get(1).getSubIngredients().getFirst().getName());
     }
 
     @Test
@@ -288,7 +288,7 @@ class OcrTextParserTest {
 
         assertEquals(1, result.size());
         IngredientDto sub = result.getFirst().getSubIngredients().getFirst();
-        assertEquals("davon Vitamin D3", sub.getName());
+        assertEquals("Vitamin D3", sub.getName());
         assertEquals(0.025, sub.getMg(), 0.0001);
     }
 
@@ -346,7 +346,7 @@ class OcrTextParserTest {
 
     @Test
     void cleanSubIngredientName_removesParens() {
-        assertEquals("davon L-Leucin", OcrTextParser.cleanSubIngredientName("(davon L-Leucin)"));
+        assertEquals("L-Leucin", OcrTextParser.cleanSubIngredientName("(davon L-Leucin)"));
     }
 
     @Test
@@ -377,5 +377,51 @@ class OcrTextParserTest {
         assertEquals(0.025, OcrTextParser.toMg(25, "µg"), 0.0001);
         assertEquals(0.025, OcrTextParser.toMg(25, "mcg"), 0.0001);
         assertEquals(0.025, OcrTextParser.toMg(25, "ug"), 0.0001);
+    }
+
+    // --- davon as bare sub-ingredient trigger ---
+
+    @Test
+    void isSubIngredient_barelyDavon_returnsTrue() {
+        assertTrue(OcrTextParser.isSubIngredient("davon Glucomannan"));
+        assertTrue(OcrTextParser.isSubIngredient("davon gesättigte Fettsäuren"));
+    }
+
+    @Test
+    void parse_subIngredientBareDavon_isAttachedToParent() {
+        String text = "Ballaststoffe 5 g\ndavon Glucomannan 4 g";
+
+        List<IngredientDto> result = OcrTextParser.parse(text);
+
+        assertEquals(1, result.size());
+        assertEquals("Ballaststoffe", result.getFirst().getName());
+        assertEquals(1, result.getFirst().getSubIngredients().size());
+        assertEquals("Glucomannan", result.getFirst().getSubIngredients().getFirst().getName());
+        assertEquals(4_000.0, result.getFirst().getSubIngredients().getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void cleanSubIngredientName_stripsDavonPrefix() {
+        assertEquals("Glucomannan", OcrTextParser.cleanSubIngredientName("davon Glucomannan"));
+        assertEquals("L-Leucin", OcrTextParser.cleanSubIngredientName("(davon L-Leucin)"));
+        assertEquals("Glucomannan", OcrTextParser.cleanSubIngredientName(">> davon Glucomannan"));
+    }
+
+    // --- Space-thousands normalization ---
+
+    @Test
+    void parse_spaceThousandsSeparator_parsesCorrectly() {
+        List<IngredientDto> result = OcrTextParser.parse("L-Glutaminsäure 4 500 mg");
+
+        assertEquals(1, result.size());
+        assertEquals(4500.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_spaceThousandsInGrams_parsesCorrectly() {
+        List<IngredientDto> result = OcrTextParser.parse("Kohlenhydrate 1 000 g");
+
+        assertEquals(1, result.size());
+        assertEquals(1_000_000.0, result.getFirst().getMg(), 0.001);
     }
 }

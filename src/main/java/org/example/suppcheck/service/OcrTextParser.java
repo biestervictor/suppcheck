@@ -2,6 +2,7 @@ package org.example.suppcheck.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -91,6 +92,9 @@ public final class OcrTextParser {
                 continue;
             }
 
+            // Normalize space-thousands separator: "4 500" → "4500"
+            line = line.replaceAll("(\\d) (\\d{3})(?=[^\\d]|$)", "$1$2");
+
             Matcher m = INGREDIENT_LINE.matcher(line);
             if (!m.matches()) {
                 continue;
@@ -155,7 +159,11 @@ public final class OcrTextParser {
             return true;
         }
         // Case 2: bare '(' at the very start
-        return name.startsWith("(");
+        if (name.startsWith("(")) {
+            return true;
+        }
+        // Case 3: name starts with "davon " (German "of which") — also a sub-ingredient indicator
+        return name.toLowerCase(Locale.ROOT).startsWith("davon ");
     }
 
     /**
@@ -174,6 +182,10 @@ public final class OcrTextParser {
         name = name.replaceAll("^[\\s\\-\u2013\u2014\u2022*\u00b7>(]+", "");
         // Strip trailing closing paren and whitespace
         name = name.replaceAll("[)\\s]+$", "");
+        // Strip "davon " prefix — it is a sub-ingredient indicator, not part of the name
+        if (name.toLowerCase(Locale.ROOT).startsWith("davon ")) {
+            name = name.substring(6);
+        }
         return name.trim();
     }
 

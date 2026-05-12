@@ -8,6 +8,7 @@ import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 import org.example.suppcheck.dto.IngredientDto;
+import org.example.suppcheck.dto.OcrResult;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -32,7 +33,7 @@ public class OcrService {
      * @throws IOException          on I/O errors with temp files
      * @throws InterruptedException if the Tesseract process is interrupted
      */
-    public List<IngredientDto> extractIngredients(MultipartFile file)
+    public OcrResult extractIngredients(MultipartFile file)
             throws IOException, InterruptedException {
 
         String original = file.getOriginalFilename();
@@ -72,7 +73,8 @@ public class OcrService {
             String ocrText = Files.readString(txtOutput);
             Files.deleteIfExists(txtOutput);
 
-            return OcrTextParser.parse(ocrText);
+            List<IngredientDto> ingredients = OcrTextParser.parse(ocrText);
+            return new OcrResult(ocrText, ingredients);
 
         } finally {
             Files.deleteIfExists(tempInput);
