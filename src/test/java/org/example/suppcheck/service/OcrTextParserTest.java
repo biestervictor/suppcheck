@@ -200,6 +200,33 @@ class OcrTextParserTest {
     }
 
     @Test
+    void parse_subIngredientDoubleAngleNoParen_isAttachedToParent() {
+        // Reproduces: "Konjakwurzel-Extrakt 6000mg / >> davon Glucomannan 4500mg"
+        String text = "Konjakwurzel-Extrakt 6000 mg\n>> davon Glucomannan 4500 mg";
+
+        List<IngredientDto> result = OcrTextParser.parse(text);
+
+        assertEquals(1, result.size());
+        assertEquals("Konjakwurzel-Extrakt", result.getFirst().getName());
+        assertEquals(1, result.getFirst().getSubIngredients().size());
+        IngredientDto sub = result.getFirst().getSubIngredients().getFirst();
+        assertEquals("davon Glucomannan", sub.getName());
+        assertEquals(4500.0, sub.getMg(), 0.001);
+    }
+
+    @Test
+    void parse_subIngredientSingleAngleNoParen_isAttachedToParent() {
+        String text = "Protein 24 g\n> Whey Konzentrat 20 g";
+
+        List<IngredientDto> result = OcrTextParser.parse(text);
+
+        assertEquals(1, result.size());
+        assertEquals(1, result.getFirst().getSubIngredients().size());
+        assertEquals("Whey Konzentrat", result.getFirst().getSubIngredients().getFirst().getName());
+        assertEquals(20_000.0, result.getFirst().getSubIngredients().getFirst().getMg(), 0.001);
+    }
+
+    @Test
     void parse_subIngredientWithDoubleAngleBracket_isAttachedToPrevious() {
         String text = "BCAA 5000 mg\n>> (L-Valin) 1050 mg";
 
@@ -209,17 +236,6 @@ class OcrTextParserTest {
         assertEquals(1, result.getFirst().getSubIngredients().size());
         assertEquals("L-Valin", result.getFirst().getSubIngredients().getFirst().getName());
         assertEquals(1050.0, result.getFirst().getSubIngredients().getFirst().getMg(), 0.001);
-    }
-
-    @Test
-    void parse_subIngredientWithSingleAngleBracket_isAttachedToPrevious() {
-        String text = "BCAA 5000 mg\n> (L-Leucin) 2500 mg";
-
-        List<IngredientDto> result = OcrTextParser.parse(text);
-
-        assertEquals(1, result.size());
-        assertEquals(1, result.getFirst().getSubIngredients().size());
-        assertEquals("L-Leucin", result.getFirst().getSubIngredients().getFirst().getName());
     }
 
     @Test
@@ -301,6 +317,22 @@ class OcrTextParserTest {
     @Test
     void isSubIngredient_nameStartsWithDoubleAngle_returnsTrue() {
         assertTrue(OcrTextParser.isSubIngredient(">> (L-Leucin)"));
+    }
+
+    @Test
+    void isSubIngredient_doubleAngleWithoutParen_returnsTrue() {
+        // >> without ( must also be detected as sub-ingredient
+        assertTrue(OcrTextParser.isSubIngredient(">> davon Glucomannan"));
+    }
+
+    @Test
+    void isSubIngredient_singleAngleWithoutParen_returnsTrue() {
+        assertTrue(OcrTextParser.isSubIngredient("> davon Glucomannan"));
+    }
+
+    @Test
+    void isSubIngredient_dashWithoutParen_returnsTrue() {
+        assertTrue(OcrTextParser.isSubIngredient("- L-Leucin"));
     }
 
     @Test

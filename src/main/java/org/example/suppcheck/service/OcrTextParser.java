@@ -136,13 +136,26 @@ public final class OcrTextParser {
     // -------------------------------------------------------------------------
 
     /**
-     * Returns {@code true} when the name indicates a sub-ingredient, i.e.
-     * after stripping leading special chars the remaining string starts
-     * with {@code (}.
+     * Returns {@code true} when the name indicates a sub-ingredient.
+     *
+     * <p>Two cases are recognised:</p>
+     * <ol>
+     *   <li>The name starts with one or more leading special characters
+     *       ({@code >}, {@code -}, {@code –}, {@code •}, etc.) — with or
+     *       without a following {@code (}.
+     *       Examples: {@code >> davon Glucomannan}, {@code - L-Leucin},
+     *       {@code – (Whey Isolat}</li>
+     *   <li>The name starts directly with {@code (} (no leading special chars).
+     *       Example: {@code (davon L-Leucin)}</li>
+     * </ol>
      */
     static boolean isSubIngredient(String name) {
-        String stripped = LEADING_SPECIAL.matcher(name).replaceFirst("");
-        return stripped.startsWith("(");
+        // Case 1: name starts with at least one leading special char
+        if (LEADING_SPECIAL.matcher(name).find()) {
+            return true;
+        }
+        // Case 2: bare '(' at the very start
+        return name.startsWith("(");
     }
 
     /**
