@@ -317,5 +317,132 @@ class SupplementServiceTest {
 
         assertTrue(result.isEmpty(), "Inactive and SPORT supplements must be excluded on rest day");
     }
+
+    // --- getWheyIngredientTemplate ---
+
+    @Test
+    void getWheyIngredientTemplate_noWheySupplements_returnsEmpty() {
+        when(repository.findAll()).thenReturn(List.of());
+
+        assertTrue(service.getWheyIngredientTemplate().isEmpty());
+    }
+
+    @Test
+    void getWheyIngredientTemplate_skipsNonWheySupplements() {
+        Supplement basic = createActiveSupplementWithType("BASIC");
+        when(repository.findAll()).thenReturn(List.of(basic));
+
+        assertTrue(service.getWheyIngredientTemplate().isEmpty());
+    }
+
+    @Test
+    void getWheyIngredientTemplate_skipsInactiveWhey() {
+        Supplement inactiveWhey = createActiveSupplementWithType("WHEY");
+        inactiveWhey.setInactive(true);
+        when(repository.findAll()).thenReturn(List.of(inactiveWhey));
+
+        assertTrue(service.getWheyIngredientTemplate().isEmpty());
+    }
+
+    @Test
+    void getWheyIngredientTemplate_returnsIngredientNamesWithZeroMg() {
+        Ingredient protein = new Ingredient();
+        protein.setName("Protein");
+        protein.setMg(24_000);
+        protein.setSubIngredients(new ArrayList<>());
+
+        Supplement whey = createActiveSupplementWithType("WHEY");
+        whey.setIngredients(new ArrayList<>(List.of(protein)));
+        when(repository.findAll()).thenReturn(List.of(whey));
+
+        List<org.example.suppcheck.dto.IngredientDto> result = service.getWheyIngredientTemplate();
+
+        assertEquals(1, result.size());
+        assertEquals("Protein", result.getFirst().getName());
+        assertEquals(0.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void getWheyIngredientTemplate_includesSubIngredients() {
+        Ingredient leucin = new Ingredient();
+        leucin.setName("L-Leucin");
+        leucin.setMg(2100);
+
+        Ingredient protein = new Ingredient();
+        protein.setName("Protein");
+        protein.setMg(24_000);
+        protein.setSubIngredients(new ArrayList<>(List.of(leucin)));
+
+        Supplement whey = createActiveSupplementWithType("WHEY");
+        whey.setIngredients(new ArrayList<>(List.of(protein)));
+        when(repository.findAll()).thenReturn(List.of(whey));
+
+        List<org.example.suppcheck.dto.IngredientDto> result = service.getWheyIngredientTemplate();
+
+        assertEquals(1, result.size());
+        assertEquals(1, result.getFirst().getSubIngredients().size());
+        assertEquals("L-Leucin", result.getFirst().getSubIngredients().getFirst().getName());
+        assertEquals(0.0, result.getFirst().getSubIngredients().getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void getWheyIngredientTemplate_deduplicatesAcrossMultipleWheys() {
+        Ingredient ing1 = new Ingredient();
+        ing1.setName("Protein"); ing1.setMg(24_000); ing1.setSubIngredients(new ArrayList<>());
+
+        Ingredient ing2 = new Ingredient();
+        ing2.setName("Protein"); ing2.setMg(22_000); ing2.setSubIngredients(new ArrayList<>());
+
+        Supplement whey1 = createActiveSupplementWithType("WHEY");
+        whey1.setIngredients(new ArrayList<>(List.of(ing1)));
+
+        Supplement whey2 = createActiveSupplementWithType("WHEY");
+        whey2.setIngredients(new ArrayList<>(List.of(ing2)));
+
+        when(repository.findAll()).thenReturn(List.of(whey1, whey2));
+
+        List<org.example.suppcheck.dto.IngredientDto> result = service.getWheyIngredientTemplate();
+
+        assertEquals(1, result.size(), "Duplicate ingredient names must be deduplicated");
+    }
+
+    @Test
+    void getWheyIngredientTemplate_mergesSubIngredientsFromMultipleWheys() {
+        Ingredient leucin = new Ingredient();
+        leucin.setName("L-Leucin"); leucin.setMg(2100);
+
+        Ingredient valin = new Ingredient();
+        valin.setName("L-Valin"); valin.setMg(1050);
+
+        Ingredient protein1 = new Ingredient();
+        protein1.setName("Protein"); protein1.setMg(24_000);
+        protein1.setSubIngredients(new ArrayList<>(List.of(leucin)));
+
+        Ingredient protein2 = new Ingredient();
+        protein2.setName("Protein"); protein2.setMg(22_000);
+        protein2.setSubIngredients(new ArrayList<>(List.of(valin)));
+
+        Supplement whey1 = createActiveSupplementWithType("WHEY");
+        whey1.setIngredients(new ArrayList<>(List.of(protein1)));
+
+        Supplement whey2 = createActiveSupplementWithType("WHEY");
+        whey2.setIngredients(new ArrayList<>(List.of(protein2)));
+
+        when(repository.findAll()).thenReturn(List.of(whey1, whey2));
+
+        List<org.example.suppcheck.dto.IngredientDto> result = service.getWheyIngredientTemplate();
+
+        assertEquals(1, result.size());
+        assertEquals(2, result.getFirst().getSubIngredients().size(),
+                "Sub-ingredients from both Wheys must be merged");
+    }
+
+    private Supplement createActiveSupplementWithType(String type) {
+        Supplement supp = new Supplement();
+        supp.setSupplementType(type);
+        supp.setInactive(false);
+        supp.setIngredients(new ArrayList<>());
+        return supp;
+    }
 }
 

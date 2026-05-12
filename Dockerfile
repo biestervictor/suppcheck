@@ -13,8 +13,11 @@ RUN mvn clean package -DskipTests
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
-# Zeitzone setzen
-RUN apt-get update && apt-get install -y --no-install-recommends tzdata \
+# Zeitzone setzen + Tesseract OCR installieren
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        tzdata \
+        tesseract-ocr \
+        tesseract-ocr-deu \
     && ln -sf /usr/share/zoneinfo/Europe/Berlin /etc/localtime \
     && echo "Europe/Berlin" > /etc/timezone \
     && rm -rf /var/lib/apt/lists/*

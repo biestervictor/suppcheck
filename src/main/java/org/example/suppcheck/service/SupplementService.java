@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import org.example.suppcheck.dto.IngredientDto;
 import org.example.suppcheck.dto.IngredientWithSources;
 import org.example.suppcheck.model.Ingredient;
 import org.example.suppcheck.model.PriceEntry;
@@ -234,5 +235,57 @@ public class SupplementService {
    */
   public Optional<Supplement> getSupplementById(String id) {
     return supplementRepository.findById(id);
+  }
+
+  /**
+   * Builds a template ingredient list from all active WHEY supplements.
+   *
+   * <p>The template contains the union of all ingredient names (and their
+   * sub-ingredient names) found across existing WHEY supplements.  Amounts
+   * (mg) are set to 0 so the user only has to fill in the quantities.</p>
+   *
+   * @return ordered list of ingredient templates; empty when no WHEY supplements exist
+   */
+  public List<IngredientDto> getWheyIngredientTemplate() {
+    // Preserve first-seen insertion order; key = ingredient name
+    Map<String, IngredientDto> topLevel = new LinkedHashMap<>();
+
+    for (Supplement supp : supplementRepository.findAll()) {
+      if (!SupplementType.WHEY.name().equals(supp.getSupplementType())) {
+        continue;
+      }
+      if (supp.isInactive()) {
+        continue;
+      }
+
+      for (Ingredient ing : supp.getIngredients()) {
+        if (ing.getName() == null || ing.getName().isBlank()) {
+          continue;
+        }
+
+        IngredientDto topDto = topLevel.computeIfAbsent(ing.getName(), name -> {
+          IngredientDto dto = new IngredientDto();
+          dto.setName(name);
+          dto.setMg(0);
+          return dto;
+        });
+
+        for (Ingredient sub : ing.getSubIngredients()) {
+          if (sub.getName() == null || sub.getName().isBlank()) {
+            continue;
+          }
+          boolean alreadyPresent = topDto.getSubIngredients().stream()
+              .anyMatch(s -> sub.getName().equals(s.getName()));
+          if (!alreadyPresent) {
+            IngredientDto subDto = new IngredientDto();
+            subDto.setName(sub.getName());
+            subDto.setMg(0);
+            topDto.getSubIngredients().add(subDto);
+          }
+        }
+      }
+    }
+
+    return new ArrayList<>(topLevel.values());
   }
 }

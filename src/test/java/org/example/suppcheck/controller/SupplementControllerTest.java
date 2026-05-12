@@ -7,27 +7,34 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.example.suppcheck.dto.IngredientDto;
 import org.example.suppcheck.dto.IngredientWithSources;
 import org.example.suppcheck.model.Ingredient;
 import org.example.suppcheck.model.PriceEntry;
 import org.example.suppcheck.model.Supplement;
 import org.example.suppcheck.service.DailyIntakeSnapshotService;
+import org.example.suppcheck.service.OcrService;
 import org.example.suppcheck.service.SupplementService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.ui.ConcurrentModel;
 
 class SupplementControllerTest {
 
     private SupplementService service;
     private DailyIntakeSnapshotService snapshotService;
+    private OcrService ocrService;
     private SupplementController controller;
 
     @BeforeEach
     void setUp() {
         service = mock(SupplementService.class);
         snapshotService = mock(DailyIntakeSnapshotService.class);
-        controller = new SupplementController(service, snapshotService);
+        ocrService = mock(OcrService.class);
+        controller = new SupplementController(service, snapshotService, ocrService);
         // Default: getAllSupplements returns empty list (needed by snapshot trigger)
         lenient().when(service.getAllSupplements()).thenReturn(List.of());
     }
@@ -295,6 +302,62 @@ class SupplementControllerTest {
         entry.setPrice(price);
         supp.setPrices(new ArrayList<>(List.of(entry)));
         return supp;
+    }
+
+    // --- getWheyTemplate ---
+
+    @Test
+    void getWheyTemplate_delegatesToServiceAndReturnsResult() {
+        IngredientDto dto = new IngredientDto();
+        dto.setName("Protein");
+        dto.setMg(0);
+        when(service.getWheyIngredientTemplate()).thenReturn(List.of(dto));
+
+        List<IngredientDto> result = controller.getWheyTemplate();
+
+        assertEquals(1, result.size());
+        assertEquals("Protein", result.getFirst().getName());
+        verify(service).getWheyIngredientTemplate();
+    }
+
+    @Test
+    void getWheyTemplate_emptyWhenNoWheyExists() {
+        when(service.getWheyIngredientTemplate()).thenReturn(List.of());
+
+        List<IngredientDto> result = controller.getWheyTemplate();
+
+        assertTrue(result.isEmpty());
+    }
+
+    // --- ocrExtract ---
+
+    @Test
+    void ocrExtract_success_returnsIngredients() throws Exception {
+        IngredientDto dto = new IngredientDto();
+        dto.setName("L-Leucin");
+        dto.setMg(2100);
+
+        MockMultipartFile file = new MockMultipartFile(
+                "image", "label.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        when(ocrService.extractIngredients(file)).thenReturn(List.of(dto));
+
+        ResponseEntity<List<IngredientDto>> response = controller.ocrExtract(file);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().size());
+        assertEquals("L-Leucin", response.getBody().getFirst().getName());
+    }
+
+    @Test
+    void ocrExtract_ocrThrowsException_returns500() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "image", "label.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        when(ocrService.extractIngredients(file)).thenThrow(new RuntimeException("tesseract not found"));
+
+        ResponseEntity<List<IngredientDto>> response = controller.ocrExtract(file);
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
     }
 }
 

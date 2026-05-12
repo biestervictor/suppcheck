@@ -51,6 +51,32 @@
         .subingredient-list {
             margin-left: 32px;
         }
+        .ocr-section {
+            background: #f0f4ff;
+            border: 1px solid #c0d0f0;
+            border-radius: 5px;
+            padding: 14px 18px;
+            margin-bottom: 18px;
+        }
+        .ocr-section label {
+            display: block;
+            margin-bottom: 8px;
+        }
+        #ocr-status {
+            margin-left: 10px;
+            font-style: italic;
+            color: #555;
+        }
+        .whey-hint {
+            display: none;
+            background: #fffbe6;
+            border: 1px solid #ffe58f;
+            border-radius: 4px;
+            padding: 6px 12px;
+            margin-top: 6px;
+            font-size: 0.9em;
+            color: #7a5f00;
+        }
     </style>
     <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
 </head>
@@ -81,13 +107,16 @@
     <input id="portions" required th:field="*{portionSize}" type="number"/><br/><br/>
     <br/><br/>
     <label for="type">Typ:</label>
-    <select id="type" th:field="*{supplementType}">
+    <select id="type" th:field="*{supplementType}" onchange="onTypeChanged(this.value)">
         <option th:value="''" th:text="'-- bitte wählen --'"></option>
         <option th:each="t : ${types}"
                 th:value="${t}"
                 th:text="${t}">
         </option>
     </select>
+    <div id="whey-hint" class="whey-hint">
+        Zutaten wurden aus vorhandenen Whey-Produkten vorbelegt – bitte Mengen (mg) ausfüllen.
+    </div>
     <br/><br/>
     <label for="isInactive">Inaktiv:</label>
     <input id="isInactive" th:field="*{inactive}" type="checkbox"/><br/><br/>
@@ -114,6 +143,14 @@
 
     <button onclick="addIngredient()" type="button">Zutat hinzufügen</button>
     <button type="submit">Speichern</button>
+
+    <br/><br/>
+    <div class="ocr-section">
+        <label><strong>Nährwertbild hochladen (automatische Erkennung)</strong></label>
+        <input type="file" id="ocr-image" accept="image/*"/>
+        <button type="button" onclick="extractFromImage()">Zutaten erkennen</button>
+        <span id="ocr-status"></span>
+    </div>
 </form>
 
 <th:block th:if="${param.success}">
@@ -206,6 +243,104 @@
 
     document.getElementById('ovp').addEventListener('blur', calculatePrice);
     document.getElementById('discount').addEventListener('blur', calculatePrice);
+
+    // --- Whey Auto-fill ---
+
+    function onTypeChanged(value) {
+        if (value !== 'WHEY') return;
+
+        fetch('/supplements/api/whey-template')
+            .then(function(r) {
+                if (!r.ok) throw new Error('Keine Vorlage verfügbar');
+                return r.json();
+            })
+            .then(function(ingredients) {
+                if (!ingredients || ingredients.length === 0) return;
+                const list = document.getElementById('ingredients-list');
+                list.innerHTML = '';
+                ingredients.forEach(function(ing) {
+                    addIngredientFromTemplate(ing);
+                });
+                updateIngredientIndices();
+                document.getElementById('whey-hint').style.display = 'block';
+            })
+            .catch(function() {
+                // No existing Whey supplements – silently ignore, user fills manually
+            });
+    }
+
+    function addIngredientFromTemplate(ing) {
+        const list = document.getElementById('ingredients-list');
+        const div = document.createElement('div');
+        div.className = 'ingredient-row';
+
+        const subHtml = (ing.subIngredients || []).map(function(sub) {
+            return '<div>' +
+                '<input type="text" placeholder="Sub-Name" value="' + escapeHtml(sub.name) + '" />' +
+                '<input type="number" step="any" placeholder="mg" class="subingredient-mg" />' +
+                '<button type="button" onclick="removeSubIngredient(this)">Entfernen</button>' +
+                '</div>';
+        }).join('');
+
+        div.innerHTML =
+            '<input type="text" placeholder="Name" value="' + escapeHtml(ing.name) + '" />' +
+            '<input type="number" step="any" placeholder="mg" class="ingredient-mg" />' +
+            '<button type="button" onclick="removeIngredient(this)">Entfernen</button>' +
+            '<div class="subingredient-list">' + subHtml + '</div>' +
+            '<button type="button" onclick="addSubIngredient(this)">Sub-Ingridient hinzufügen</button>';
+
+        list.appendChild(div);
+    }
+
+    // --- OCR Image Extraction ---
+
+    function extractFromImage() {
+        const fileInput = document.getElementById('ocr-image');
+        const status = document.getElementById('ocr-status');
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            status.textContent = 'Bitte zuerst ein Bild auswählen.';
+            return;
+        }
+
+        status.textContent = 'Wird erkannt…';
+
+        const formData = new FormData();
+        formData.append('image', fileInput.files[0]);
+
+        fetch('/supplements/ocr-extract', {
+            method: 'POST',
+            body: formData
+        })
+        .then(function(r) {
+            if (!r.ok) throw new Error('OCR-Fehler (HTTP ' + r.status + ')');
+            return r.json();
+        })
+        .then(function(ingredients) {
+            if (!ingredients || ingredients.length === 0) {
+                status.textContent = 'Keine Zutaten erkannt – bitte manuell eintragen.';
+                return;
+            }
+            const list = document.getElementById('ingredients-list');
+            list.innerHTML = '';
+            ingredients.forEach(function(ing) {
+                addIngredientFromTemplate(ing);
+            });
+            updateIngredientIndices();
+            status.textContent = ingredients.length + ' Zutat(en) erkannt und eingetragen.';
+        })
+        .catch(function(err) {
+            status.textContent = 'Fehler: ' + err.message;
+        });
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;')
+                  .replace(/"/g, '&quot;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;');
+    }
 </script>
 </body>
 </html>

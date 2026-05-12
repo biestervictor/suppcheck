@@ -2,6 +2,7 @@ package org.example.suppcheck.controller;
 
 import java.util.*;
 
+import org.example.suppcheck.dto.IngredientDto;
 import org.example.suppcheck.dto.IngredientWithSources;
 import org.example.suppcheck.dto.SupplementSaveDto;
 import org.example.suppcheck.mapper.SupplementMapper;
@@ -10,10 +11,14 @@ import org.example.suppcheck.model.Shop;
 import org.example.suppcheck.model.Supplement;
 import org.example.suppcheck.model.SupplementType;
 import org.example.suppcheck.service.DailyIntakeSnapshotService;
+import org.example.suppcheck.service.OcrService;
 import org.example.suppcheck.service.SupplementService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Controller for the Supplement entity.
@@ -28,18 +33,22 @@ public class SupplementController {
 
     private final SupplementService supplementService;
     private final DailyIntakeSnapshotService snapshotService;
+    private final OcrService ocrService;
 
     /**
      * Constructor for SupplementController.
      *
      * @param supplementService the SupplementService instance
      * @param snapshotService   the DailyIntakeSnapshotService instance
+     * @param ocrService        the OcrService instance
      */
     @SuppressWarnings("java:S2384")
     public SupplementController(SupplementService supplementService,
-                                DailyIntakeSnapshotService snapshotService) {
+                                DailyIntakeSnapshotService snapshotService,
+                                OcrService ocrService) {
         this.supplementService = supplementService;
         this.snapshotService = snapshotService;
+        this.ocrService = ocrService;
     }
 
     private void addFormAttributes(Model model) {
@@ -207,6 +216,38 @@ public class SupplementController {
         }
         model.addAttribute("supplements", supplements);
         return "supplements_compare";
+    }
+
+    /**
+     * Returns the union of all ingredient names from active WHEY supplements as
+     * a JSON template (amounts set to 0).  Used by the form JS to pre-fill the
+     * ingredient list when the user selects the WHEY type.
+     *
+     * @return list of ingredient DTOs with name populated and mg = 0
+     */
+    @GetMapping(value = "/api/whey-template", produces = "application/json")
+    @ResponseBody
+    public List<IngredientDto> getWheyTemplate() {
+        return supplementService.getWheyIngredientTemplate();
+    }
+
+    /**
+     * Accepts an image upload, runs Tesseract OCR, and returns the detected
+     * ingredients as JSON so the form can auto-populate the ingredient rows.
+     *
+     * @param file the uploaded nutrition-label image
+     * @return 200 with list of detected ingredients, or 500 on OCR failure
+     */
+    @PostMapping(value = "/ocr-extract", produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<List<IngredientDto>> ocrExtract(
+            @RequestParam("image") MultipartFile file) {
+        try {
+            List<IngredientDto> ingredients = ocrService.extractIngredients(file);
+            return ResponseEntity.ok(ingredients);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 }
 
