@@ -11,6 +11,7 @@ import java.util.TreeMap;
 import org.example.suppcheck.dto.IngredientDto;
 import org.example.suppcheck.dto.IngredientWithSources;
 import org.example.suppcheck.model.Ingredient;
+import org.example.suppcheck.model.IngredientHistoryEntry;
 import org.example.suppcheck.model.PriceEntry;
 import org.example.suppcheck.model.Supplement;
 import org.example.suppcheck.model.SupplementType;
@@ -26,14 +27,18 @@ public class SupplementService {
 
 
   private final SupplementRepository supplementRepository;
+  private final IngredientHistoryService ingredientHistoryService;
 
   /**
    * Constructor for this service.
    *
    * @param supplementRepository the SupplementRepository instance
+   * @param ingredientHistoryService the IngredientHistoryService instance
    */
-  public SupplementService(SupplementRepository supplementRepository) {
+  public SupplementService(SupplementRepository supplementRepository,
+                           IngredientHistoryService ingredientHistoryService) {
     this.supplementRepository = supplementRepository;
+    this.ingredientHistoryService = ingredientHistoryService;
   }
 
   /**
@@ -220,6 +225,10 @@ public class SupplementService {
       double previousPrice = existing.getPrice();
       double previousOvp = existing.getOvp();
 
+      // Snapshot old ingredients before overwriting
+      List<Ingredient> oldIngredients = new ArrayList<>(
+          existing.getIngredients() != null ? existing.getIngredients() : List.of());
+
       // Copy non-price fields onto existing entity
       existing.setShop(supplement.getShop());
       existing.setName(supplement.getName());
@@ -231,6 +240,13 @@ public class SupplementService {
       existing.setMhdProdukt(supplement.isMhdProdukt());
       existing.setNonDaily(supplement.isNonDaily());
       existing.setConsumptionIntervalDays(supplement.getConsumptionIntervalDays());
+
+      // Record ingredient history if anything changed
+      ingredientHistoryService.buildEntry(oldIngredients, supplement.getIngredients())
+          .ifPresent(entry -> {
+            ensureMutableHistoryList(existing);
+            existing.getIngredientHistory().add(entry);
+          });
 
       // Append a new combined entry when either price or OVP changed
       boolean priceChanged = incomingPrice != null && Double.compare(previousPrice, incomingPrice) != 0;
@@ -272,6 +288,17 @@ public class SupplementService {
       supp.setPrices(new ArrayList<>());
     } else if (!(supp.getPrices() instanceof ArrayList)) {
       supp.setPrices(new ArrayList<>(supp.getPrices()));
+    }
+  }
+
+  /**
+   * Ensures the ingredient history list on the supplement is mutable.
+   */
+  private void ensureMutableHistoryList(Supplement supp) {
+    if (supp.getIngredientHistory() == null) {
+      supp.setIngredientHistory(new ArrayList<>());
+    } else if (!(supp.getIngredientHistory() instanceof ArrayList)) {
+      supp.setIngredientHistory(new ArrayList<>(supp.getIngredientHistory()));
     }
   }
 

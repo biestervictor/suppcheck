@@ -19,7 +19,7 @@ class SupplementServicePriceHistoryTest {
   @Test
   void saveSupplement_migratesExistingWithoutPrices_toOneEntryWithToday() {
     SupplementRepository repo = mock(SupplementRepository.class);
-    SupplementService service = new SupplementService(repo);
+    SupplementService service = new SupplementService(repo, new IngredientHistoryService());
 
     // Existing DB document (legacy): no prices list
     Supplement existing = new Supplement();
@@ -64,7 +64,7 @@ class SupplementServicePriceHistoryTest {
   @Test
   void saveSupplement_onUpdateWithDifferentPrice_appendsNewEntryForToday() {
     SupplementRepository repo = mock(SupplementRepository.class);
-    SupplementService service = new SupplementService(repo);
+    SupplementService service = new SupplementService(repo, new IngredientHistoryService());
 
     Supplement existing = new Supplement();
     existing.setId("id-2");
@@ -110,7 +110,7 @@ class SupplementServicePriceHistoryTest {
   @Test
   void saveSupplement_onUpdateWithSamePrice_doesNotAppendNewEntry() {
     SupplementRepository repo = mock(SupplementRepository.class);
-    SupplementService service = new SupplementService(repo);
+    SupplementService service = new SupplementService(repo, new IngredientHistoryService());
 
     Supplement existing = new Supplement();
     existing.setId("id-3");
@@ -151,7 +151,7 @@ class SupplementServicePriceHistoryTest {
   @Test
   void saveSupplement_newSupplement_createsSingleEntryForToday() {
     SupplementRepository repo = mock(SupplementRepository.class);
-    SupplementService service = new SupplementService(repo);
+    SupplementService service = new SupplementService(repo, new IngredientHistoryService());
 
     when(repo.findById(any())).thenReturn(Optional.empty());
 

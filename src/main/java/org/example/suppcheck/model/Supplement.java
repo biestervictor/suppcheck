@@ -30,6 +30,12 @@ public class Supplement {
    */
   private List<PriceEntry> prices = new ArrayList<>();
 
+  /**
+   * Ingredient change history. Each entry captures the diff from one save event.
+   * Newest entries are appended at the end.
+   */
+  private List<IngredientHistoryEntry> ingredientHistory = new ArrayList<>();
+
 
   /**
    * Price coming from forms/DTOs. This is NOT persisted and must be merged into {@link #prices} by the service.

@@ -143,6 +143,20 @@ public final class OcrTextParser {
             line = line.replaceAll("(?<!\\p{L})(\\d) (\\d{3})(?=[^\\d]|$)", "$1$2");
 
             // ── OCR misreading corrections ────────────────────────────────────
+            // © (copyright symbol) OCR'd instead of letter C — common on EU labels
+            line = line.replace("\u00a9", "C");
+            // Turkish dotless i (ı, U+0131) OCR'd instead of digit 1
+            line = line.replace("\u0131", "1");
+            // Vitamin directly followed by letter/digit without space → insert space
+            // "VitaminE" → "Vitamin E", "VitaminB12" → "Vitamin B12"
+            line = line.replaceAll("(?i)\\bVitamin([ABCDEK0-9])", "Vitamin $1");
+            // Specific ingredient name OCR misreadings (common multi-lingual EU labels)
+            line = line.replaceAll("(?i)\\bCalclum\\b", "Calcium");
+            line = line.replaceAll("(?i)\\bSelenlum\\b", "Selenium");
+            line = line.replaceAll("(?i)\\bBlotin\\b", "Biotin");
+            line = line.replaceAll("(?i)\\bZine\\b", "Zinc");
+            // "Vitamin Da" → "Vitamin D3": digit 3 OCR'd as letter a after D
+            line = line.replaceAll("(?i)\\bVitamin D[aA]\\b", "Vitamin D3");
             // Unit misreadings — use (?<![a-zA-Z]) instead of \b because a digit
             // immediately before the unit ("4meg") has no word-boundary before the
             // first unit letter.
@@ -391,7 +405,14 @@ public final class OcrTextParser {
         name = name.replaceAll("^[{\"'`\u201c\u201d\u2018\u2019\\s]+", "");
         // Strip leading line-number digit(s) + whitespace before a capital letter
         name = name.replaceAll("^\\d+\\s+(?=[A-Z\u00c4\u00d6\u00dc])", "");
-        return name.trim();
+        // Strip trailing large numbers (≥4 digits) — Pro-100G value bleeding into the name
+        // Keeps "B12", "K2", "D3" which are at most 2 digits
+        name = name.replaceAll("\\s+\\d{4,}[.,]?\\d*\\s*$", "").trim();
+        // Strip trailing punctuation/bracket OCR artefacts (e.g. "Vitamin K2 -" → "Vitamin K2")
+        name = name.replaceAll("[\\s\\-,\\.\\(]+$", "").trim();
+        // Strip trailing short (1–3 char) lowercase noise tokens (e.g. "au," from "Vitamin B6 au,")
+        name = name.replaceAll("\\s+[a-z\u00e4\u00f6\u00fc\u00df]{1,3}[,.]?$", "").trim();
+        return name;
     }
 
     // -------------------------------------------------------------------------

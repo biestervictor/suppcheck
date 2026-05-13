@@ -23,7 +23,7 @@ class SupplementServiceTest {
     @BeforeEach
     void setUp() {
         repository = mock(SupplementRepository.class);
-        service = new SupplementService(repository);
+        service = new SupplementService(repository, new IngredientHistoryService());
     }
 
     // --- getAllSupplements ---

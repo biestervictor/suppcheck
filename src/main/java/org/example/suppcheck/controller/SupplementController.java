@@ -9,6 +9,7 @@ import org.example.suppcheck.dto.OcrResult;
 import org.example.suppcheck.dto.SupplementSaveDto;
 import org.example.suppcheck.mapper.SupplementMapper;
 import org.example.suppcheck.model.Ingredient;
+import org.example.suppcheck.model.IngredientHistoryEntry;
 import org.example.suppcheck.model.Shop;
 import org.example.suppcheck.model.Supplement;
 import org.example.suppcheck.model.SupplementType;
@@ -319,6 +320,26 @@ public class SupplementController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
+    }
+
+    /**
+     * Returns the full ingredient-change history for a supplement, newest last.
+     *
+     * @param id the supplement id
+     * @return JSON list of {@link IngredientHistoryEntry}
+     */
+    @GetMapping(value = "/{id}/ingredient-history", produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<List<IngredientHistoryEntry>> getIngredientHistory(
+            @PathVariable String id) {
+        return supplementService.getSupplementById(id)
+                .map(s -> {
+                    List<IngredientHistoryEntry> hist = s.getIngredientHistory() != null
+                            ? s.getIngredientHistory()
+                            : List.of();
+                    return ResponseEntity.ok(hist);
+                })
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 }
 

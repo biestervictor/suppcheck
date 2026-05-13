@@ -1205,6 +1205,215 @@ class OcrTextParserTest {
         assertEquals(500.0, result.getFirst().getMg(), 0.001);
     }
 
+    // ── New OCR fixes: line-level character corrections ────────────────────
+
+    @Test
+    void parse_copyrightSymbol_normalizedToLetterC() {
+        // "Vitamin ©" → "Vitamin C" (© is OCR misread of letter C)
+        List<IngredientDto> result = OcrTextParser.parse("Vitamin © 200 mg");
+
+        assertEquals(1, result.size());
+        assertEquals("Vitamin C", result.getFirst().getName());
+        assertEquals(200.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_turkishDotlessI_normalizedToDigitOne() {
+        // "Vitamin Bı" → "Vitamin B1" (ı = U+0131 is OCR misread of digit 1)
+        List<IngredientDto> result = OcrTextParser.parse("Vitamin B\u0131 3,5 mg");
+
+        assertEquals(1, result.size());
+        assertEquals("Vitamin B1", result.getFirst().getName());
+        assertEquals(3.5, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_vitaminWithoutSpace_spaceInserted() {
+        // "VitaminE" → "Vitamin E"
+        List<IngredientDto> result = OcrTextParser.parse("VitaminE 12 mg");
+
+        assertEquals(1, result.size());
+        assertEquals("Vitamin E", result.getFirst().getName());
+        assertEquals(12.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_vitaminBWithoutSpace_spaceInserted() {
+        // "VitaminB12" → "Vitamin B12"
+        List<IngredientDto> result = OcrTextParser.parse("VitaminB12 63 mcg");
+
+        assertEquals(1, result.size());
+        assertEquals("Vitamin B12", result.getFirst().getName());
+        assertEquals(0.063, result.getFirst().getMg(), 0.0001);
+    }
+
+    @Test
+    void parse_calclum_normalizedToCalcium() {
+        List<IngredientDto> result = OcrTextParser.parse("Calclum 420 mg");
+
+        assertEquals(1, result.size());
+        assertEquals("Calcium", result.getFirst().getName());
+        assertEquals(420.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_selenlum_normalizedToSelenium() {
+        List<IngredientDto> result = OcrTextParser.parse("Selenlum 82 ug");
+
+        assertEquals(1, result.size());
+        assertEquals("Selenium", result.getFirst().getName());
+        assertEquals(0.082, result.getFirst().getMg(), 0.0001);
+    }
+
+    @Test
+    void parse_blotin_normalizedToBiotin() {
+        List<IngredientDto> result = OcrTextParser.parse("Blotin 60 ug");
+
+        assertEquals(1, result.size());
+        assertEquals("Biotin", result.getFirst().getName());
+        assertEquals(0.06, result.getFirst().getMg(), 0.0001);
+    }
+
+    @Test
+    void parse_zine_normalizedToZinc() {
+        List<IngredientDto> result = OcrTextParser.parse("Zine 20 mg");
+
+        assertEquals(1, result.size());
+        assertEquals("Zinc", result.getFirst().getName());
+        assertEquals(20.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_vitaminDa_normalizedToVitaminD3() {
+        // "Vitamin Da" → "Vitamin D3" (a = OCR misread of digit 3)
+        List<IngredientDto> result = OcrTextParser.parse("Vitamin Da 25 ug");
+
+        assertEquals(1, result.size());
+        assertEquals("Vitamin D3", result.getFirst().getName());
+        assertEquals(0.025, result.getFirst().getMg(), 0.0001);
+    }
+
+    // ── cleanTopLevelName: trailing noise stripping ────────────────────────
+
+    @Test
+    void cleanTopLevelName_trailingDash_stripped() {
+        assertEquals("Vitamin K2", OcrTextParser.cleanTopLevelName("Vitamin K2 -"));
+    }
+
+    @Test
+    void cleanTopLevelName_trailingLargeNumber_stripped() {
+        // Pro-100G value (≥4 digits) bleeding into name
+        assertEquals("Selenium", OcrTextParser.cleanTopLevelName("Selenium 1397,73"));
+    }
+
+    @Test
+    void cleanTopLevelName_trailingShortLowercaseToken_stripped() {
+        // "au," is a 2-char lowercase noise suffix
+        assertEquals("Vitamin B6", OcrTextParser.cleanTopLevelName("Vitamin B6 au,"));
+    }
+
+    @Test
+    void cleanTopLevelName_trailingOpenParen_stripped() {
+        assertEquals("Vitamin K2", OcrTextParser.cleanTopLevelName("Vitamin K2 - ("));
+    }
+
+    @Test
+    void cleanTopLevelName_smallVitaminDesignatorPreserved() {
+        // "B12", "K2", "D3" must NOT be stripped — only 1-2 digits, no space before them
+        assertEquals("Vitamin B12", OcrTextParser.cleanTopLevelName("Vitamin B12"));
+        assertEquals("Vitamin K2", OcrTextParser.cleanTopLevelName("Vitamin K2"));
+        assertEquals("Vitamin D3", OcrTextParser.cleanTopLevelName("Vitamin D3"));
+    }
+
+    @Test
+    void parse_trailingDashInName_strippedToCleanName() {
+        // "Vitamin K2 - 0,0 mg" → Vitamin K2, 0.0 mg
+        List<IngredientDto> result = OcrTextParser.parse("Vitamin K2 - 0,0 mg");
+
+        assertEquals(1, result.size());
+        assertEquals("Vitamin K2", result.getFirst().getName());
+        assertEquals(0.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_trailingLowercaseNoise_strippedToCleanName() {
+        // "Vitamin B6 au, 4,8 mg" — "au," is noise between name and amount
+        List<IngredientDto> result = OcrTextParser.parse("Vitamin B6 au, 4,8 mg");
+
+        assertEquals(1, result.size());
+        assertEquals("Vitamin B6", result.getFirst().getName());
+        assertEquals(4.8, result.getFirst().getMg(), 0.001);
+    }
+
+    // ── bodylab2 integration test (two-column OCR, mixed language label) ──
+
+    @Test
+    void parse_bodylab2OcrText_parsesAllIngredientsCorrectly() {
+        // Simulated Tesseract output from bodylab2 — a two-column (Pro 100G | Pro Portion)
+        // English-language EU supplement table with various OCR artefacts.
+        String ocr =
+                "Vitamine Pro 100G Pro Portion % RM\n" +
+                "Vitamin A 13636,36 ug 800 ug 100 %\n" +
+                "VitaminE 204,55 mg 12 mg 100 %\n" +           // no space → insert
+                "Vitamin © 3409,09 mg 200 mg 250 %\n" +         // © → C
+                "Vitamin B\u0131 59,66 mg 3,5 mg 318 %\n" +     // ı → 1
+                "Vitamin B2 57,95 mg 3,4 mg 243 %\n" +
+                "Vitamin B3 545,45 mg 32 mg 200 %\n" +
+                "Vitamin B6 au, 81,82 mg 4,8 mg 343 %\n" +      // trailing noise
+                "Vitamin B12 63,07 ug 3,7 ug 148 %\n" +
+                "Blotin 1022,73 ug 60 ug 120 %\n" +             // Blotin → Biotin
+                "Vitamin B5 306,82 mg 18 mg 300 %\n" +
+                "Vitamin Da 426,14 ug 25 ug 500 %\n" +           // Da → D3
+                "Mineralien Pro 100G Pro Portion % RM\n" +        // header — skipped
+                "Calclum 7159,09 mg 420 mg 53 %\n" +             // Calclum → Calcium
+                "Magnesium 3579,55 mg 210 mg 56 %\n" +
+                "Zine 340,91 mg 20 mg 200 %\n" +                 // Zine → Zinc
+                "Selenlum 1397,73 ug 82 ug 149 %\n" +            // Selenlum → Selenium
+                "Vitamin K2 - 0,0 mg 0,0 mg 100 %";             // trailing dash
+
+        List<IngredientDto> result = OcrTextParser.parse(ocr);
+        List<String> names = result.stream().map(IngredientDto::getName).toList();
+
+        // Name fixes
+        assertTrue(names.contains("Vitamin E"),   "VitaminE → Vitamin E");
+        assertTrue(names.contains("Vitamin C"),   "© → C");
+        assertTrue(names.contains("Vitamin B1"),  "Bı → B1");
+        assertTrue(names.contains("Vitamin B6"),  "trailing au, stripped");
+        assertTrue(names.contains("Biotin"),      "Blotin → Biotin");
+        assertTrue(names.contains("Vitamin D3"),  "Da → D3");
+        assertTrue(names.contains("Calcium"),     "Calclum → Calcium");
+        assertTrue(names.contains("Zinc"),        "Zine → Zinc");
+        assertTrue(names.contains("Selenium"),    "Selenlum → Selenium");
+        assertTrue(names.contains("Vitamin K2"),  "trailing dash stripped");
+
+        // Other expected top-level names
+        assertTrue(names.contains("Vitamin A"),   "Vitamin A");
+        assertTrue(names.contains("Vitamin B2"),  "Vitamin B2");
+        assertTrue(names.contains("Vitamin B3"),  "Vitamin B3");
+        assertTrue(names.contains("Vitamin B12"), "Vitamin B12");
+        assertTrue(names.contains("Vitamin B5"),  "Vitamin B5");
+        assertTrue(names.contains("Magnesium"),   "Magnesium");
+
+        // Per-portion values (second column)
+        assertEquals(12.0,   findMg(result, "Vitamin E"),   0.001);
+        assertEquals(200.0,  findMg(result, "Vitamin C"),   0.001);
+        assertEquals(3.5,    findMg(result, "Vitamin B1"),  0.001);
+        assertEquals(4.8,    findMg(result, "Vitamin B6"),  0.001);
+        assertEquals(0.06,   findMg(result, "Biotin"),      0.001);
+        assertEquals(0.025,  findMg(result, "Vitamin D3"),  0.0001);
+        assertEquals(420.0,  findMg(result, "Calcium"),     0.001);
+        assertEquals(20.0,   findMg(result, "Zinc"),        0.001);
+        assertEquals(0.082,  findMg(result, "Selenium"),    0.001);
+    }
+
+    private static double findMg(List<IngredientDto> list, String name) {
+        return list.stream()
+                .filter(i -> name.equals(i.getName()))
+                .findFirst()
+                .map(IngredientDto::getMg)
+                .orElseThrow(() -> new AssertionError("Ingredient not found: " + name));
+    }
+
     // --- parse() integration with joinSplitUnitLines ---
 
     @Test
