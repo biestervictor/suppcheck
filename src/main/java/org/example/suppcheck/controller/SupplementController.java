@@ -222,6 +222,11 @@ public class SupplementController {
     public String saveSupplement(@ModelAttribute SupplementSaveDto supplementDto) {
         Supplement supplement = SupplementMapper.toEntity(supplementDto);
         supplementService.saveSupplement(supplement);
+        // On update redirect back to the edit page so the user can confirm their changes.
+        // On create, go to the new-supplement form (ready for the next entry).
+        if (supplement.getId() != null) {
+            return "redirect:/supplements/edit/" + supplement.getId() + "?success";
+        }
         return "redirect:/supplements/new?success";
     }
 

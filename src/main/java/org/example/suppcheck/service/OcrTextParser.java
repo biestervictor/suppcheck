@@ -133,9 +133,10 @@ public final class OcrTextParser {
                 continue; // blank lines don't increment the streak or clear pendingName
             }
 
-            // Strip leading OCR table-cell artefacts produced by vertical lines:
-            // "|", "°", "·" at the start of a line are table borders, not text.
-            line = line.replaceAll("^[|°·]+\\s*", "");
+            // Strip leading OCR table-cell artefacts produced by vertical lines or cell borders:
+            // "|", "°", "·", "<", "_", "}", ")" at the start of a line are OCR noise, not text.
+            // ")" appears when a closing paren from the previous entry bleeds onto the next line.
+            line = line.replaceAll("^[|°·<_})]+\\s*", "");
 
             // Normalize space-thousands separator: "4 500" → "4500"
             // Negative lookbehind (?<!\p{L}) ensures we don't merge digit sequences
@@ -157,6 +158,10 @@ public final class OcrTextParser {
             line = line.replaceAll("(?i)\\bZine\\b", "Zinc");
             // "Vitamin Da" → "Vitamin D3": digit 3 OCR'd as letter a after D
             line = line.replaceAll("(?i)\\bVitamin D[aA]\\b", "Vitamin D3");
+            // "Lryrosin" → "L-Tyrosin": OCR confuses "T-" with "r" after "L"
+            line = line.replaceAll("(?i)\\bLryrosin\\b", "L-Tyrosin");
+            // "Sitterorangenschalen" → "Bitterorangenschalen": S misread for B
+            line = line.replaceAll("(?i)\\bSitterorangenschalen\\b", "Bitterorangenschalen");
             // Unit misreadings — use (?<![a-zA-Z]) instead of \b because a digit
             // immediately before the unit ("4meg") has no word-boundary before the
             // first unit letter.
@@ -381,8 +386,8 @@ public final class OcrTextParser {
     static String cleanSubIngredientName(String name) {
         // Strip leading special chars (including OCR noise: {, ", ', `) and opening paren
         name = name.replaceAll("^[\\s\\-\u2013\u2014\u2022*\u00b7>({\"'`\u201c\u201d\u2018\u2019]+", "");
-        // Strip trailing closing paren and whitespace
-        name = name.replaceAll("[)\\s]+$", "");
+        // Strip trailing closing paren, opening paren (amount-format artifact), and whitespace
+        name = name.replaceAll("[()\\s]+$", "");
         // Strip "davon " prefix — it is a sub-ingredient indicator, not part of the name
         if (name.toLowerCase(Locale.ROOT).startsWith("davon ")) {
             name = name.substring(6);

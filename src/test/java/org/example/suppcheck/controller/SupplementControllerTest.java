@@ -233,9 +233,26 @@ class SupplementControllerTest {
     // --- saveSupplement ---
 
     @Test
-    void saveSupplement_redirectsToNewForm() {
+    void saveSupplement_newSupplement_redirectsToNewForm() {
         org.example.suppcheck.dto.SupplementSaveDto dto = new org.example.suppcheck.dto.SupplementSaveDto();
         dto.setName("NewSupp");
+        dto.setShop("ESN");
+        dto.setPortionSize(10);
+        dto.setSupplementType("BASIC");
+        dto.setPrice(15.0);
+        // no id → new supplement
+
+        String view = controller.saveSupplement(dto);
+
+        assertEquals("redirect:/supplements/new?success", view);
+        verify(service).saveSupplement(any(Supplement.class));
+    }
+
+    @Test
+    void saveSupplement_existingSupplement_redirectsToEditForm() {
+        org.example.suppcheck.dto.SupplementSaveDto dto = new org.example.suppcheck.dto.SupplementSaveDto();
+        dto.setId("abc123");
+        dto.setName("ExistingSupp");
         dto.setShop("ESN");
         dto.setPortionSize(10);
         dto.setSupplementType("BASIC");
@@ -243,7 +260,7 @@ class SupplementControllerTest {
 
         String view = controller.saveSupplement(dto);
 
-        assertEquals("redirect:/supplements/new?success", view);
+        assertEquals("redirect:/supplements/edit/abc123?success", view);
         verify(service).saveSupplement(any(Supplement.class));
     }
 

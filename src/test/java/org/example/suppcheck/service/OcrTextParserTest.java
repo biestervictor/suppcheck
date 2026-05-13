@@ -1448,4 +1448,181 @@ class OcrTextParserTest {
         assertEquals("Koffein",           result.get(2).getName());
         assertEquals(200.0,               result.get(2).getMg(), 0.001);
     }
+
+    // ── OCR noise: leading chars <, _, }, ) ──────────────────────────────────
+
+    @Test
+    void parse_leadingLessThan_strippedAndParsedAsTopLevel() {
+        List<IngredientDto> result = OcrTextParser.parse("_ Glucuronolacton (500 mg)");
+        assertEquals(1, result.size());
+        assertEquals("Glucuronolacton", result.getFirst().getName());
+        assertEquals(500.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_leadingUnderscore_strippedAndParsedAsTopLevel() {
+        List<IngredientDto> result = OcrTextParser.parse("< Taurin (1500 mg)");
+        assertEquals(1, result.size());
+        assertEquals("Taurin", result.getFirst().getName());
+        assertEquals(1500.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_leadingClosingBraceWithDavon_parsedAsSubIngredient() {
+        // "} davon aus Guarana Extrakt" appears under Koffein
+        String text = "Koffein (255 mg)\n} davon aus Guarana Extrakt (55 mg)";
+        List<IngredientDto> result = OcrTextParser.parse(text);
+
+        assertEquals(1, result.size());
+        IngredientDto koffein = result.getFirst();
+        assertEquals("Koffein", koffein.getName());
+        assertEquals(255.0, koffein.getMg(), 0.001);
+        assertEquals(1, koffein.getSubIngredients().size());
+        assertEquals("aus Guarana Extrakt", koffein.getSubIngredients().getFirst().getName());
+        assertEquals(55.0, koffein.getSubIngredients().getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_leadingClosingParenStripped_parsedAsTopLevel() {
+        // ") Guarana-Extrakt" — closing paren is OCR noise
+        List<IngredientDto> result = OcrTextParser.parse(") Guarana-Extrakt (275 mg)");
+        assertEquals(1, result.size());
+        assertEquals("Guarana-Extrakt", result.getFirst().getName());
+        assertEquals(275.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_leadingClosingParenWithDavon_parsedAsSubIngredient() {
+        // ") davon Piperin" under Schwarzer Pfeffer-Extrakt
+        String text = "Schwarzer Pfeffer-Extrakt (4,2 mg)\n) davon Piperin (4 mg)";
+        List<IngredientDto> result = OcrTextParser.parse(text);
+
+        assertEquals(1, result.size());
+        IngredientDto pfeffer = result.getFirst();
+        assertEquals("Schwarzer Pfeffer-Extrakt", pfeffer.getName());
+        assertEquals(4.2, pfeffer.getMg(), 0.01);
+        assertEquals(1, pfeffer.getSubIngredients().size());
+        assertEquals("Piperin", pfeffer.getSubIngredients().getFirst().getName());
+        assertEquals(4.0, pfeffer.getSubIngredients().getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_leadingLessThanWithDavon_parsedAsSubIngredient() {
+        // "< davon Glycerin" appears under Glycerinpulver
+        String text = "Glycerinpulver (HydroPrime\u00ae) (2000 mg)\n< davon Glycerin (1300 mg)";
+        List<IngredientDto> result = OcrTextParser.parse(text);
+
+        assertEquals(1, result.size());
+        IngredientDto glycerin = result.getFirst();
+        assertEquals("Glycerinpulver (HydroPrime\u00ae)", glycerin.getName());
+        assertEquals(2000.0, glycerin.getMg(), 0.001);
+        assertEquals(1, glycerin.getSubIngredients().size());
+        assertEquals("Glycerin", glycerin.getSubIngredients().getFirst().getName());
+        assertEquals(1300.0, glycerin.getSubIngredients().getFirst().getMg(), 0.001);
+    }
+
+    // ── OCR corrections: Lryrosin, Sitterorangenschalen ──────────────────────
+
+    @Test
+    void parse_ocrCorrection_LryrosinRecognizedAsLTyrosin() {
+        List<IngredientDto> result = OcrTextParser.parse("Lryrosin (1500 mg)");
+        assertEquals(1, result.size());
+        assertEquals("L-Tyrosin", result.getFirst().getName());
+        assertEquals(1500.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_ocrCorrection_SitterorangenschalenRecognizedAsBitterorangenschalen() {
+        List<IngredientDto> result = OcrTextParser.parse("Sitterorangenschalen-Extrakt (350 mg)");
+        assertEquals(1, result.size());
+        assertEquals("Bitterorangenschalen-Extrakt", result.getFirst().getName());
+        assertEquals(350.0, result.getFirst().getMg(), 0.001);
+    }
+
+    // ── cleanSubIngredientName: trailing ( stripped ──────────────────────────
+
+    @Test
+    void cleanSubIngredientName_trailingOpenParenStripped() {
+        // Amount-in-parens format leaves a trailing "(" in the parsed name group
+        assertEquals("Glycerin",
+                OcrTextParser.cleanSubIngredientName("davon Glycerin ("));
+    }
+
+    @Test
+    void cleanSubIngredientName_trailingOpenParenAfterDavonPiperin() {
+        assertEquals("Piperin",
+                OcrTextParser.cleanSubIngredientName("davon Piperin ("));
+    }
+
+    @Test
+    void cleanSubIngredientName_trailingOpenParenAusGuaranaExtrakt() {
+        assertEquals("aus Guarana Extrakt",
+                OcrTextParser.cleanSubIngredientName("davon aus Guarana Extrakt ("));
+    }
+
+    // ── Crank Ultimate OCR integration test ──────────────────────────────────
+
+    @Test
+    void parse_crankUltimateOcr_parsesKeyIngredients() {
+        String ocrText =
+            "L-Citrullin Malat (6000 mg)\n" +
+            "L-Citrullin (4800 mg)\n" +
+            "L-Arginin Alpha-Ketoglutarat (4000 mg)\n" +
+            "L-Arginin (2800 mg)\n" +
+            "Glycerinpulver (HydroPrime\u00ae) (2000 mg)\n" +
+            "< davon Glycerin (1300 mg)\n" +
+            "Lryrosin (1500 mg)\n" +
+            "Taurin (1500 mg)\n" +
+            "L-Glycin (1000 mg)\n" +
+            "_ Glucuronolacton (500 mg)\n" +
+            "Sitterorangenschalen-Extrakt (350 mg)\n" +
+            ") Guarana-Extrakt (275 mg)\n" +
+            "Koffein (255 mg)\n" +
+            "} davon aus Guarana Extrakt (55 mg)\n" +
+            "Citicolin (250 mg)\n" +
+            "Grüntee-Extrakt (250 mg)\n" +
+            "Rhodiola Rosea Extrakt (250 mg)\n" +
+            "Traubenkern-Extrakt (250 mg)\n" +
+            "Schisandra-Extrakt (200 mg)\n" +
+            "Ginsengwurzel-Extrakt (200 mg)\n" +
+            "Ginkgo Biloba-Extrakt (75 mg)\n" +
+            "Schwarzer Pfeffer-Extrakt (4,2 mg)\n" +
+            ") davon Piperin (4 mg)";
+
+        List<IngredientDto> result = OcrTextParser.parse(ocrText);
+        List<String> topNames = result.stream().map(IngredientDto::getName).toList();
+
+        // OCR corrections applied
+        assertTrue(topNames.contains("L-Tyrosin"),                 "Lryrosin → L-Tyrosin");
+        assertTrue(topNames.contains("Bitterorangenschalen-Extrakt"), "Sitter → Bitter");
+        assertTrue(topNames.contains("Guarana-Extrakt"),           "leading ) stripped");
+        assertTrue(topNames.contains("Glucuronolacton"),           "leading _ stripped");
+
+        // Top-level amounts
+        assertEquals(6000.0, findMg(result, "L-Citrullin Malat"), 0.001);
+        assertEquals(1500.0, findMg(result, "Taurin"),            0.001);
+        assertEquals(255.0,  findMg(result, "Koffein"),           0.001);
+        assertEquals(4.2,    findMg(result, "Schwarzer Pfeffer-Extrakt"), 0.01);
+
+        // Sub-ingredient: Glycerin under Glycerinpulver
+        IngredientDto glycerinpulver = result.stream()
+                .filter(i -> i.getName().startsWith("Glycerinpulver")).findFirst().orElseThrow();
+        assertEquals(1, glycerinpulver.getSubIngredients().size());
+        assertEquals("Glycerin", glycerinpulver.getSubIngredients().getFirst().getName());
+        assertEquals(1300.0, glycerinpulver.getSubIngredients().getFirst().getMg(), 0.001);
+
+        // Sub-ingredient: aus Guarana Extrakt under Koffein
+        IngredientDto koffein = result.stream()
+                .filter(i -> "Koffein".equals(i.getName())).findFirst().orElseThrow();
+        assertEquals(1, koffein.getSubIngredients().size());
+        assertEquals("aus Guarana Extrakt", koffein.getSubIngredients().getFirst().getName());
+        assertEquals(55.0, koffein.getSubIngredients().getFirst().getMg(), 0.001);
+
+        // Sub-ingredient: Piperin under Schwarzer Pfeffer-Extrakt
+        IngredientDto pfeffer = result.stream()
+                .filter(i -> "Schwarzer Pfeffer-Extrakt".equals(i.getName())).findFirst().orElseThrow();
+        assertEquals(1, pfeffer.getSubIngredients().size());
+        assertEquals("Piperin", pfeffer.getSubIngredients().getFirst().getName());
+        assertEquals(4.0, pfeffer.getSubIngredients().getFirst().getMg(), 0.001);
+    }
 }
