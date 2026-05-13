@@ -122,6 +122,10 @@ public final class OcrTextParser {
                 continue; // blank lines don't increment the streak or clear pendingName
             }
 
+            // Strip leading OCR table-cell artefacts produced by vertical lines:
+            // "|", "°", "·" at the start of a line are table borders, not text.
+            line = line.replaceAll("^[|°·]+\\s*", "");
+
             // Normalize space-thousands separator: "4 500" → "4500"
             // Negative lookbehind (?<!\p{L}) ensures we don't merge digit sequences
             // that are part of a name token (e.g. "E6C6 506" or "VitaminB2 525").
@@ -139,6 +143,7 @@ public final class OcrTextParser {
             line = line.replaceAll("(?<=\\d)a(g|mg|mcg|ug)\\b",   ",4$1"); // "1amg"   → "1,4mg"
             line = line.replaceAll("(?<=\\d,)A(g|mg|mcg|ug)\\b",  "4$1");  // "21,Amg" → "21,4mg"
             line = line.replaceAll("(?<![a-zA-Z])I(mg|mcg|g|ug)\\b", "1$1"); // "Img"  → "1mg"
+            line = line.replaceAll("(?<=[0-9])ma\\b",              "mg");   // "18ma"   → "18mg" (g→a)
             // ─────────────────────────────────────────────────────────────────
 
             // Check TWO_COLUMN_LINE before INGREDIENT_LINE: a line like

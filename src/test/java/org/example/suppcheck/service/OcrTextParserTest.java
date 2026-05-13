@@ -407,7 +407,235 @@ class OcrTextParserTest {
         assertEquals("Glucomannan", OcrTextParser.cleanSubIngredientName(">> davon Glucomannan"));
     }
 
-    // --- OCR normalization: unit misreadings ---
+    // --- OCR normalization: table-cell artefacts (leading | and °) ---
+
+    @Test
+    void parse_leadingPipeStripped() {
+        // "|" is a vertical table-line OCR artefact
+        List<IngredientDto> result = OcrTextParser.parse("| Kupfer 350 mcg 35%");
+
+        assertEquals(1, result.size());
+        assertEquals("Kupfer", result.getFirst().getName());
+        assertEquals(0.35, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_leadingDegreeSignStripped() {
+        // "°" before the name is a table-cell artefact
+        List<IngredientDto> result = OcrTextParser.parse("° Molybdän 17,4mcg 35%");
+
+        assertEquals(1, result.size());
+        assertEquals("Molybdän", result.getFirst().getName());
+        assertEquals(0.0174, result.getFirst().getMg(), 0.00001);
+    }
+
+    @Test
+    void parse_multiplePipesStripped() {
+        List<IngredientDto> result = OcrTextParser.parse("|| Mangan 500 mcg 25%");
+
+        assertEquals(1, result.size());
+        assertEquals("Mangan", result.getFirst().getName());
+    }
+
+    // --- OCR normalization: ma → mg (g misread as a) ---
+
+    @Test
+    void parse_maUnitNormalizedToMg() {
+        // "18ma" → "18mg"  (OCR reads "g" as "a")
+        List<IngredientDto> result = OcrTextParser.parse("Riboflavin (Vitamin B2 18ma 128%");
+
+        assertEquals(1, result.size());
+        assertEquals("Riboflavin (Vitamin B2", result.getFirst().getName());
+        assertEquals(18.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_maNotNormalizedWhenPrecededByLetter() {
+        // "omega" must not be affected — "ma" here is part of the name, not a unit
+        List<IngredientDto> result = OcrTextParser.parse("Gamma-Oryzanol 100 mg");
+
+        assertEquals(1, result.size());
+        assertEquals("Gamma-Oryzanol", result.getFirst().getName());
+        assertEquals(100.0, result.getFirst().getMg(), 0.001);
+    }
+
+    // --- zoom1 + zoom2 integration test (PSM-6 OCR text) ---
+
+    @Test
+    void parse_zoom1Psm6OcrText_parsesAllMineralAndVitaminRows() {
+        // Exact PSM-6 OCR output from zoom1.png
+        String zoom1 = "Sale Bestseller Bedürfnisse & Ziele v Sportnahrung v Proteine v Vitalstoff\n" +
+                "\\e napscı)\n" +
+                "Mineralien & Spurenelemente\n" +
+                "Magnesium 75 mg 20%\n" +
+                "Zink 3,2 mg 32%\n" +
+                "° Molybdän 17,4mcg 35%\n" +
+                "\n" +
+                "Mangan 500 mcg 25%\n" +
+                "\n" +
+                "| Kupfer 350 mcg 35%\n" +
+                "\n" +
+                "| Chrom 20 mcg 50%\n" +
+                "\n" +
+                "| Jod 30 mcg 32%\n" +
+                "\n" +
+                "| Selen 25 mcg 46%\n" +
+                "Vitamine\n" +
+                "Vitamin C 100 mg 125%\n" +
+                "Vitamin A 488 mcg / 1625 1.E. 61%\n" +
+                "Vitamin D3 10 ug / 400 1.E. 200 %\n" +
+                "Vitamin E 6mg/9LE. 50%\n" +
+                "Vitamin K2 (MK7) 15 mcg 20%\n" +
+                "Vitamin K1 23 mcg 30%\n" +
+                "Thiamin (Vitamin B1) 1,4mg 127,2%\n" +
+                "Riboflavin (Vitamin B? 18ma 128%";
+
+        List<IngredientDto> result = OcrTextParser.parse(zoom1);
+        List<String> names = result.stream().map(IngredientDto::getName).toList();
+
+        // All minerals
+        assertTrue(names.contains("Magnesium"),       "Magnesium");
+        assertTrue(names.contains("Zink"),            "Zink");
+        assertTrue(names.contains("Molybdän"),        "Molybdän");
+        assertTrue(names.contains("Mangan"),          "Mangan");
+        assertTrue(names.contains("Kupfer"),          "Kupfer");
+        assertTrue(names.contains("Chrom"),           "Chrom");
+        assertTrue(names.contains("Jod"),             "Jod");
+        assertTrue(names.contains("Selen"),           "Selen");
+        // Vitamins from zoom1
+        assertTrue(names.contains("Vitamin C"),       "Vitamin C");
+        assertTrue(names.contains("Vitamin A"),       "Vitamin A");
+        assertTrue(names.contains("Vitamin D3"),      "Vitamin D3");
+        assertTrue(names.contains("Vitamin E"),       "Vitamin E");
+        assertTrue(names.contains("Vitamin K2 (MK7)"), "Vitamin K2");
+        assertTrue(names.contains("Vitamin K1"),      "Vitamin K1");
+        assertTrue(names.contains("Thiamin (Vitamin B1)"), "Thiamin");
+        // Spot-check artefact-stripped values
+        assertEquals(0.35,    result.stream().filter(i -> "Kupfer".equals(i.getName()))
+                .findFirst().orElseThrow().getMg(), 0.001);
+        assertEquals(0.0174,  result.stream().filter(i -> "Molybdän".equals(i.getName()))
+                .findFirst().orElseThrow().getMg(), 0.00001);
+    }
+
+    @Test
+    void parse_zoom2Psm6OcrText_parsesAllBVitaminsAndExtras() {
+        // Exact PSM-6 OCR output from zoom2.png
+        String zoom2 = "Sale Bestseller Bedürfnisse & Ziele v Sportnahrung v Proteine v Vitalstoff\n" +
+                "Thiamin (Vitamin B1) 1,4mg 127,2%\n" +
+                "Riboflavin (Vitamin B2 1,8 mg 128%\n" +
+                "Niacin (Vitamin B3) 14mg 88%\n" +
+                "Cholin 5mg 150%\n" +
+                "DJ\n" +
+                "\n" +
+                "Pantothensäure (Vitamin B5) Img 124%\n" +
+                "Vitamin B6 1,75 mg 136%\n" +
+                "\n" +
+                "| Folat (Vitamin B9) 100 mcg 50%\n" +
+                "\n" +
+                "| Vitamin B7 (Biotin) 72,5 mcg 136%\n" +
+                "\n" +
+                "| Vitamin 12 10 mcg 400 %\n" +
+                "\n" +
+                "| Sonstige Inhaltsstoffe\n" +
+                "Coenzym Q10 5mg *r\n" +
+                "Inositol 5mg *r\n" +
+                "Traubenkernextrakt 21,4mg sk\n" +
+                ">> davon OPC 15 mg **";
+
+        List<IngredientDto> result = OcrTextParser.parse(zoom2);
+        List<String> names = result.stream().map(IngredientDto::getName).toList();
+
+        assertTrue(names.contains("Thiamin (Vitamin B1)"),        "Thiamin");
+        assertTrue(names.contains("Niacin (Vitamin B3)"),         "Niacin");
+        assertTrue(names.contains("Cholin"),                      "Cholin");
+        assertTrue(names.contains("Pantothensäure (Vitamin B5)"), "Pantothensäure");
+        assertTrue(names.contains("Vitamin B6"),                  "Vitamin B6");
+        assertTrue(names.contains("Folat (Vitamin B9)"),          "Folat");
+        assertTrue(names.contains("Vitamin B7 (Biotin)"),         "Vitamin B7");
+        assertTrue(names.contains("Coenzym Q10"),                 "Coenzym Q10");
+        assertTrue(names.contains("Inositol"),                    "Inositol");
+        assertTrue(names.contains("Traubenkernextrakt"),          "Traubenkernextrakt");
+
+        // OPC is sub-ingredient of Traubenkernextrakt
+        IngredientDto trauben = result.stream()
+                .filter(i -> "Traubenkernextrakt".equals(i.getName())).findFirst().orElseThrow();
+        assertEquals(1, trauben.getSubIngredients().size());
+        assertEquals("OPC", trauben.getSubIngredients().getFirst().getName());
+    }
+
+    @Test
+    void parse_zoom1AndZoom2Merged_allIngredientsPresent() {
+        // Merged result of both zoomed images should cover all 26 ingredients
+        String zoom1 = "Magnesium 75 mg 20%\n" +
+                "Zink 3,2 mg 32%\n" +
+                "° Molybdän 17,4mcg 35%\n" +
+                "Mangan 500 mcg 25%\n" +
+                "| Kupfer 350 mcg 35%\n" +
+                "| Chrom 20 mcg 50%\n" +
+                "| Jod 30 mcg 32%\n" +
+                "| Selen 25 mcg 46%\n" +
+                "Vitamin C 100 mg 125%\n" +
+                "Vitamin A 488 mcg / 1625 1.E. 61%\n" +
+                "Vitamin D3 10 ug / 400 1.E. 200 %\n" +
+                "Vitamin E 6mg/9LE. 50%\n" +
+                "Vitamin K2 (MK7) 15 mcg 20%\n" +
+                "Vitamin K1 23 mcg 30%\n" +
+                "Thiamin (Vitamin B1) 1,4mg 127,2%\n" +
+                "Riboflavin (Vitamin B? 18ma 128%";   // overlaps with zoom2
+
+        String zoom2 = "Thiamin (Vitamin B1) 1,4mg 127,2%\n" +  // duplicate
+                "Riboflavin (Vitamin B2 1,8 mg 128%\n" +         // different OCR name, NOT deduped
+                "Niacin (Vitamin B3) 14mg 88%\n" +
+                "Cholin 5mg 150%\n" +
+                "Pantothensäure (Vitamin B5) Img 124%\n" +
+                "Vitamin B6 1,75 mg 136%\n" +
+                "| Folat (Vitamin B9) 100 mcg 50%\n" +
+                "| Vitamin B7 (Biotin) 72,5 mcg 136%\n" +
+                "Coenzym Q10 5mg *r\n" +
+                "Inositol 5mg *r\n" +
+                "Traubenkernextrakt 21,4mg sk\n" +
+                ">> davon OPC 15 mg **";
+
+        // Simulate the merge that OcrService.mergeResults() performs
+        List<IngredientDto> img1 = OcrTextParser.parse(zoom1);
+        List<IngredientDto> img2 = OcrTextParser.parse(zoom2);
+
+        // Combine: img1 first, then add img2 entries not already in img1 (by name)
+        java.util.Map<String, IngredientDto> byName = new java.util.LinkedHashMap<>();
+        for (IngredientDto i : img1) byName.put(i.getName().toLowerCase().trim(), i);
+        for (IngredientDto i : img2) byName.putIfAbsent(i.getName().toLowerCase().trim(), i);
+        List<IngredientDto> merged = new java.util.ArrayList<>(byName.values());
+
+        List<String> names = merged.stream().map(IngredientDto::getName).toList();
+
+        // Minerals from zoom1
+        assertTrue(names.contains("Magnesium"),             "Magnesium missing");
+        assertTrue(names.contains("Zink"),                  "Zink missing");
+        assertTrue(names.contains("Molybdän"),              "Molybdän missing");
+        assertTrue(names.contains("Mangan"),                "Mangan missing");
+        assertTrue(names.contains("Kupfer"),                "Kupfer missing");
+        assertTrue(names.contains("Chrom"),                 "Chrom missing");
+        assertTrue(names.contains("Jod"),                   "Jod missing");
+        assertTrue(names.contains("Selen"),                 "Selen missing");
+        // Vitamins
+        assertTrue(names.contains("Vitamin C"),             "Vitamin C missing");
+        assertTrue(names.contains("Vitamin D3"),            "Vitamin D3 missing");
+        assertTrue(names.contains("Thiamin (Vitamin B1)"),  "Thiamin missing (dedup)");
+        assertTrue(names.contains("Niacin (Vitamin B3)"),   "Niacin missing");
+        assertTrue(names.contains("Pantothensäure (Vitamin B5)"), "Pantothensäure missing");
+        assertTrue(names.contains("Vitamin B6"),            "Vitamin B6 missing");
+        assertTrue(names.contains("Folat (Vitamin B9)"),    "Folat missing");
+        assertTrue(names.contains("Vitamin B7 (Biotin)"),   "Vitamin B7 missing");
+        // Extras
+        assertTrue(names.contains("Coenzym Q10"),           "Coenzym Q10 missing");
+        assertTrue(names.contains("Inositol"),              "Inositol missing");
+        assertTrue(names.contains("Traubenkernextrakt"),    "Traubenkernextrakt missing");
+        // Thiamin must appear ONLY ONCE despite being in both images
+        assertEquals(1, names.stream().filter(n -> n.equalsIgnoreCase("Thiamin (Vitamin B1)")).count(),
+                "Thiamin should appear exactly once");
+    }
+
+
 
     @Test
     void parse_megUnit_normalizedToMcg() {

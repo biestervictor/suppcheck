@@ -144,7 +144,8 @@ public class OcrService {
                     "tesseract",
                     tempInput.toAbsolutePath().toString(),
                     tempOutputBase.toAbsolutePath().toString(),
-                    "-l", "deu"
+                    "-l", "deu",
+                    "--psm", "6"   // uniform block: reads row-by-row, not column-by-column
             );
             pb.redirectErrorStream(true);
 
