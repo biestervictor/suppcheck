@@ -101,11 +101,16 @@ public final class OcrTextParser {
         IngredientDto lastTopLevel = null;
         // Carries a name-only line forward until the next amount-only line resolves it.
         String pendingName = null;
+        // Counts consecutive non-blank, non-matching lines since the last successful parse.
+        // Once this exceeds MAX_CARRY_DISTANCE we abandon pendingName to avoid combining
+        // noise text (dosage instructions, headings, etc.) with a stray unit further down.
+        int noMatchStreak = 0;
+        final int MAX_CARRY_DISTANCE = 2;
 
         for (String rawLine : ocrText.split("\\r?\\n")) {
             String line = rawLine.trim();
             if (line.isBlank()) {
-                continue; // blank lines don't clear pendingName — value may follow after a gap
+                continue; // blank lines don't increment the streak or clear pendingName
             }
 
             // Normalize space-thousands separator: "4 500" → "4500"
@@ -121,19 +126,22 @@ public final class OcrTextParser {
                         amount = parseAmount(amountOnly.group(1));
                     } catch (NumberFormatException e) {
                         pendingName = null;
+                        noMatchStreak = 0;
                         continue;
                     }
                     double mg = toMg(amount, amountOnly.group(2).toLowerCase());
                     lastTopLevel = addParsedEntry(pendingName, mg, result, lastTopLevel);
-                    pendingName = null;
                 }
                 // amount-only with no pending name → skip (unresolvable)
+                pendingName = null;
+                noMatchStreak = 0;
                 continue;
             }
 
             Matcher m = INGREDIENT_LINE.matcher(line);
             if (m.matches()) {
-                pendingName = null; // full match — no carry needed
+                pendingName = null;
+                noMatchStreak = 0;
                 String name = m.group(1).trim();
                 if (name.isBlank()) {
                     continue;
@@ -149,9 +157,15 @@ public final class OcrTextParser {
                 continue;
             }
 
-            // Non-blank, non-matching line: save as pending name for the next amount-only line.
-            // Overwrite any previous pendingName — the newer candidate is more likely to be correct.
-            pendingName = line;
+            // Non-blank, non-matching line.
+            noMatchStreak++;
+            if (noMatchStreak <= MAX_CARRY_DISTANCE) {
+                // Still close enough to a previous match — candidate carry-forward name.
+                pendingName = line;
+            } else {
+                // Too many noise lines in a row; give up on carry-forward.
+                pendingName = null;
+            }
         }
         return result;
     }

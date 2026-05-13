@@ -480,4 +480,93 @@ class OcrTextParserTest {
         assertEquals(1, result.getFirst().getSubIngredients().size());
         assertEquals("Chlorogensäure", result.getFirst().getSubIngredients().getFirst().getName());
     }
+
+    // --- Noise filtering: carry-forward distance limit ---
+
+    @Test
+    void parse_noiseAfterIngredientsDoesNotCreateFalseEntry() {
+        // After the ingredient block ends, noise text must not be combined with a
+        // stray unit value further down (e.g. "230g" as a serving-size hint).
+        String text = "Konjakwurzel-Extrakt 4500 mg\n" +
+                      "Chrom 200 mcg\n" +
+                      "\n" +
+                      "3x3 Kapseln taeglich\n" +           // noise line 1 → streak=1
+                      "taeglich vor den Mahlzeiten\n" +    // noise line 2 → streak=2
+                      "Ernaehrung mit reichlich Wasser\n" + // noise line 3 → streak=3 > 2 → pendingName=null
+                      "230 g";                              // amount-only, pendingName=null → skipped
+
+        List<IngredientDto> result = OcrTextParser.parse(text);
+
+        assertEquals(2, result.size());
+        assertEquals("Konjakwurzel-Extrakt", result.get(0).getName());
+        assertEquals("Chrom",               result.get(1).getName());
+    }
+
+    @Test
+    void parse_preIngredientHeaderDoesNotCreateFalseEntry() {
+        // Text before the actual ingredient table (headings, disclaimers) must be
+        // ignored even if a unit eventually appears.
+        String text = "(9 Kapseln) Grüntee Extrakt, pflanzliche\n" +  // streak=1
+                      "Kapselhuelle: HPMC\n" +                         // streak=2
+                      "Chromium-Picolinat.\n" +                        // streak=3 > 2 → pendingName=null
+                      "\n" +
+                      "Konjakwurzel-Extrakt 4500 mg\n" +
+                      "Chrom 200 mcg";
+
+        List<IngredientDto> result = OcrTextParser.parse(text);
+
+        assertEquals(2, result.size());
+        assertEquals("Konjakwurzel-Extrakt", result.get(0).getName());
+        assertEquals("Chrom",               result.get(1).getName());
+    }
+
+    @Test
+    void parse_realWorldLabelWithNoise_parsesOnlyIngredients() {
+        // Full realistic label from user report
+        String text =
+                "(9 Kapseln) Grüntee Extrakt, pflanzliche\n" +
+                "Kapselhuelle: Hydroxypropylmethyl-\n" +
+                "cellulose, Ceylon Zimt Extrakt,\n" +
+                "Silberweidenrinden Extrakt,\n" +
+                "Chromium-Picolinat.\n" +
+                "\n" +
+                "Konjakwurzel-Extrakt 4500 mg\n" +
+                ">> davon Glucomannan 4275 mg\n" +
+                "Grüntee Extrakt 1125 mg\n" +
+                ">> davon Polyphenols 1103 mg\n" +
+                ">> davon EGCG 506 mg\n" +
+                "Ceylon Zimt Extrakt 450 mg\n" +
+                "Silberweidenrinden Extrakt 450 mg\n" +
+                ">> davon Salicin 68 mg\n" +
+                "Chrom 200 mcg\n" +
+                "\n" +
+                "3x3 Kapseln\n" +
+                "taeglich vor den Mahlzeiten\n" +
+                "Ernaehrung mit reichlich Wasser\n" +
+                "MORGENS & NACHMITTAGS\n" +
+                "230 g";
+
+        List<IngredientDto> result = OcrTextParser.parse(text);
+
+        // Exactly the 5 top-level ingredients — no noise entries
+        assertEquals(5, result.size());
+        assertEquals("Konjakwurzel-Extrakt",          result.get(0).getName());
+        assertEquals(4500.0,                           result.get(0).getMg(), 0.001);
+        assertEquals(1,                                result.get(0).getSubIngredients().size());
+        assertEquals("Glucomannan",                    result.get(0).getSubIngredients().getFirst().getName());
+
+        assertEquals("Grüntee Extrakt",                result.get(1).getName());
+        assertEquals(1125.0,                           result.get(1).getMg(), 0.001);
+        assertEquals(2,                                result.get(1).getSubIngredients().size());
+        assertEquals("Polyphenols",                    result.get(1).getSubIngredients().get(0).getName());
+        assertEquals("EGCG",                           result.get(1).getSubIngredients().get(1).getName());
+
+        assertEquals("Ceylon Zimt Extrakt",            result.get(2).getName());
+        assertEquals("Silberweidenrinden Extrakt",     result.get(3).getName());
+        assertEquals(1,                                result.get(3).getSubIngredients().size());
+        assertEquals("Salicin",                        result.get(3).getSubIngredients().getFirst().getName());
+
+        assertEquals("Chrom",                          result.get(4).getName());
+        assertEquals(0.2,                              result.get(4).getMg(), 0.0001); // 200 mcg → 0.2 mg
+    }
 }
