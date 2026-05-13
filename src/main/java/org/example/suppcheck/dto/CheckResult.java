@@ -16,11 +16,14 @@ public class CheckResult {
     private final String supplementId;
     private final String supplementName;
 
-    /** True when at least one ingredient has a status other than MATCH. */
+    /** True when at least one ingredient (or sub-ingredient) has a status other than MATCH. */
     private final boolean hasDiscrepancies;
 
     /** Raw Tesseract output, for debugging. */
     private final String rawText;
 
     private final List<IngredientCheckResult> ingredientResults;
+
+    /** The full list of ingredients as recognised by OCR (for display in the UI). */
+    private final List<IngredientDto> ocrIngredients;
 }

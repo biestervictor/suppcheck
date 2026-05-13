@@ -198,8 +198,9 @@ class CheckServiceTest {
 
         CheckResult result = service.compare(supp, ocrResult);
 
-        // The top-level ingredient itself matches, but sub does not
-        assertThat(result.isHasDiscrepancies()).isFalse(); // top level MATCH
+        // The top-level ingredient itself matches, but sub does not →
+        // hasDiscrepancies must be true because sub-results are included in the check
+        assertThat(result.isHasDiscrepancies()).isTrue();
 
         IngredientCheckResult icr = findByName(result.getIngredientResults(), "Eiweiß");
         assertThat(icr.getStatus()).isEqualTo("MATCH"); // parent mg matches
@@ -243,6 +244,104 @@ class CheckServiceTest {
     @Test
     void normalize_lowercasesAndTrimsAndCollapsesWhitespace() {
         assertThat(CheckService.normalize("  Vitamin  C  ")).isEqualTo("vitamin c");
+    }
+
+    @Test
+    void normalize_stripsParenthesesContent() {
+        // Brand suffix in parentheses is stripped
+        assertThat(CheckService.normalize("HydroPrime® (Glycerin-Pulver)")).isEqualTo("hydroprime®");
+        assertThat(CheckService.normalize("Schwarzer Pfeffer-Extrakt (HydroPrime®)")).isEqualTo("schwarzer pfeffer extrakt");
+    }
+
+    @Test
+    void normalize_replacesHyphensWithSpace() {
+        assertThat(CheckService.normalize("L-Citrullin-Malat")).isEqualTo("l citrullin malat");
+        assertThat(CheckService.normalize("L-Citrullin Malat")).isEqualTo("l citrullin malat");
+    }
+
+    @Test
+    void normalize_stripsDavonPrefix() {
+        assertThat(CheckService.normalize("davon Piperin")).isEqualTo("piperin");
+        assertThat(CheckService.normalize("Davon L-Citrullin")).isEqualTo("l citrullin");
+    }
+
+    @Test
+    void hyphenVariants_treatedAsSameName() {
+        // "L-Citrullin Malat" stored, "L-Citrullin-Malat" on label → should MATCH
+        Supplement supp = supplement("1", "Pre", List.of(ingredient("L-Citrullin Malat", 10000.0)));
+        OcrResult ocrResult = ocr(List.of(dto("L-Citrullin-Malat", 10000.0)));
+
+        CheckResult result = service.compare(supp, ocrResult);
+
+        assertThat(result.isHasDiscrepancies()).isFalse();
+        assertThat(findByName(result.getIngredientResults(), "L-Citrullin Malat").getStatus())
+                .isEqualTo("MATCH");
+    }
+
+    @Test
+    void brandNameInParentheses_ignored() {
+        // stored: "Schwarzer Pfeffer-Extrakt", OCR: "Schwarzer Pfeffer-Extrakt (HydroPrime®)"
+        Supplement supp = supplement("1", "Pre", List.of(ingredient("Schwarzer Pfeffer-Extrakt", 11.0)));
+        OcrResult ocrResult = ocr(List.of(dto("Schwarzer Pfeffer-Extrakt (HydroPrime®)", 11.0)));
+
+        CheckResult result = service.compare(supp, ocrResult);
+
+        assertThat(result.isHasDiscrepancies()).isFalse();
+        assertThat(findByName(result.getIngredientResults(), "Schwarzer Pfeffer-Extrakt").getStatus())
+                .isEqualTo("MATCH");
+    }
+
+    @Test
+    void davonPiperinSubIngredient_matchedWithOcrPiperin() {
+        // Stored: sub-ingredient "davon Piperin" (10.5 mg)
+        // OCR parses as sub-ingredient "Piperin" (10.5 mg, "davon " stripped by OcrTextParser)
+        // → should MATCH after normalize() strips "davon " prefix
+        Ingredient parent = ingredientWithSub("Schwarzer Pfeffer-Extrakt", 11.0, List.of(
+                ingredient("davon Piperin", 10.5)));
+        Supplement supp = supplement("1", "Pre", List.of(parent));
+
+        IngredientDto parentDto = dtoWithSub("Schwarzer Pfeffer-Extrakt", 11.0,
+                List.of(dto("Piperin", 10.5)));
+        OcrResult ocrResult = ocr(List.of(parentDto));
+
+        CheckResult result = service.compare(supp, ocrResult);
+
+        assertThat(result.isHasDiscrepancies()).isFalse();
+        IngredientCheckResult icr = findByName(result.getIngredientResults(), "Schwarzer Pfeffer-Extrakt");
+        assertThat(icr.getStatus()).isEqualTo("MATCH");
+        assertThat(icr.getSubResults()).hasSize(1);
+        assertThat(icr.getSubResults().get(0).getStatus()).isEqualTo("MATCH");
+    }
+
+    @Test
+    void onlyInOcr_includesSubIngredients() {
+        // OCR finds "L-Citrullin Malat" with sub "L-Citrullin" – not in DB
+        // → ONLY_IN_OCR result should carry the sub-ingredient in subResults
+        Supplement supp = supplement("1", "Pre", List.of());
+        IngredientDto ocr = dtoWithSub("L-Citrullin Malat", 10000.0,
+                List.of(dto("L-Citrullin", 6800.0)));
+        OcrResult ocrResult = ocr(List.of(ocr));
+
+        CheckResult result = service.compare(supp, ocrResult);
+
+        assertThat(result.isHasDiscrepancies()).isTrue();
+        IngredientCheckResult icr = findByName(result.getIngredientResults(), "L-Citrullin Malat");
+        assertThat(icr.getStatus()).isEqualTo("ONLY_IN_OCR");
+        assertThat(icr.getSubResults()).hasSize(1);
+        assertThat(icr.getSubResults().get(0).getName()).isEqualTo("L-Citrullin");
+        assertThat(icr.getSubResults().get(0).getOcrMg()).isEqualTo(6800.0);
+    }
+
+    @Test
+    void ocrIngredients_carriedIntoResult() {
+        Supplement supp = supplement("1", "Pre", List.of(ingredient("Vitamin C", 500.0)));
+        IngredientDto vitC = dto("Vitamin C", 500.0);
+        OcrResult ocrResult = ocr(List.of(vitC));
+
+        CheckResult result = service.compare(supp, ocrResult);
+
+        assertThat(result.getOcrIngredients()).hasSize(1);
+        assertThat(result.getOcrIngredients().get(0).getName()).isEqualTo("Vitamin C");
     }
 
     @Test

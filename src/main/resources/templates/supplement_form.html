@@ -112,6 +112,33 @@
             font-size: 0.9em;
             color: #7d6608;
         }
+
+        .ocr-recognized-section {
+            background: #f0f8ff;
+            border: 1px solid #b0d0f0;
+            border-radius: 6px;
+            padding: 10px 16px;
+            margin-top: 12px;
+            font-size: 0.9em;
+        }
+
+        .ocr-recognized-section summary {
+            cursor: pointer;
+            color: #2d6cdf;
+            font-weight: bold;
+        }
+
+        .ocr-add-checkbox-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin: 4px 0;
+        }
+
+        .ocr-add-checkbox-row label {
+            cursor: pointer;
+            font-weight: normal;
+        }
     </style>
     <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
 </head>
@@ -491,23 +518,43 @@
         } catch (e) { /* ignore malformed data */ }
     });
 
+    // Normalises an ingredient name for fuzzy lookup – mirrors CheckService.normalize() in Java:
+    //  1. strip parenthetical content  (HydroPrime®)
+    //  2. replace hyphens with spaces  L-Citrullin → L Citrullin
+    //  3. strip leading "davon "       davon Piperin → Piperin
+    //  4. lowercase, trim, collapse whitespace
+    function normalizeIngName(name) {
+        if (!name) return '';
+        return name
+            .replace(/\s*\([^)]*\)/g, '')
+            .replace(/-/g, ' ')
+            .replace(/^davon\s+/i, '')
+            .toLowerCase()
+            .trim()
+            .replace(/\s+/g, ' ');
+    }
+
+    // Storage for ONLY_IN_OCR items so checkbox handlers can access them by index
+    var _ocrOnlyIngredients = [];
+
     function applyCheckAnnotations(checkResult) {
         // Remove any previous annotations so re-checking doesn't stack them.
-        document.querySelectorAll('.check-hint, .check-banner, .check-extra-section').forEach(function(el) {
+        document.querySelectorAll('.check-hint, .check-banner, .check-extra-section, .ocr-recognized-section').forEach(function(el) {
             el.remove();
         });
+        _ocrOnlyIngredients = [];
 
         // Build lookup map: normalised name → result
         var resultMap = {};
         (checkResult.ingredientResults || []).forEach(function(r) {
-            resultMap[r.name.toLowerCase().trim()] = r;
+            resultMap[normalizeIngName(r.name)] = r;
         });
 
         // Annotate each ingredient row
         document.querySelectorAll('#ingredients-list .ingredient-row').forEach(function(row) {
             var nameInput = row.querySelector('input[type="text"]:not([placeholder="Sub-Name"])');
             if (!nameInput || !nameInput.value) return;
-            var result = resultMap[nameInput.value.toLowerCase().trim()];
+            var result = resultMap[normalizeIngName(nameInput.value)];
             if (!result) return;
 
             var mgInput = row.querySelector('input.ingredient-mg');
@@ -518,11 +565,11 @@
             // Annotate sub-ingredients
             if (result.subResults && result.subResults.length > 0) {
                 var subMap = {};
-                result.subResults.forEach(function(sr) { subMap[sr.name.toLowerCase().trim()] = sr; });
+                result.subResults.forEach(function(sr) { subMap[normalizeIngName(sr.name)] = sr; });
                 row.querySelectorAll('.subingredient-list > div').forEach(function(subDiv) {
                     var subName = subDiv.querySelector('input[placeholder="Sub-Name"]');
                     if (!subName || !subName.value) return;
-                    var sr = subMap[subName.value.toLowerCase().trim()];
+                    var sr = subMap[normalizeIngName(subName.value)];
                     if (!sr) return;
                     var subMg = subDiv.querySelector('input.subingredient-mg');
                     if (subMg) {
@@ -532,24 +579,80 @@
             }
         });
 
-        // Section for OCR-only ingredients (not stored in DB)
+        var ingredientsList = document.getElementById('ingredients-list');
+
+        // ── OCR-recognised ingredients dropdown ──────────────────────────────
+        var ocrIngredients = checkResult.ocrIngredients || [];
+        if (ocrIngredients.length > 0) {
+            var ocrSection = document.createElement('details');
+            ocrSection.className = 'ocr-recognized-section';
+            var ocrSummary = document.createElement('summary');
+            ocrSummary.textContent = 'OCR-erkannte Zutaten (' + ocrIngredients.length + ')';
+            ocrSection.appendChild(ocrSummary);
+
+            var ocrList = document.createElement('ul');
+            ocrList.style.cssText = 'margin:6px 0 0 0; padding-left:20px;';
+            ocrIngredients.forEach(function(ing) {
+                var li = document.createElement('li');
+                li.textContent = ing.name + ' (' + formatMg(ing.mg) + ' mg)';
+                if (ing.subIngredients && ing.subIngredients.length > 0) {
+                    var subUl = document.createElement('ul');
+                    ing.subIngredients.forEach(function(sub) {
+                        var subLi = document.createElement('li');
+                        subLi.textContent = sub.name + ' (' + formatMg(sub.mg) + ' mg)';
+                        subUl.appendChild(subLi);
+                    });
+                    li.appendChild(subUl);
+                }
+                ocrList.appendChild(li);
+            });
+            ocrSection.appendChild(ocrList);
+            ingredientsList.insertAdjacentElement('afterend', ocrSection);
+        }
+
+        // ── ONLY_IN_OCR section with checkboxes ──────────────────────────────
         var onlyInOcr = (checkResult.ingredientResults || []).filter(function(r) {
             return r.status === 'ONLY_IN_OCR';
         });
         if (onlyInOcr.length > 0) {
+            _ocrOnlyIngredients = onlyInOcr;
             var section = document.createElement('div');
             section.className = 'check-extra-section';
-            section.innerHTML = '<b>⚠ Im Bild gefunden, aber nicht gespeichert:</b>' +
-                '<ul style="margin:6px 0 0 0; padding-left:20px;">' +
-                onlyInOcr.map(function(r) {
-                    return '<li>' + escapeHtml(r.name) + ' (' + formatMg(r.ocrMg) + ' mg)</li>';
-                }).join('') + '</ul>';
-            document.getElementById('ingredients-list').insertAdjacentElement('afterend', section);
+
+            var html = '<b>⚠ Im Bild gefunden, aber nicht gespeichert:</b><br>' +
+                '<small style="color:#7d6608;">Häkchen setzen zum Hinzufügen – wird erst beim <b>Speichern</b> gespeichert.</small>' +
+                '<div style="margin-top:8px;">';
+
+            onlyInOcr.forEach(function(r, idx) {
+                // Collect OCR sub-ingredients for this ONLY_IN_OCR item
+                var ocrSubs = (r.subResults || []).filter(function(sr) { return sr.ocrMg > 0; });
+                var subHtml = '';
+                if (ocrSubs.length > 0) {
+                    subHtml = '<ul style="margin:2px 0 0 0; padding-left:20px; font-size:0.9em;">';
+                    ocrSubs.forEach(function(sr) {
+                        subHtml += '<li>' + escapeHtml(sr.name) + ' (' + formatMg(sr.ocrMg) + ' mg)</li>';
+                    });
+                    subHtml += '</ul>';
+                }
+
+                html += '<div class="ocr-add-checkbox-row">' +
+                    '<input type="checkbox" id="ocr-add-' + idx + '" ' +
+                    'onchange="toggleOcrIngredient(this, ' + idx + ')">' +
+                    '<label for="ocr-add-' + idx + '">' +
+                    escapeHtml(r.name) + ' (' + formatMg(r.ocrMg) + ' mg)' +
+                    subHtml +
+                    '</label>' +
+                    '</div>';
+            });
+            html += '</div>';
+            section.innerHTML = html;
+            ingredientsList.insertAdjacentElement('afterend', section);
         }
 
         // Info banner at top of form
         var discrepancyCount = (checkResult.ingredientResults || []).filter(function(r) {
-            return r.status !== 'MATCH';
+            return r.status !== 'MATCH' ||
+                (r.subResults && r.subResults.some(function(sr) { return sr.status !== 'MATCH'; }));
         }).length;
         var banner = document.createElement('div');
         banner.className = 'check-banner';
@@ -561,6 +664,28 @@
                 'Bitte prüfen und ggf. korrigieren, bevor du speicherst.';
         }
         document.querySelector('form').insertBefore(banner, document.querySelector('form').firstChild);
+    }
+
+    /**
+     * Called when the user checks/unchecks an ONLY_IN_OCR ingredient checkbox.
+     * Adds the ingredient to the form's ingredient list (staged, not yet saved).
+     */
+    function toggleOcrIngredient(checkbox, idx) {
+        if (!checkbox.checked) return;
+        var ingredient = _ocrOnlyIngredients[idx];
+        if (!ingredient) return;
+
+        var ing = {
+            name: ingredient.name,
+            mg: ingredient.ocrMg,
+            subIngredients: (ingredient.subResults || [])
+                .filter(function(sr) { return sr.ocrMg > 0; })
+                .map(function(sr) { return { name: sr.name, mg: sr.ocrMg }; })
+        };
+        addIngredientFromTemplate(ing);
+        updateIngredientIndices();
+        checkbox.disabled = true;
+        checkbox.parentElement.style.opacity = '0.5';
     }
 
     function buildHint(status, ocrMg, storedMg) {

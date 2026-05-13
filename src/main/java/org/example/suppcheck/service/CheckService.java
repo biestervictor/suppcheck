@@ -17,6 +17,13 @@ import java.util.*;
  * <p>Matching is done case-insensitively on the ingredient name.  Amounts are
  * considered equal when they differ by less than 5 % (or less than 1 mg for
  * very small values).</p>
+ *
+ * <p>Name normalisation strips:</p>
+ * <ul>
+ *   <li>Content in parentheses, e.g. {@code (HydroPrime®)}</li>
+ *   <li>Hyphens (replaced by a space), e.g. {@code L-Citrullin-Malat → L Citrullin Malat}</li>
+ *   <li>Leading {@code "davon "} prefix used as sub-ingredient indicator on labels</li>
+ * </ul>
  */
 @Service
 public class CheckService {
@@ -65,22 +72,32 @@ public class CheckService {
             }
         }
 
-        // Whatever remains in the OCR map was not found in the stored supplement
+        // Whatever remains in the OCR map was not found in the stored supplement.
+        // Include sub-ingredients of these ONLY_IN_OCR items so the UI can offer
+        // them as candidates to add.
         for (IngredientDto extra : ocrMap.values()) {
+            List<IngredientCheckResult> subResults = extra.getSubIngredients().stream()
+                    .map(sub -> new IngredientCheckResult(
+                            sub.getName(), 0.0, sub.getMg(), "ONLY_IN_OCR",
+                            Collections.emptyList()))
+                    .toList();
             results.add(new IngredientCheckResult(
-                    extra.getName(), 0.0, extra.getMg(), "ONLY_IN_OCR",
-                    Collections.emptyList()));
+                    extra.getName(), 0.0, extra.getMg(), "ONLY_IN_OCR", subResults));
         }
 
-        boolean hasDiscrepancies = results.stream()
-                .anyMatch(r -> !"MATCH".equals(r.getStatus()));
+        // Discrepancy = any top-level status != MATCH  OR  any sub-result status != MATCH
+        boolean hasDiscrepancies = results.stream().anyMatch(r ->
+                !"MATCH".equals(r.getStatus()) ||
+                (r.getSubResults() != null && r.getSubResults().stream()
+                        .anyMatch(sr -> !"MATCH".equals(sr.getStatus()))));
 
         return new CheckResult(
                 supplement.getId(),
                 supplement.getName(),
                 hasDiscrepancies,
                 ocrResult.getRawText(),
-                results);
+                results,
+                new ArrayList<>(ocrIngredients));
     }
 
     // --- helpers ---
@@ -140,10 +157,25 @@ public class CheckService {
     }
 
     /**
-     * Normalises a name for case-insensitive, whitespace-tolerant comparison.
+     * Normalises an ingredient name for case-insensitive, fuzzy comparison:
+     * <ol>
+     *   <li>Strips parenthetical brand / quality markers, e.g. {@code (HydroPrime®)}</li>
+     *   <li>Replaces hyphens with spaces so {@code L-Citrullin-Malat} equals
+     *       {@code L Citrullin Malat} and {@code L-Citrullin Malat}</li>
+     *   <li>Strips a leading {@code "davon "} prefix (German sub-ingredient
+     *       indicator), so stored {@code "davon Piperin"} matches OCR
+     *       {@code "Piperin"}</li>
+     *   <li>Lowercases, trims, and collapses internal whitespace</li>
+     * </ol>
      */
     static String normalize(String name) {
         if (name == null) return "";
-        return name.toLowerCase(Locale.ROOT).trim().replaceAll("\\s+", " ");
+        return name
+                .replaceAll("\\s*\\([^)]*\\)", "")   // strip (HydroPrime®) etc.
+                .replace("-", " ")                    // L-Citrullin → L Citrullin
+                .replaceAll("(?i)^davon\\s+", "")    // davon Piperin → Piperin
+                .toLowerCase(Locale.ROOT)
+                .trim()
+                .replaceAll("\\s+", " ");
     }
 }

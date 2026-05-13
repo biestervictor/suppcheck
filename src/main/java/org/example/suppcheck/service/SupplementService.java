@@ -44,6 +44,7 @@ public class SupplementService {
    */
   public List<Ingredient> getSummedIngredients(List<Supplement> supplements, boolean isWorkoutDay) {
     Map<String, Double> sumMap = new HashMap<>();
+    Map<String, String> displayNames = new HashMap<>();
     for (Supplement supplement : supplements) {
       if (supplement.isInactive() ||
           (!isWorkoutDay && supplement.getSupplementType().equals(SupplementType.SPORT.name()))) {
@@ -52,17 +53,21 @@ public class SupplementService {
       int intervalDays = effectiveIntervalDays(supplement);
       for (Ingredient ing : supplement.getIngredients()) {
         if (ing.getName() == null || ing.getName().isBlank()) continue;
-        sumMap.merge(ing.getName(), ing.getMg() / intervalDays, Double::sum);
+        String key = normalizeIngName(ing.getName());
+        displayNames.putIfAbsent(key, ing.getName());
+        sumMap.merge(key, ing.getMg() / intervalDays, Double::sum);
         for (Ingredient subIng : ing.getSubIngredients()) {
           if (subIng.getName() == null || subIng.getName().isBlank()) continue;
-          sumMap.merge(subIng.getName(), subIng.getMg() / intervalDays, Double::sum);
+          String subKey = normalizeIngName(subIng.getName());
+          displayNames.putIfAbsent(subKey, subIng.getName());
+          sumMap.merge(subKey, subIng.getMg() / intervalDays, Double::sum);
         }
       }
     }
     List<Ingredient> result = new ArrayList<>();
-    sumMap.forEach((name, mg) -> {
+    sumMap.forEach((key, mg) -> {
       Ingredient ing = new Ingredient();
-      ing.setName(name);
+      ing.setName(displayNames.getOrDefault(key, key));
       ing.setMg(mg);
       result.add(ing);
     });
@@ -73,14 +78,20 @@ public class SupplementService {
    * Daily intake summarized with per-supplement source information.
    * Each entry contains the total mg plus a list of contributing supplement names and their amounts.
    *
+   * <p>Ingredient names are normalised before grouping so that variants like
+   * {@code L-Citrullin Malat} and {@code L-Citrullin-Malat}, or names with
+   * brand suffixes in parentheses, are merged into one entry.</p>
+   *
    * @param supplements  all supplements (active + inactive – filtering happens here)
    * @param isWorkoutDay true to include SPORT-type supplements
    * @return list of ingredients with source details, sorted by name
    */
   public List<IngredientWithSources> getSummedIngredientsWithSources(
       List<Supplement> supplements, boolean isWorkoutDay) {
-    // ingredient name → (supplement name → contributed daily mg)
+    // normalised ingredient name → (supplement name → contributed daily mg)
     Map<String, Map<String, Double>> sourceMap = new TreeMap<>();
+    // normalised name → first-seen original display name
+    Map<String, String> displayNames = new HashMap<>();
     // supplement name → interval (only stored when > 1, for label generation)
     Map<String, Integer> supplementIntervals = new HashMap<>();
 
@@ -95,20 +106,25 @@ public class SupplementService {
       }
       for (Ingredient ing : supplement.getIngredients()) {
         if (ing.getName() == null || ing.getName().isBlank()) continue;
+        String key = normalizeIngName(ing.getName());
+        displayNames.putIfAbsent(key, ing.getName());
         sourceMap
-            .computeIfAbsent(ing.getName(), k -> new LinkedHashMap<>())
+            .computeIfAbsent(key, k -> new LinkedHashMap<>())
             .merge(supplement.getName(), ing.getMg() / intervalDays, Double::sum);
         for (Ingredient sub : ing.getSubIngredients()) {
           if (sub.getName() == null || sub.getName().isBlank()) continue;
+          String subKey = normalizeIngName(sub.getName());
+          displayNames.putIfAbsent(subKey, sub.getName());
           sourceMap
-              .computeIfAbsent(sub.getName(), k -> new LinkedHashMap<>())
+              .computeIfAbsent(subKey, k -> new LinkedHashMap<>())
               .merge(supplement.getName(), sub.getMg() / intervalDays, Double::sum);
         }
       }
     }
 
     List<IngredientWithSources> result = new ArrayList<>();
-    sourceMap.forEach((ingName, sources) -> {
+    sourceMap.forEach((normalizedKey, sources) -> {
+      String displayName = displayNames.getOrDefault(normalizedKey, normalizedKey);
       double total = sources.values().stream().mapToDouble(Double::doubleValue).sum();
       List<String> sourceLabels = sources.entrySet().stream()
           .map(e -> {
@@ -119,9 +135,24 @@ public class SupplementService {
             return suppName + intervalSuffix + ": " + formatMg(e.getValue());
           })
           .toList();
-      result.add(new IngredientWithSources(ingName, total, sourceLabels));
+      result.add(new IngredientWithSources(displayName, total, sourceLabels));
     });
     return result;
+  }
+
+  /**
+   * Normalises an ingredient name for grouping purposes:
+   * strips parenthetical content, replaces hyphens with spaces,
+   * lowercases and collapses whitespace.
+   */
+  private static String normalizeIngName(String name) {
+    if (name == null) return "";
+    return name
+        .replaceAll("\\s*\\([^)]*\\)", "")  // strip (HydroPrime®) etc.
+        .replace("-", " ")                  // L-Citrullin → L Citrullin
+        .toLowerCase(java.util.Locale.ROOT)
+        .trim()
+        .replaceAll("\\s+", " ");
   }
 
   private String formatMg(double mg) {
