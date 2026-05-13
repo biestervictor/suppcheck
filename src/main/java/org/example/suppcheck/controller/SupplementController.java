@@ -282,20 +282,26 @@ public class SupplementController {
      * @param files one or more nutrition-label images
      * @return 200 with {@link CheckResult} JSON, or 500 on failure
      */
-    @PostMapping(value = "/check/{id}", produces = "application/json")
+    /**
+     * Adjusts the stock of a supplement by delta (positive = add, negative = remove).
+     * Stock is floored at 0.
+     *
+     * @param id    the supplement id
+     * @param delta the amount to add or remove
+     * @return JSON with the new stock value, e.g. {"stock": 3}
+     */
+    @PostMapping(value = "/{id}/stock", produces = "application/json")
     @ResponseBody
-    public ResponseEntity<CheckResult> checkSupplement(
+    public ResponseEntity<Map<String, Integer>> adjustStock(
             @PathVariable String id,
-            @RequestParam("image") List<MultipartFile> files) {
+            @RequestParam int delta) {
         try {
-            Supplement supplement = supplementService.getSupplementById(id)
-                    .orElseThrow(() -> new IllegalArgumentException("Supplement nicht gefunden: " + id));
-            OcrResult ocrResult = ocrService.extractIngredients(files);
-            CheckResult checkResult = checkService.compare(supplement, ocrResult);
-            return ResponseEntity.ok(checkResult);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            int newStock = supplementService.adjustStock(id, delta);
+            return ResponseEntity.ok(Map.of("stock", newStock));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
     }
 }
+
 

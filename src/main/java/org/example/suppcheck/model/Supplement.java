@@ -71,6 +71,12 @@ public class Supplement {
   private int consumptionIntervalDays = 1;
 
   /**
+   * Lagerbestand (Anzahl Portionen/Packungen). Kann nicht unter 0 fallen.
+   * Dokumente ohne dieses Feld defaulten auf 0.
+   */
+  private int stock = 0;
+
+  /**
    * Returns the latest historical price if present.
    */
   public double getPrice() {

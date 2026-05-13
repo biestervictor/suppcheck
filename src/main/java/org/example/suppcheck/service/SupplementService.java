@@ -245,6 +245,24 @@ public class SupplementService {
   }
 
   /**
+   * Adjusts the stock of a supplement by the given delta (positive = increment, negative = decrement).
+   * Stock cannot go below 0.
+   *
+   * @param id    the id of the supplement
+   * @param delta the amount to add (may be negative)
+   * @return the new stock value
+   * @throws IllegalArgumentException when no supplement with the given id is found
+   */
+  public int adjustStock(String id, int delta) {
+    Supplement supp = supplementRepository.findById(id)
+        .orElseThrow(() -> new IllegalArgumentException("Supplement mit ID " + id + " nicht gefunden"));
+    int newStock = Math.max(0, supp.getStock() + delta);
+    supp.setStock(newStock);
+    supplementRepository.save(supp);
+    return newStock;
+  }
+
+  /**
    * Get all Supplements.
    *
    * @return a list of all Supplements

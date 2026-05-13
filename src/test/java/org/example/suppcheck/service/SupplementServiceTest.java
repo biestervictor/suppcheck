@@ -578,5 +578,58 @@ class SupplementServiceTest {
         supp.setIngredients(new ArrayList<>());
         return supp;
     }
+
+    // --- adjustStock ---
+
+    @Test
+    void adjustStock_increment_returnsNewStock() {
+        Supplement supp = new Supplement();
+        supp.setId("id-1");
+        supp.setStock(3);
+        when(repository.findById("id-1")).thenReturn(Optional.of(supp));
+
+        int result = service.adjustStock("id-1", 1);
+
+        assertEquals(4, result);
+        assertEquals(4, supp.getStock());
+        verify(repository).save(supp);
+    }
+
+    @Test
+    void adjustStock_decrement_returnsNewStock() {
+        Supplement supp = new Supplement();
+        supp.setId("id-1");
+        supp.setStock(5);
+        when(repository.findById("id-1")).thenReturn(Optional.of(supp));
+
+        int result = service.adjustStock("id-1", -2);
+
+        assertEquals(3, result);
+        assertEquals(3, supp.getStock());
+        verify(repository).save(supp);
+    }
+
+    @Test
+    void adjustStock_decrementBelowZero_floorsAtZero() {
+        Supplement supp = new Supplement();
+        supp.setId("id-1");
+        supp.setStock(1);
+        when(repository.findById("id-1")).thenReturn(Optional.of(supp));
+
+        int result = service.adjustStock("id-1", -5);
+
+        assertEquals(0, result);
+        assertEquals(0, supp.getStock());
+        verify(repository).save(supp);
+    }
+
+    @Test
+    void adjustStock_notFound_throwsIllegalArgumentException() {
+        when(repository.findById("missing")).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.adjustStock("missing", 1));
+        verify(repository, never()).save(any());
+    }
 }
 
