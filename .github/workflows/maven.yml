@@ -56,6 +56,8 @@ jobs:
           mvn versions:set -DnewVersion="${NEW_VERSION}" -DgenerateBackupPoms=false -q
 
       - name: Build with Maven
+        env:
+          MAVEN_OPTS: "-Duser.timezone=Europe/Berlin"
         run: mvn clean install -Dspring.profiles.active=ci
 
       - name: Extract version from pom.xml
