@@ -48,6 +48,20 @@ public final class OcrTextParser {
     );
 
     /**
+     * Matches lines that contain only an amount + unit (no name).
+     * Used to handle two-line OCR output where name and value land on separate lines:
+     * <pre>
+     *   Pomelo Extrakt
+     *
+     *   100 mg
+     * </pre>
+     */
+    private static final Pattern AMOUNT_ONLY_LINE = Pattern.compile(
+            "^\\s*(\\d+[.,]?\\d*)\\s*(g|mg|µg|mcg|ug)\\b.*$",
+            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
+    );
+
+    /**
      * Leading characters that may appear before the opening parenthesis
      * of a sub-ingredient line: whitespace, dashes (ASCII + unicode),
      * bullets, asterisks, middle-dots, greater-than signs (e.g. {@code >}, {@code >>}).
@@ -85,54 +99,88 @@ public final class OcrTextParser {
 
         List<IngredientDto> result = new ArrayList<>();
         IngredientDto lastTopLevel = null;
+        // Carries a name-only line forward until the next amount-only line resolves it.
+        String pendingName = null;
 
         for (String rawLine : ocrText.split("\\r?\\n")) {
             String line = rawLine.trim();
             if (line.isBlank()) {
-                continue;
+                continue; // blank lines don't clear pendingName — value may follow after a gap
             }
 
             // Normalize space-thousands separator: "4 500" → "4500"
             line = line.replaceAll("(\\d) (\\d{3})(?=[^\\d]|$)", "$1$2");
 
-            Matcher m = INGREDIENT_LINE.matcher(line);
-            if (!m.matches()) {
-                continue;
-            }
-
-            String name = m.group(1).trim();
-            if (name.isBlank()) {
-                continue;
-            }
-
-            double amount;
-            try {
-                amount = parseAmount(m.group(2));
-            } catch (NumberFormatException e) {
-                continue;
-            }
-
-            double mg = toMg(amount, m.group(3).toLowerCase());
-
-            if (isSubIngredient(name)) {
-                IngredientDto sub = new IngredientDto();
-                sub.setName(cleanSubIngredientName(name));
-                sub.setMg(mg);
-                if (lastTopLevel != null) {
-                    lastTopLevel.getSubIngredients().add(sub);
-                } else {
-                    // No parent yet — treat as top-level
-                    result.add(sub);
+            // Check amount-only FIRST: a line like "100 mg" must not be mis-parsed by
+            // INGREDIENT_LINE as name="1", amount="00".
+            Matcher amountOnly = AMOUNT_ONLY_LINE.matcher(line);
+            if (amountOnly.matches()) {
+                if (pendingName != null) {
+                    double amount;
+                    try {
+                        amount = parseAmount(amountOnly.group(1));
+                    } catch (NumberFormatException e) {
+                        pendingName = null;
+                        continue;
+                    }
+                    double mg = toMg(amount, amountOnly.group(2).toLowerCase());
+                    lastTopLevel = addParsedEntry(pendingName, mg, result, lastTopLevel);
+                    pendingName = null;
                 }
-            } else {
-                IngredientDto dto = new IngredientDto();
-                dto.setName(name);
-                dto.setMg(mg);
-                result.add(dto);
-                lastTopLevel = dto;
+                // amount-only with no pending name → skip (unresolvable)
+                continue;
             }
+
+            Matcher m = INGREDIENT_LINE.matcher(line);
+            if (m.matches()) {
+                pendingName = null; // full match — no carry needed
+                String name = m.group(1).trim();
+                if (name.isBlank()) {
+                    continue;
+                }
+                double amount;
+                try {
+                    amount = parseAmount(m.group(2));
+                } catch (NumberFormatException e) {
+                    continue;
+                }
+                double mg = toMg(amount, m.group(3).toLowerCase());
+                lastTopLevel = addParsedEntry(name, mg, result, lastTopLevel);
+                continue;
+            }
+
+            // Non-blank, non-matching line: save as pending name for the next amount-only line.
+            // Overwrite any previous pendingName — the newer candidate is more likely to be correct.
+            pendingName = line;
         }
         return result;
+    }
+
+    /**
+     * Classifies {@code name} as sub-ingredient or top-level and adds it to the result list.
+     *
+     * @return the last top-level ingredient (possibly updated)
+     */
+    private static IngredientDto addParsedEntry(String name, double mg,
+                                                 List<IngredientDto> result,
+                                                 IngredientDto lastTopLevel) {
+        if (isSubIngredient(name)) {
+            IngredientDto sub = new IngredientDto();
+            sub.setName(cleanSubIngredientName(name));
+            sub.setMg(mg);
+            if (lastTopLevel != null) {
+                lastTopLevel.getSubIngredients().add(sub);
+            } else {
+                result.add(sub);
+            }
+            return lastTopLevel; // sub-ingredients don't update lastTopLevel
+        } else {
+            IngredientDto dto = new IngredientDto();
+            dto.setName(name);
+            dto.setMg(mg);
+            result.add(dto);
+            return dto;
+        }
     }
 
     // -------------------------------------------------------------------------

@@ -424,4 +424,60 @@ class OcrTextParserTest {
         assertEquals(1, result.size());
         assertEquals(1_000_000.0, result.getFirst().getMg(), 0.001);
     }
+
+    // --- Multi-line name / value pairs ---
+
+    @Test
+    void parse_nameOnOneLine_amountOnNextLine_parsed() {
+        // OCR sometimes puts the ingredient name and its amount on separate lines
+        String text = "Pomelo Extrakt\n100 mg";
+
+        List<IngredientDto> result = OcrTextParser.parse(text);
+
+        assertEquals(1, result.size());
+        assertEquals("Pomelo Extrakt", result.getFirst().getName());
+        assertEquals(100.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_nameOnOneLine_blankLine_amountOnLaterLine_parsed() {
+        // Blank line between name and value — pendingName must survive blank lines
+        String text = "Pomelo Extrakt\n\n100 mg";
+
+        List<IngredientDto> result = OcrTextParser.parse(text);
+
+        assertEquals(1, result.size());
+        assertEquals("Pomelo Extrakt", result.getFirst().getName());
+        assertEquals(100.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_mixedSingleAndMultiLine_allParsed() {
+        // Normal single-line entries followed by a multi-line entry
+        String text = "Taurin 1569 mg\nPomelo Extrakt\n\n100 mg\nL-Theanin 100 mg";
+
+        List<IngredientDto> result = OcrTextParser.parse(text);
+
+        assertEquals(3, result.size());
+        assertEquals("Taurin",         result.get(0).getName());
+        assertEquals(1569.0,           result.get(0).getMg(), 0.001);
+        assertEquals("Pomelo Extrakt", result.get(1).getName());
+        assertEquals(100.0,            result.get(1).getMg(), 0.001);
+        assertEquals("L-Theanin",      result.get(2).getName());
+        assertEquals(100.0,            result.get(2).getMg(), 0.001);
+    }
+
+    @Test
+    void parse_multiLineWithDavonSubIngredient_correctHierarchy() {
+        // davon sub-ingredient following a multi-line top-level entry
+        String text = "Grüner Kaffeebohnen-Extrakt\n500 mg\ndavon Chlorogensäure 250 mg";
+
+        List<IngredientDto> result = OcrTextParser.parse(text);
+
+        assertEquals(1, result.size());
+        assertEquals("Grüner Kaffeebohnen-Extrakt", result.getFirst().getName());
+        assertEquals(500.0, result.getFirst().getMg(), 0.001);
+        assertEquals(1, result.getFirst().getSubIngredients().size());
+        assertEquals("Chlorogensäure", result.getFirst().getSubIngredients().getFirst().getName());
+    }
 }

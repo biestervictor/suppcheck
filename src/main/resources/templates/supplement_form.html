@@ -288,14 +288,14 @@
         const subHtml = (ing.subIngredients || []).map(function(sub) {
             return '<div>' +
                 '<input type="text" placeholder="Sub-Name" value="' + escapeHtml(sub.name) + '" />' +
-                '<input type="number" step="any" placeholder="mg" class="subingredient-mg" />' +
+                '<input type="number" step="any" placeholder="mg" class="subingredient-mg" value="' + (sub.mg != null ? sub.mg : '') + '" />' +
                 '<button type="button" onclick="removeSubIngredient(this)">Entfernen</button>' +
                 '</div>';
         }).join('');
 
         div.innerHTML =
             '<input type="text" placeholder="Name" value="' + escapeHtml(ing.name) + '" />' +
-            '<input type="number" step="any" placeholder="mg" class="ingredient-mg" />' +
+            '<input type="number" step="any" placeholder="mg" class="ingredient-mg" value="' + (ing.mg != null ? ing.mg : '') + '" />' +
             '<button type="button" onclick="removeIngredient(this)">Entfernen</button>' +
             '<div class="subingredient-list">' + subHtml + '</div>' +
             '<button type="button" onclick="addSubIngredient(this)">Sub-Ingridient hinzufügen</button>';
