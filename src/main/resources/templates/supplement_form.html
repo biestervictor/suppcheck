@@ -77,6 +77,41 @@
             font-size: 0.9em;
             color: #7a5f00;
         }
+
+        /* ---- Check result annotations ---- */
+        .check-banner {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 6px;
+            padding: 10px 16px;
+            margin-bottom: 18px;
+            font-size: 0.95em;
+        }
+
+        .check-hint {
+            display: inline-block;
+            margin-left: 8px;
+            padding: 2px 9px;
+            border-radius: 10px;
+            font-size: 0.82em;
+            font-weight: bold;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        .check-match     { background: #d5f5e3; color: #1e8449; border: 1px solid #a9dfbf; }
+        .check-mismatch  { background: #fdebd0; color: #c0392b; border: 1px solid #f5cba7; }
+        .check-only-db   { background: #f2f3f4; color: #7f8c8d; border: 1px solid #d5d8dc; }
+
+        .check-extra-section {
+            background: #fef9e7;
+            border: 1px solid #f39c12;
+            border-radius: 6px;
+            padding: 10px 16px;
+            margin-top: 12px;
+            font-size: 0.9em;
+            color: #7d6608;
+        }
     </style>
     <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
 </head>
@@ -156,6 +191,8 @@
         <label>Bilder hochladen (mehrere möglich für bessere Erkennung kleiner Zeichen):</label>
         <input type="file" id="ocr-image" accept="image/*" multiple/>
         <button type="button" onclick="extractFromImage()">Zutaten erkennen</button>
+        <button type="button" th:if="*{id != null}" onclick="checkFromImage()"
+                style="background:#f5a623; color:#fff; margin-left:6px;">🔍 Zutaten prüfen</button>
         <span id="ocr-status"></span>
         <details id="ocr-raw-box" style="display:none; margin-top:10px;">
             <summary style="cursor:pointer; color:#555; font-style:italic;">OCR-Rohtext anzeigen</summary>
@@ -234,8 +271,6 @@
         btn.parentElement.remove();
         updateIngredientIndices();
     }
-
-    window.addEventListener('DOMContentLoaded', updateIngredientIndices);
 
     // Preis automatisch berechnen: OVP * (1 - Rabatt/100)
     function calculatePrice() {
@@ -372,6 +407,182 @@
 
     function toggleIntervalField(checked) {
         document.getElementById('interval-container').style.display = checked ? 'block' : 'none';
+    }
+
+    // =====================================================================
+    // Check mode – compare stored ingredients against a label image scan
+    // =====================================================================
+
+    // Supplement ID is in the hidden input (only present when editing).
+    function getSupplementId() {
+        var el = document.querySelector('input[type="hidden"][name="id"]');
+        return el ? el.value : null;
+    }
+
+    // Called from the "Zutaten prüfen" button in the OCR section.
+    function checkFromImage() {
+        var fileInput = document.getElementById('ocr-image');
+        var status = document.getElementById('ocr-status');
+        var supplementId = getSupplementId();
+
+        if (!supplementId) {
+            status.textContent = 'Prüfen nur beim Bearbeiten möglich.';
+            return;
+        }
+        if (!fileInput.files || fileInput.files.length === 0) {
+            status.textContent = 'Bitte zuerst ein Bild auswählen.';
+            return;
+        }
+
+        var count = fileInput.files.length;
+        status.textContent = count > 1 ? 'Wird geprüft… (' + count + ' Bilder)' : 'Wird geprüft…';
+        status.style.color = '#555';
+
+        var formData = new FormData();
+        for (var i = 0; i < count; i++) {
+            formData.append('image', fileInput.files[i]);
+        }
+
+        fetch('/supplements/check/' + supplementId, {
+            method: 'POST',
+            body: formData
+        })
+        .then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
+        .then(function(result) {
+            // Show raw text
+            var rawBox = document.getElementById('ocr-raw-box');
+            var rawPre = document.getElementById('ocr-raw-text');
+            if (result.rawText && rawBox) {
+                rawPre.textContent = result.rawText;
+                rawBox.style.display = 'block';
+            }
+
+            if (!result.hasDiscrepancies) {
+                status.textContent = '✅ Alle Zutaten stimmen überein!';
+                status.style.color = '#27ae60';
+            } else {
+                status.textContent = '⚠️ Auffälligkeiten gefunden – siehe Markierungen unten.';
+                status.style.color = '#e67e22';
+            }
+            applyCheckAnnotations(result);
+        })
+        .catch(function(err) {
+            status.textContent = 'Fehler: ' + err.message;
+            status.style.color = '#c0392b';
+        });
+    }
+
+    // On page load: check if the list page stored a check result for us.
+    window.addEventListener('DOMContentLoaded', function() {
+        updateIngredientIndices();
+
+        var supplementId = getSupplementId();
+        if (!supplementId) return;
+
+        var key = 'checkResult-' + supplementId;
+        var stored = sessionStorage.getItem(key);
+        if (!stored) return;
+        sessionStorage.removeItem(key); // consume once
+        try {
+            applyCheckAnnotations(JSON.parse(stored));
+        } catch (e) { /* ignore malformed data */ }
+    });
+
+    function applyCheckAnnotations(checkResult) {
+        // Remove any previous annotations so re-checking doesn't stack them.
+        document.querySelectorAll('.check-hint, .check-banner, .check-extra-section').forEach(function(el) {
+            el.remove();
+        });
+
+        // Build lookup map: normalised name → result
+        var resultMap = {};
+        (checkResult.ingredientResults || []).forEach(function(r) {
+            resultMap[r.name.toLowerCase().trim()] = r;
+        });
+
+        // Annotate each ingredient row
+        document.querySelectorAll('#ingredients-list .ingredient-row').forEach(function(row) {
+            var nameInput = row.querySelector('input[type="text"]:not([placeholder="Sub-Name"])');
+            if (!nameInput || !nameInput.value) return;
+            var result = resultMap[nameInput.value.toLowerCase().trim()];
+            if (!result) return;
+
+            var mgInput = row.querySelector('input.ingredient-mg');
+            if (mgInput) {
+                mgInput.insertAdjacentElement('afterend', buildHint(result.status, result.ocrMg, result.storedMg));
+            }
+
+            // Annotate sub-ingredients
+            if (result.subResults && result.subResults.length > 0) {
+                var subMap = {};
+                result.subResults.forEach(function(sr) { subMap[sr.name.toLowerCase().trim()] = sr; });
+                row.querySelectorAll('.subingredient-list > div').forEach(function(subDiv) {
+                    var subName = subDiv.querySelector('input[placeholder="Sub-Name"]');
+                    if (!subName || !subName.value) return;
+                    var sr = subMap[subName.value.toLowerCase().trim()];
+                    if (!sr) return;
+                    var subMg = subDiv.querySelector('input.subingredient-mg');
+                    if (subMg) {
+                        subMg.insertAdjacentElement('afterend', buildHint(sr.status, sr.ocrMg, sr.storedMg));
+                    }
+                });
+            }
+        });
+
+        // Section for OCR-only ingredients (not stored in DB)
+        var onlyInOcr = (checkResult.ingredientResults || []).filter(function(r) {
+            return r.status === 'ONLY_IN_OCR';
+        });
+        if (onlyInOcr.length > 0) {
+            var section = document.createElement('div');
+            section.className = 'check-extra-section';
+            section.innerHTML = '<b>⚠ Im Bild gefunden, aber nicht gespeichert:</b>' +
+                '<ul style="margin:6px 0 0 0; padding-left:20px;">' +
+                onlyInOcr.map(function(r) {
+                    return '<li>' + escapeHtml(r.name) + ' (' + formatMg(r.ocrMg) + ' mg)</li>';
+                }).join('') + '</ul>';
+            document.getElementById('ingredients-list').insertAdjacentElement('afterend', section);
+        }
+
+        // Info banner at top of form
+        var discrepancyCount = (checkResult.ingredientResults || []).filter(function(r) {
+            return r.status !== 'MATCH';
+        }).length;
+        var banner = document.createElement('div');
+        banner.className = 'check-banner';
+        if (discrepancyCount === 0) {
+            banner.innerHTML = '✅ <b>Prüfergebnis:</b> Alle Zutaten stimmen mit dem Bild überein.';
+        } else {
+            banner.innerHTML = '⚠️ <b>Prüfergebnis:</b> ' + discrepancyCount +
+                ' Auffälligkeit(en) gefunden. Abweichungen sind neben den Feldern markiert. ' +
+                'Bitte prüfen und ggf. korrigieren, bevor du speicherst.';
+        }
+        document.querySelector('form').insertBefore(banner, document.querySelector('form').firstChild);
+    }
+
+    function buildHint(status, ocrMg, storedMg) {
+        var hint = document.createElement('span');
+        hint.className = 'check-hint';
+        if (status === 'MATCH') {
+            hint.className += ' check-match';
+            hint.textContent = '✓ OCR: ' + formatMg(ocrMg) + ' mg';
+        } else if (status === 'VALUE_MISMATCH') {
+            hint.className += ' check-mismatch';
+            hint.textContent = '⚠ OCR: ' + formatMg(ocrMg) + ' mg  (gespeichert: ' + formatMg(storedMg) + ' mg)';
+        } else if (status === 'ONLY_IN_DB') {
+            hint.className += ' check-only-db';
+            hint.textContent = '? Nicht im Bild erkannt';
+        }
+        return hint;
+    }
+
+    function formatMg(mg) {
+        if (mg === null || mg === undefined) return '?';
+        if (mg === Math.floor(mg)) return mg.toString();
+        return mg.toFixed(1).replace('.', ',');
     }
 </script>
 </body>

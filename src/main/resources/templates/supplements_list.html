@@ -169,6 +169,58 @@
             text-decoration: underline;
         }
 
+        .check-btn {
+            background: #f5a623;
+            color: #fff;
+        }
+
+        .check-btn:hover {
+            background: #d4881a;
+            color: #fff;
+        }
+
+        /* ---- Check Modal ---- */
+        .check-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .check-modal-overlay.active {
+            display: flex;
+        }
+
+        .check-modal-box {
+            background: #fff;
+            border-radius: 8px;
+            padding: 28px 32px;
+            max-width: 480px;
+            width: 90%;
+            margin-top: 10vh;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        .check-modal-box h3 {
+            margin: 0 0 16px 0;
+            color: #2d6cdf;
+        }
+
+        .check-modal-box input[type="file"] {
+            display: block;
+            margin: 12px 0 18px 0;
+        }
+
+        #check-status {
+            display: block;
+            margin-top: 12px;
+            font-style: italic;
+            min-height: 1.4em;
+        }
+
     </style>
     <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
 </head>
@@ -280,6 +332,10 @@
         <td>
             <div class="action-buttons">
                 <a class="edit-btn" th:href="@{'/supplements/edit/' + ${supplement.id}}">✏️ Bearbeiten</a>
+                <button class="edit-btn check-btn" type="button"
+                        th:data-id="${supplement.id}"
+                        th:data-name="${supplement.name}"
+                        onclick="openCheckModal(this)">🔍 Prüfen</button>
                 <form method="post" th:action="@{'/supplements/delete/' + ${supplement.id}}">
                     <button class="edit-btn delete-btn" type="submit">🗑️ Löschen</button>
                 </form>
@@ -315,6 +371,90 @@
 
     // Filter sofort beim Laden anwenden
     applyFilters();
+</script>
+
+<!-- ======== Check Modal ======== -->
+<div id="check-modal" class="check-modal-overlay">
+    <div class="check-modal-box">
+        <h3 id="check-modal-title">Supplement prüfen</h3>
+        <label for="check-image">Bild(er) hochladen (mehrere möglich):</label>
+        <input type="file" id="check-image" accept="image/*" multiple/>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button onclick="startCheck()" style="background:#2d6cdf; color:#fff; border:none; padding:8px 18px; border-radius:4px; cursor:pointer; font-size:0.95em;">🔍 Prüfen starten</button>
+            <button onclick="closeCheckModal()" style="background:#aaa; color:#fff; border:none; padding:8px 18px; border-radius:4px; cursor:pointer; font-size:0.95em;">Abbrechen</button>
+        </div>
+        <span id="check-status"></span>
+    </div>
+</div>
+
+<script>
+    var currentCheckId = null;
+
+    function openCheckModal(btn) {
+        currentCheckId = btn.getAttribute('data-id');
+        var name = btn.getAttribute('data-name');
+        document.getElementById('check-modal-title').textContent = 'Prüfen: ' + name;
+        document.getElementById('check-image').value = '';
+        var status = document.getElementById('check-status');
+        status.textContent = '';
+        status.style.color = '#555';
+        document.getElementById('check-modal').classList.add('active');
+    }
+
+    function closeCheckModal() {
+        document.getElementById('check-modal').classList.remove('active');
+        currentCheckId = null;
+    }
+
+    // Close when clicking outside the box
+    document.getElementById('check-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeCheckModal();
+    });
+
+    function startCheck() {
+        var fileInput = document.getElementById('check-image');
+        var status = document.getElementById('check-status');
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            status.textContent = 'Bitte zuerst ein Bild auswählen.';
+            status.style.color = '#c0392b';
+            return;
+        }
+
+        status.textContent = 'Wird analysiert…';
+        status.style.color = '#555';
+
+        var formData = new FormData();
+        for (var i = 0; i < fileInput.files.length; i++) {
+            formData.append('image', fileInput.files[i]);
+        }
+
+        fetch('/supplements/check/' + currentCheckId, {
+            method: 'POST',
+            body: formData
+        })
+        .then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
+        .then(function(result) {
+            if (!result.hasDiscrepancies) {
+                status.textContent = '✅ Alle Zutaten stimmen überein!';
+                status.style.color = '#27ae60';
+            } else {
+                status.textContent = '⚠️ Auffälligkeiten gefunden – Bearbeitungsansicht wird geöffnet…';
+                status.style.color = '#e67e22';
+                sessionStorage.setItem('checkResult-' + currentCheckId, JSON.stringify(result));
+                setTimeout(function() {
+                    window.location.href = '/supplements/edit/' + currentCheckId;
+                }, 900);
+            }
+        })
+        .catch(function(err) {
+            status.textContent = 'Fehler: ' + err.message;
+            status.style.color = '#c0392b';
+        });
+    }
 </script>
 </body>
 </html>

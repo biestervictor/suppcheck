@@ -14,6 +14,7 @@ import org.example.suppcheck.model.Ingredient;
 import org.example.suppcheck.model.PriceEntry;
 import org.example.suppcheck.model.Supplement;
 import org.example.suppcheck.service.DailyIntakeSnapshotService;
+import org.example.suppcheck.service.CheckService;
 import org.example.suppcheck.service.OcrService;
 import org.example.suppcheck.service.SupplementService;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +29,7 @@ class SupplementControllerTest {
     private SupplementService service;
     private DailyIntakeSnapshotService snapshotService;
     private OcrService ocrService;
+    private CheckService checkService;
     private SupplementController controller;
 
     @BeforeEach
@@ -35,7 +37,8 @@ class SupplementControllerTest {
         service = mock(SupplementService.class);
         snapshotService = mock(DailyIntakeSnapshotService.class);
         ocrService = mock(OcrService.class);
-        controller = new SupplementController(service, snapshotService, ocrService);
+        checkService = mock(CheckService.class);
+        controller = new SupplementController(service, snapshotService, ocrService, checkService);
         // Default: getAllSupplements returns empty list (needed by snapshot trigger)
         lenient().when(service.getAllSupplements()).thenReturn(List.of());
     }

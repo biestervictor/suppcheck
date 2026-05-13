@@ -2,6 +2,7 @@ package org.example.suppcheck.controller;
 
 import java.util.*;
 
+import org.example.suppcheck.dto.CheckResult;
 import org.example.suppcheck.dto.IngredientDto;
 import org.example.suppcheck.dto.IngredientWithSources;
 import org.example.suppcheck.dto.OcrResult;
@@ -12,6 +13,7 @@ import org.example.suppcheck.model.Shop;
 import org.example.suppcheck.model.Supplement;
 import org.example.suppcheck.model.SupplementType;
 import org.example.suppcheck.service.DailyIntakeSnapshotService;
+import org.example.suppcheck.service.CheckService;
 import org.example.suppcheck.service.OcrService;
 import org.example.suppcheck.service.SupplementService;
 import org.springframework.http.HttpStatus;
@@ -35,6 +37,7 @@ public class SupplementController {
     private final SupplementService supplementService;
     private final DailyIntakeSnapshotService snapshotService;
     private final OcrService ocrService;
+    private final CheckService checkService;
 
     /**
      * Constructor for SupplementController.
@@ -46,10 +49,12 @@ public class SupplementController {
     @SuppressWarnings("java:S2384")
     public SupplementController(SupplementService supplementService,
                                 DailyIntakeSnapshotService snapshotService,
-                                OcrService ocrService) {
+                                OcrService ocrService,
+                                CheckService checkService) {
         this.supplementService = supplementService;
         this.snapshotService = snapshotService;
         this.ocrService = ocrService;
+        this.checkService = checkService;
     }
 
     /**
@@ -263,6 +268,31 @@ public class SupplementController {
         try {
             OcrResult result = ocrService.extractIngredients(files);
             return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Runs OCR on the uploaded image(s) and compares the result against the
+     * supplement's stored ingredient list.  Nothing is saved – the response is
+     * purely informational so the UI can highlight discrepancies.
+     *
+     * @param id    the supplement to check
+     * @param files one or more nutrition-label images
+     * @return 200 with {@link CheckResult} JSON, or 500 on failure
+     */
+    @PostMapping(value = "/check/{id}", produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<CheckResult> checkSupplement(
+            @PathVariable String id,
+            @RequestParam("image") List<MultipartFile> files) {
+        try {
+            Supplement supplement = supplementService.getSupplementById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Supplement nicht gefunden: " + id));
+            OcrResult ocrResult = ocrService.extractIngredients(files);
+            CheckResult checkResult = checkService.compare(supplement, ocrResult);
+            return ResponseEntity.ok(checkResult);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
