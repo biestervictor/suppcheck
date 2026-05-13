@@ -34,6 +34,12 @@ public class OcrService {
 
     private static final int TIMEOUT_SECONDS = 30;
 
+    private final IngredientTranslationService translationService;
+
+    public OcrService(IngredientTranslationService translationService) {
+        this.translationService = translationService;
+    }
+
     // -------------------------------------------------------------------------
     // Public API
     // -------------------------------------------------------------------------
@@ -168,6 +174,7 @@ public class OcrService {
             Files.deleteIfExists(txtOutput);
 
             List<IngredientDto> ingredients = OcrTextParser.parse(ocrText);
+            translationService.translateAll(ingredients);
             return new OcrResult(ocrText, ingredients);
 
         } finally {
