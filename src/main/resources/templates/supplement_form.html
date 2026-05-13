@@ -559,7 +559,7 @@
 
             var mgInput = row.querySelector('input.ingredient-mg');
             if (mgInput) {
-                mgInput.insertAdjacentElement('afterend', buildHint(result.status, result.ocrMg, result.storedMg));
+                mgInput.insertAdjacentElement('afterend', buildHint(result.status, result.ocrMg, result.storedMg, mgInput));
             }
 
             // Annotate sub-ingredients
@@ -573,7 +573,7 @@
                     if (!sr) return;
                     var subMg = subDiv.querySelector('input.subingredient-mg');
                     if (subMg) {
-                        subMg.insertAdjacentElement('afterend', buildHint(sr.status, sr.ocrMg, sr.storedMg));
+                        subMg.insertAdjacentElement('afterend', buildHint(sr.status, sr.ocrMg, sr.storedMg, subMg));
                     }
                 });
             }
@@ -688,7 +688,7 @@
         checkbox.parentElement.style.opacity = '0.5';
     }
 
-    function buildHint(status, ocrMg, storedMg) {
+    function buildHint(status, ocrMg, storedMg, inputEl) {
         var hint = document.createElement('span');
         hint.className = 'check-hint';
         if (status === 'MATCH') {
@@ -697,6 +697,19 @@
         } else if (status === 'VALUE_MISMATCH') {
             hint.className += ' check-mismatch';
             hint.textContent = '⚠ OCR: ' + formatMg(ocrMg) + ' mg  (gespeichert: ' + formatMg(storedMg) + ' mg)';
+            if (inputEl) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = '✓ Übernehmen';
+                btn.style.cssText = 'margin-left:8px; padding:1px 8px; font-size:0.85em; font-weight:bold;' +
+                    ' background:#d5f5e3; color:#1e8449; border:1px solid #a9dfbf; border-radius:8px; cursor:pointer;';
+                btn.addEventListener('click', function() {
+                    inputEl.value = ocrMg;
+                    hint.className = 'check-hint check-match';
+                    hint.textContent = '✓ OCR: ' + formatMg(ocrMg) + ' mg';
+                });
+                hint.appendChild(btn);
+            }
         } else if (status === 'ONLY_IN_DB') {
             hint.className += ' check-only-db';
             hint.textContent = '? Nicht im Bild erkannt';

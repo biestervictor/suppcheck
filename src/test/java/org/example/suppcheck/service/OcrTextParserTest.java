@@ -1102,6 +1102,109 @@ class OcrTextParserTest {
         assertTrue(result.contains("Vitamin D3 25 mcg"));
     }
 
+    // --- cleanTopLevelName() ---
+
+    @Test
+    void cleanTopLevelName_leadingDoubleQuote_stripped() {
+        // OCR artefact: double-quote before the name
+        assertEquals("Niacin", OcrTextParser.cleanTopLevelName("\"Niacin"));
+    }
+
+    @Test
+    void cleanTopLevelName_leadingDigitPlusSpace_stripped() {
+        // OCR artefact: line-number digit before the name
+        assertEquals("Calcium", OcrTextParser.cleanTopLevelName("3 Calcium"));
+    }
+
+    @Test
+    void cleanTopLevelName_leadingMultiDigitPlusSpace_stripped() {
+        assertEquals("Zink", OcrTextParser.cleanTopLevelName("12 Zink"));
+    }
+
+    @Test
+    void cleanTopLevelName_leadingCurlyBrace_stripped() {
+        assertEquals("Extrakt", OcrTextParser.cleanTopLevelName("{ Extrakt"));
+    }
+
+    @Test
+    void cleanTopLevelName_normalName_unchanged() {
+        assertEquals("L-Leucin", OcrTextParser.cleanTopLevelName("L-Leucin"));
+        assertEquals("Vitamin D3", OcrTextParser.cleanTopLevelName("Vitamin D3"));
+    }
+
+    @Test
+    void cleanTopLevelName_digitNotFollowedByCapital_unchanged() {
+        // "3 calcium" (lowercase) must NOT be stripped — only strip before uppercase
+        assertEquals("3 calcium", OcrTextParser.cleanTopLevelName("3 calcium"));
+    }
+
+    // --- cleanSubIngredientName() with OCR noise prefixes ---
+
+    @Test
+    void cleanSubIngredientName_curlyBracePlusDavon_returnsPureName() {
+        // "{ davon Piperin" is a sub-ingredient with table-border artefact
+        assertEquals("Piperin", OcrTextParser.cleanSubIngredientName("{ davon Piperin"));
+    }
+
+    @Test
+    void cleanSubIngredientName_doubleQuotePlusName_returnsPureName() {
+        assertEquals("Niacin", OcrTextParser.cleanSubIngredientName("\"Niacin"));
+    }
+
+    // --- isSubIngredient() Case 4 ---
+
+    @Test
+    void isSubIngredient_curlyBraceDavon_returnsTrue() {
+        assertTrue(OcrTextParser.isSubIngredient("{ davon Piperin"));
+    }
+
+    @Test
+    void isSubIngredient_doubleQuoteDavon_returnsTrue() {
+        assertTrue(OcrTextParser.isSubIngredient("\"davon Piperin"));
+    }
+
+    @Test
+    void isSubIngredient_singleQuoteDavon_returnsTrue() {
+        assertTrue(OcrTextParser.isSubIngredient("'davon Glucomannan"));
+    }
+
+    // --- parse() integration tests for OCR noise prefixes ---
+
+    @Test
+    void parse_curlyBraceDavonSubIngredient_isAttachedToParent() {
+        // "{ davon Piperin" is a table-border artefact followed by sub-ingredient marker
+        String text = "Schwarzer Pfeffer Extrakt 10 mg\n{ davon Piperin 10,5 mg";
+
+        List<IngredientDto> result = OcrTextParser.parse(text);
+
+        assertEquals(1, result.size());
+        assertEquals("Schwarzer Pfeffer Extrakt", result.getFirst().getName());
+        assertEquals(1, result.getFirst().getSubIngredients().size());
+        IngredientDto sub = result.getFirst().getSubIngredients().getFirst();
+        assertEquals("Piperin", sub.getName());
+        assertEquals(10.5, sub.getMg(), 0.001);
+    }
+
+    @Test
+    void parse_doubleQuotePrefixTopLevel_strippedToCorrectName() {
+        // OCR artefact double-quote before ingredient name
+        List<IngredientDto> result = OcrTextParser.parse("\"Niacin 14 mg");
+
+        assertEquals(1, result.size());
+        assertEquals("Niacin", result.getFirst().getName());
+        assertEquals(14.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_lineNumberPrefixTopLevel_strippedToCorrectName() {
+        // OCR artefact line-number "3" before ingredient name
+        List<IngredientDto> result = OcrTextParser.parse("3 Calcium 500 mg");
+
+        assertEquals(1, result.size());
+        assertEquals("Calcium", result.getFirst().getName());
+        assertEquals(500.0, result.getFirst().getMg(), 0.001);
+    }
+
     // --- parse() integration with joinSplitUnitLines ---
 
     @Test

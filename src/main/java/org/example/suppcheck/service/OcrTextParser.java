@@ -304,7 +304,7 @@ public final class OcrTextParser {
             return lastTopLevel; // sub-ingredients don't update lastTopLevel
         } else {
             IngredientDto dto = new IngredientDto();
-            dto.setName(name);
+            dto.setName(cleanTopLevelName(name));
             dto.setMg(mg);
             result.add(dto);
             return dto;
@@ -327,6 +327,10 @@ public final class OcrTextParser {
      *       {@code – (Whey Isolat}</li>
      *   <li>The name starts directly with {@code (} (no leading special chars).
      *       Example: {@code (davon L-Leucin)}</li>
+     *   <li>The name starts with {@code "davon "} (German "of which").</li>
+     *   <li>The name starts with OCR noise characters ({@code {}, {@code "},
+     *       {@code '} …) followed by {@code "davon "} — e.g.
+     *       {@code { davon Piperin} where {@code {} is a table-border artefact.
      * </ol>
      */
     static boolean isSubIngredient(String name) {
@@ -339,7 +343,13 @@ public final class OcrTextParser {
             return true;
         }
         // Case 3: name starts with "davon " (German "of which") — also a sub-ingredient indicator
-        return name.toLowerCase(Locale.ROOT).startsWith("davon ");
+        if (name.toLowerCase(Locale.ROOT).startsWith("davon ")) {
+            return true;
+        }
+        // Case 4: OCR noise prefix (curly brace, quote marks, …) followed by "davon "
+        // e.g. "{ davon Piperin" where { is a table-border artefact
+        String stripped = name.replaceAll("^[{\"'`\u201c\u201d\u2018\u2019\\s]+", "");
+        return stripped.toLowerCase(Locale.ROOT).startsWith("davon ");
     }
 
     /**
@@ -351,17 +361,36 @@ public final class OcrTextParser {
      *   "(davon L-Leucin)"  →  "davon L-Leucin"
      *   "– (Whey Isolat"    →  "Whey Isolat"
      *   "- (L-Isoleucin)"   →  "L-Isoleucin"
+     *   "{ davon Piperin"   →  "Piperin"
      * </pre>
      */
     static String cleanSubIngredientName(String name) {
-        // Strip leading special chars and opening paren
-        name = name.replaceAll("^[\\s\\-\u2013\u2014\u2022*\u00b7>(]+", "");
+        // Strip leading special chars (including OCR noise: {, ", ', `) and opening paren
+        name = name.replaceAll("^[\\s\\-\u2013\u2014\u2022*\u00b7>({\"'`\u201c\u201d\u2018\u2019]+", "");
         // Strip trailing closing paren and whitespace
         name = name.replaceAll("[)\\s]+$", "");
         // Strip "davon " prefix — it is a sub-ingredient indicator, not part of the name
         if (name.toLowerCase(Locale.ROOT).startsWith("davon ")) {
             name = name.substring(6);
         }
+        return name.trim();
+    }
+
+    /**
+     * Strips OCR artefacts from a top-level ingredient name:
+     * <ul>
+     *   <li>Leading noise characters: {@code {}, {@code "}, {@code '}, `` ` ``,
+     *       and Unicode variants of quote/curly marks.</li>
+     *   <li>Leading line-number digit(s) followed by whitespace before an uppercase
+     *       letter (including Ä/Ö/Ü): e.g. {@code "3 Calcium"} → {@code "Calcium"},
+     *       {@code "12 Zink"} → {@code "Zink"}.</li>
+     * </ul>
+     */
+    static String cleanTopLevelName(String name) {
+        // Strip leading OCR noise characters (table artefacts, misread quotes)
+        name = name.replaceAll("^[{\"'`\u201c\u201d\u2018\u2019\\s]+", "");
+        // Strip leading line-number digit(s) + whitespace before a capital letter
+        name = name.replaceAll("^\\d+\\s+(?=[A-Z\u00c4\u00d6\u00dc])", "");
         return name.trim();
     }
 
