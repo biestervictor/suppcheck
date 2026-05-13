@@ -188,7 +188,8 @@
     <input id="nonDaily" th:field="*{nonDaily}" type="checkbox" onchange="toggleIntervalField(this.checked)"/><br/><br/>
     <div id="interval-container" th:style="${supplement.nonDaily} ? 'display:block' : 'display:none'">
         <label for="consumptionIntervalDays">Einnahme alle X Tage:</label>
-        <input id="consumptionIntervalDays" th:field="*{consumptionIntervalDays}" type="number" min="2" step="1" style="width:80px;"/>
+        <input id="consumptionIntervalDays" th:field="*{consumptionIntervalDays}" type="number" min="2" step="1" style="width:80px;"
+               th:disabled="${!supplement.nonDaily}"/>
         <span style="color:#777;font-size:0.9em;margin-left:6px;">Tage (z.B. 3 = alle 3 Tage)</span><br/><br/>
     </div>
 
@@ -433,7 +434,10 @@
     }
 
     function toggleIntervalField(checked) {
-        document.getElementById('interval-container').style.display = checked ? 'block' : 'none';
+        var container = document.getElementById('interval-container');
+        var input = document.getElementById('consumptionIntervalDays');
+        container.style.display = checked ? 'block' : 'none';
+        input.disabled = !checked;
     }
 
     // =====================================================================
