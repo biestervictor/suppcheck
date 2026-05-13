@@ -282,6 +282,24 @@ public class SupplementController {
      * @param files one or more nutrition-label images
      * @return 200 with {@link CheckResult} JSON, or 500 on failure
      */
+    @PostMapping(value = "/check/{id}", produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<CheckResult> checkSupplement(
+            @PathVariable String id,
+            @RequestParam("image") List<MultipartFile> files) {
+        try {
+            Supplement supplement = supplementService.getSupplementById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Supplement mit ID " + id + " nicht gefunden"));
+            OcrResult ocrResult = ocrService.extractIngredients(files);
+            CheckResult result = checkService.compare(supplement, ocrResult);
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     /**
      * Adjusts the stock of a supplement by delta (positive = add, negative = remove).
      * Stock is floored at 0.
