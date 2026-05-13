@@ -244,18 +244,24 @@ public class SupplementController {
     }
 
     /**
-     * Accepts an image upload, runs Tesseract OCR, and returns the detected
-     * ingredients as JSON so the form can auto-populate the ingredient rows.
+     * Accepts one or more image uploads, runs Tesseract OCR on each, and returns
+     * the merged + deduplicated ingredient list as JSON so the form can
+     * auto-populate the ingredient rows.
      *
-     * @param file the uploaded nutrition-label image
-     * @return 200 with list of detected ingredients, or 500 on OCR failure
+     * <p>When multiple images are provided (e.g. a wide-angle shot and a
+     * zoomed-in crop of the small-print section), OCR accuracy improves because
+     * Tesseract performs better on larger characters.  Duplicate ingredient
+     * names that appear in several images are silently collapsed into one entry.</p>
+     *
+     * @param files one or more uploaded nutrition-label images
+     * @return 200 with merged ingredient list, or 500 on OCR failure
      */
     @PostMapping(value = "/ocr-extract", produces = "application/json")
     @ResponseBody
     public ResponseEntity<OcrResult> ocrExtract(
-            @RequestParam("image") MultipartFile file) {
+            @RequestParam("image") List<MultipartFile> files) {
         try {
-            OcrResult result = ocrService.extractIngredients(file);
+            OcrResult result = ocrService.extractIngredients(files);
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();

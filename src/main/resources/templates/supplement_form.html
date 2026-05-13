@@ -153,8 +153,8 @@
 
     <br/><br/>
     <div class="ocr-section">
-        <label><strong>Nährwertbild hochladen (automatische Erkennung)</strong></label>
-        <input type="file" id="ocr-image" accept="image/*"/>
+        <label>Bilder hochladen (mehrere möglich für bessere Erkennung kleiner Zeichen):</label>
+        <input type="file" id="ocr-image" accept="image/*" multiple/>
         <button type="button" onclick="extractFromImage()">Zutaten erkennen</button>
         <span id="ocr-status"></span>
         <details id="ocr-raw-box" style="display:none; margin-top:10px;">
@@ -314,10 +314,15 @@
             return;
         }
 
-        status.textContent = 'Wird erkannt…';
+        const count = fileInput.files.length;
+        status.textContent = count > 1
+            ? 'Wird erkannt… (' + count + ' Bilder)'
+            : 'Wird erkannt…';
 
         const formData = new FormData();
-        formData.append('image', fileInput.files[0]);
+        for (let i = 0; i < count; i++) {
+            formData.append('image', fileInput.files[i]);
+        }
 
         fetch('/supplements/ocr-extract', {
             method: 'POST',
@@ -349,7 +354,8 @@
                 addIngredientFromTemplate(ing);
             });
             updateIngredientIndices();
-            status.textContent = ingredients.length + ' Zutat(en) erkannt und eingetragen.';
+            const info = count > 1 ? ' (aus ' + count + ' Bildern, Duplikate entfernt)' : '';
+            status.textContent = ingredients.length + ' Zutat(en) erkannt und eingetragen' + info + '.';
         })
         .catch(function(err) {
             status.textContent = 'Fehler: ' + err.message;

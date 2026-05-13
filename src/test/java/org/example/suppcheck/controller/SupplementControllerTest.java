@@ -341,9 +341,9 @@ class SupplementControllerTest {
         MockMultipartFile file = new MockMultipartFile(
                 "image", "label.jpg", "image/jpeg", new byte[]{1, 2, 3});
         OcrResult ocrResult = new OcrResult("raw ocr text", List.of(dto));
-        when(ocrService.extractIngredients(file)).thenReturn(ocrResult);
+        when(ocrService.extractIngredients(anyList())).thenReturn(ocrResult);
 
-        ResponseEntity<OcrResult> response = controller.ocrExtract(file);
+        ResponseEntity<OcrResult> response = controller.ocrExtract(List.of(file));
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
@@ -355,11 +355,32 @@ class SupplementControllerTest {
     void ocrExtract_ocrThrowsException_returns500() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
                 "image", "label.jpg", "image/jpeg", new byte[]{1, 2, 3});
-        when(ocrService.extractIngredients(file)).thenThrow(new RuntimeException("tesseract not found"));
+        when(ocrService.extractIngredients(anyList())).thenThrow(new RuntimeException("tesseract not found"));
 
-        ResponseEntity<OcrResult> response = controller.ocrExtract(file);
+        ResponseEntity<OcrResult> response = controller.ocrExtract(List.of(file));
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    }
+
+    @Test
+    void ocrExtract_multipleFiles_delegatesToService() throws Exception {
+        MockMultipartFile file1 = new MockMultipartFile(
+                "image", "label1.jpg", "image/jpeg", new byte[]{1});
+        MockMultipartFile file2 = new MockMultipartFile(
+                "image", "label2.jpg", "image/jpeg", new byte[]{2});
+
+        IngredientDto dto = new IngredientDto();
+        dto.setName("Protein");
+        dto.setMg(24_000);
+        OcrResult merged = new OcrResult("img1\n\n--- [Bild 2] ---\nimg2", List.of(dto));
+        when(ocrService.extractIngredients(anyList())).thenReturn(merged);
+
+        ResponseEntity<OcrResult> response = controller.ocrExtract(List.of(file1, file2));
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().getIngredients().size());
+        assertEquals("Protein", response.getBody().getIngredients().getFirst().getName());
     }
 }
 
