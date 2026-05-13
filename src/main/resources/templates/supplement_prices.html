@@ -154,13 +154,13 @@
     <!-- ── Tab: Zutaten-Entwicklung ── -->
     <div id="tab-ingredients" style="display:none">
 
-        <th:block th:if="${supplement.ingredientHistory == null or supplement.ingredientHistory.isEmpty()}">
+        <th:block th:if="${ingredientHistoryReversed.isEmpty()}">
             <p class="ing-history-empty">Noch keine Zutatenänderungen erfasst.
                 Änderungen werden beim nächsten Speichern automatisch aufgezeichnet.</p>
         </th:block>
 
         <!-- Entries in reverse chronological order (newest first) -->
-        <th:block th:each="entry, stat : ${#lists.reverse(supplement.ingredientHistory ?: {})}">
+        <th:block th:each="entry, stat : ${ingredientHistoryReversed}">
             <div class="ing-history-entry">
                 <div class="ing-history-date"
                      th:text="${#temporals.format(entry.date, 'dd.MM.yyyy')}">01.01.2026</div>

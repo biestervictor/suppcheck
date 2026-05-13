@@ -119,6 +119,11 @@ public class SupplementController {
         Supplement supplement = supplementService.getSupplementById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Supplement mit ID " + id + " nicht gefunden"));
         model.addAttribute(MODEL_SUPPLEMENT, supplement);
+        // Ingredient history in reverse chronological order (newest first)
+        List<IngredientHistoryEntry> historyReversed = new ArrayList<>(
+                supplement.getIngredientHistory() != null ? supplement.getIngredientHistory() : List.of());
+        Collections.reverse(historyReversed);
+        model.addAttribute("ingredientHistoryReversed", historyReversed);
         // Auto-Snapshot: speichert den aktuellen Intake-Stand (max. 1× pro Tag)
         snapshotService.saveSnapshot(supplementService.getAllSupplements());
         return "supplement_prices";
