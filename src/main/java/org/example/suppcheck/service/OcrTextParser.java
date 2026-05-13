@@ -127,6 +127,20 @@ public final class OcrTextParser {
             // that are part of a name token (e.g. "E6C6 506" or "VitaminB2 525").
             line = line.replaceAll("(?<!\\p{L})(\\d) (\\d{3})(?=[^\\d]|$)", "$1$2");
 
+            // ── OCR misreading corrections ────────────────────────────────────
+            // Unit misreadings — use (?<![a-zA-Z]) instead of \b because a digit
+            // immediately before the unit ("4meg") has no word-boundary before the
+            // first unit letter.
+            line = line.replaceAll("(?<![a-zA-Z])meg\\b", "mcg"); // "17,4meg" → "17,4mcg"
+            line = line.replaceAll("(?<![a-zA-Z])u9\\b",  "µg");  // "10u9"    → "10µg"
+            // µg OCR'd as "19" directly before "/" (e.g. "10 19/400 I.E.")
+            line = line.replaceAll("(\\d+)\\s+19(?=/)", "$1 µg"); // "10 19/…" → "10 µg/…"
+            // Digit/letter confusions adjacent to a unit
+            line = line.replaceAll("(?<=\\d)a(g|mg|mcg|ug)\\b",   ",4$1"); // "1amg"   → "1,4mg"
+            line = line.replaceAll("(?<=\\d,)A(g|mg|mcg|ug)\\b",  "4$1");  // "21,Amg" → "21,4mg"
+            line = line.replaceAll("(?<![a-zA-Z])I(mg|mcg|g|ug)\\b", "1$1"); // "Img"  → "1mg"
+            // ─────────────────────────────────────────────────────────────────
+
             // Check TWO_COLUMN_LINE before INGREDIENT_LINE: a line like
             // "Eiweiß 70 g 30 g" (Pro 100g | Pro Portion) must use the second value.
             // INGREDIENT_LINE's greedy .*$ would otherwise capture the first value.

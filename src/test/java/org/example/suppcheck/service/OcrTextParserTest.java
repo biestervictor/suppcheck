@@ -407,7 +407,192 @@ class OcrTextParserTest {
         assertEquals("Glucomannan", OcrTextParser.cleanSubIngredientName(">> davon Glucomannan"));
     }
 
-    // --- Two-column table rows (Pro 100g | Pro Portion) ---
+    // --- OCR normalization: unit misreadings ---
+
+    @Test
+    void parse_megUnit_normalizedToMcg() {
+        // "17,4meg" → "17,4mcg"
+        List<IngredientDto> result = OcrTextParser.parse("Molybdän 17,4meg 35%");
+
+        assertEquals(1, result.size());
+        assertEquals("Molybdän", result.getFirst().getName());
+        assertEquals(0.0174, result.getFirst().getMg(), 0.00001);
+    }
+
+    @Test
+    void parse_megUnit_normalizedToMcg_alsoForBiotin() {
+        // "72,5meg" → "72,5mcg"
+        List<IngredientDto> result = OcrTextParser.parse("Vitamin B7 (Biotin) 72,5meg 136%");
+
+        assertEquals(1, result.size());
+        assertEquals("Vitamin B7 (Biotin)", result.getFirst().getName());
+        assertEquals(0.0725, result.getFirst().getMg(), 0.00001);
+    }
+
+    @Test
+    void parse_u9Unit_normalizedToMicrog() {
+        // "10 u9" → "10 µg"
+        List<IngredientDto> result = OcrTextParser.parse("Vitamin D3 10 u9");
+
+        assertEquals(1, result.size());
+        assertEquals("Vitamin D3", result.getFirst().getName());
+        assertEquals(0.01, result.getFirst().getMg(), 0.0001);
+    }
+
+    @Test
+    void parse_19BeforeSlash_normalizedToMicrog() {
+        // "10 19/400 I.E." → "10 µg/400 I.E."  (µg OCR'd as "19")
+        List<IngredientDto> result = OcrTextParser.parse("Vitamin D3 10 19/400 .E. 200%");
+
+        assertEquals(1, result.size());
+        assertEquals("Vitamin D3", result.getFirst().getName());
+        assertEquals(0.01, result.getFirst().getMg(), 0.0001);
+    }
+
+    @Test
+    void parse_19NotBeforeSlash_isNotNormalized() {
+        // "Niacin 19 mg" — "19" is the actual amount, NOT a misread unit
+        List<IngredientDto> result = OcrTextParser.parse("Niacin 19 mg");
+
+        assertEquals(1, result.size());
+        assertEquals("Niacin", result.getFirst().getName());
+        assertEquals(19.0, result.getFirst().getMg(), 0.001);
+    }
+
+    // --- OCR normalization: digit/letter misreadings ---
+
+    @Test
+    void parse_aAfterDigitBeforeUnit_normalizedToCommaFour() {
+        // "1amg" → "1,4mg"  (OCR misreads ",4" as "a")
+        List<IngredientDto> result = OcrTextParser.parse("Thiamin (Vitamin B1) 1amg 1272%");
+
+        assertEquals(1, result.size());
+        assertEquals("Thiamin (Vitamin B1)", result.getFirst().getName());
+        assertEquals(1.4, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_AAfterCommaBeforeUnit_normalizedToFour() {
+        // "21,Amg" → "21,4mg"  (OCR misreads digit "4" as uppercase "A")
+        List<IngredientDto> result = OcrTextParser.parse("Traubenkernextrakt 21,Amg bu");
+
+        assertEquals(1, result.size());
+        assertEquals("Traubenkernextrakt", result.getFirst().getName());
+        assertEquals(21.4, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_IBeforeUnit_normalizedToOne() {
+        // "Img" → "1mg"  (OCR misreads digit "1" or "9" as uppercase "I")
+        // Value captured is 1 mg (OCR digit loss), but the ingredient name is preserved.
+        List<IngredientDto> result = OcrTextParser.parse("Pantothensäure (Vitamin B5) Img 124%");
+
+        assertEquals(1, result.size());
+        assertEquals("Pantothensäure (Vitamin B5)", result.getFirst().getName());
+        assertEquals(1.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_INotPrecededByLetter_onlyNormalized() {
+        // "Inositol 5mg" — the leading "I" of the ingredient name must NOT be consumed
+        List<IngredientDto> result = OcrTextParser.parse("Inositol 5mg");
+
+        assertEquals(1, result.size());
+        assertEquals("Inositol", result.getFirst().getName());
+        assertEquals(5.0, result.getFirst().getMg(), 0.001);
+    }
+
+    // --- Vivi label full integration test ---
+
+    @Test
+    void parse_viviLabelOcrText_parsesAllExpectedIngredients() {
+        // Exact OCR output from the vivi label including all known OCR errors
+        String ocrText =
+                "Sale Bestseller Bedürfnisse & Ziele v Sportnahrung v Proteine v Vitalstoffe -\n" +
+                "\n" +
+                "Mineralien & Spurenelemente\n" +
+                "\n" +
+                "Magnesium 75mg 20%\n" +
+                "Zink 32mg 32%\n" +
+                "Molybdän 17,4meg 35%\n" +      // meg → mcg
+                "Mangan 500mcg 25%\n" +
+                "Kupfer 350mcg 35%\n" +
+                "Chrom 20 mcg 50%\n" +
+                "Jod 30 mcg 32%\n" +
+                "Selen 25 mcg 46%\n" +
+                "Vitamine\n" +
+                "\n" +
+                "Vitamin C 100mg 125%\n" +
+                "Vitamin A 488 mcg / 1625 LE. 61%\n" +
+                "Vitamin D3 10 19/400 .E. 200%\n" +  // 19 → µg
+                "Vitamin E 6mg/91E. 50%\n" +
+                "Vitamin K2 (MK7) 15 mcg 20%\n" +
+                "Vitamin K1 23 mcg 30%\n" +
+                "Thiamin (Vitamin B1) 1amg 1272%\n" + // 1amg → 1,4mg
+                "Riboflavin (Vitamin B2 18mg 128%\n" +
+                "Niacin (Vitamin B3) 14mg 88%\n" +
+                "Cholin 5mg 150%\n" +
+                "Pantothensäure (Vitamin B5) Img 124%\n" + // Img → 1mg
+                "Vitamin B6 1,75mg 136%\n" +
+                "Folat (Vitamin B9) 100mcg 50%\n" +
+                "Vitamin B7 (Biotin) 72,5meg 136%\n" + // meg → mcg
+                "Vitamin B12 10 mcg 400%\n" +
+                "\n" +
+                "Sonstige Inhaltsstoffe\n" +
+                "\n" +
+                "Coenzym Q10 5mg bu\n" +
+                "Inositol 5mg bu\n" +
+                "Traubenkernextrakt 21,Amg bu\n" +  // 21,Amg → 21,4mg
+                "\n" +
+                ">> davon OPC 15mg bu";
+
+        List<IngredientDto> result = OcrTextParser.parse(ocrText);
+        List<String> names = result.stream().map(IngredientDto::getName).toList();
+
+        // Formerly-missing ingredients must now be present
+        assertTrue(names.contains("Molybdän"),                     "Molybdän missing");
+        assertTrue(names.contains("Vitamin D3"),                   "Vitamin D3 missing");
+        assertTrue(names.contains("Thiamin (Vitamin B1)"),         "Thiamin missing");
+        assertTrue(names.contains("Pantothensäure (Vitamin B5)"),  "Pantothensäure missing");
+        assertTrue(names.contains("Vitamin B7 (Biotin)"),          "Vitamin B7 (Biotin) missing");
+        assertTrue(names.contains("Traubenkernextrakt"),           "Traubenkernextrakt missing");
+
+        // OPC must be sub-ingredient of Traubenkernextrakt
+        IngredientDto trauben = result.stream()
+                .filter(i -> "Traubenkernextrakt".equals(i.getName()))
+                .findFirst().orElseThrow();
+        assertEquals(1, trauben.getSubIngredients().size());
+        assertEquals("OPC", trauben.getSubIngredients().getFirst().getName());
+        assertEquals(15.0, trauben.getSubIngredients().getFirst().getMg(), 0.001);
+
+        // Other expected top-level ingredients
+        assertTrue(names.contains("Magnesium"),         "Magnesium missing");
+        assertTrue(names.contains("Mangan"),            "Mangan missing");
+        assertTrue(names.contains("Vitamin C"),         "Vitamin C missing");
+        assertTrue(names.contains("Vitamin A"),         "Vitamin A missing");
+        assertTrue(names.contains("Vitamin E"),         "Vitamin E missing");
+        assertTrue(names.contains("Vitamin K2 (MK7)"), "Vitamin K2 missing");
+        assertTrue(names.contains("Niacin (Vitamin B3)"), "Niacin missing");
+        assertTrue(names.contains("Cholin"),            "Cholin missing");
+        assertTrue(names.contains("Vitamin B6"),        "Vitamin B6 missing");
+        assertTrue(names.contains("Folat (Vitamin B9)"), "Folat missing");
+        assertTrue(names.contains("Vitamin B12"),       "Vitamin B12 missing");
+        assertTrue(names.contains("Coenzym Q10"),       "Coenzym Q10 missing");
+        assertTrue(names.contains("Inositol"),          "Inositol missing");
+
+        // Spot-check correct values for the OCR-corrected ingredients
+        assertEquals(0.0174, result.stream()
+                .filter(i -> "Molybdän".equals(i.getName())).findFirst().orElseThrow().getMg(), 0.00001);
+        assertEquals(0.01,   result.stream()
+                .filter(i -> "Vitamin D3".equals(i.getName())).findFirst().orElseThrow().getMg(), 0.0001);
+        assertEquals(1.4,    result.stream()
+                .filter(i -> "Thiamin (Vitamin B1)".equals(i.getName())).findFirst().orElseThrow().getMg(), 0.001);
+        assertEquals(21.4,   trauben.getMg(), 0.001);
+        assertEquals(0.0725, result.stream()
+                .filter(i -> "Vitamin B7 (Biotin)".equals(i.getName())).findFirst().orElseThrow().getMg(), 0.00001);
+    }
+
+
 
     @Test
     void parse_twoColumnLine_mgMg_usesSecondValue() {
