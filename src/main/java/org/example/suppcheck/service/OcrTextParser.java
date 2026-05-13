@@ -79,6 +79,15 @@ public final class OcrTextParser {
             "^[\\s\\-\u2013\u2014\u2022*\u00b7>]+"
     );
 
+    /** Matches a line that consists solely of a unit (possibly with surrounding whitespace). */
+    private static final Pattern UNIT_ONLY_LINE = Pattern.compile(
+            "^\\s*(g|mg|µg|mcg|ug)\\s*$",
+            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
+    );
+
+    /** Matches a line whose last non-whitespace character is a digit. */
+    private static final Pattern ENDS_WITH_DIGIT = Pattern.compile(".*\\d\\s*$");
+
     private OcrTextParser() {
     }
 
@@ -105,6 +114,8 @@ public final class OcrTextParser {
         if (ocrText == null || ocrText.isBlank()) {
             return new ArrayList<>();
         }
+
+        ocrText = joinSplitUnitLines(ocrText);
 
         List<IngredientDto> result = new ArrayList<>();
         IngredientDto lastTopLevel = null;
@@ -220,6 +231,58 @@ public final class OcrTextParser {
         }
         return result;
     }
+
+    // -------------------------------------------------------------------------
+    // Pre-processing
+    // -------------------------------------------------------------------------
+
+    /**
+     * Joins lines where the amount ends on one line and the unit appears alone
+     * on the very next non-blank line.  Example:
+     * <pre>
+     *   L-Citrullin Malat 10000
+     *   mg
+     * </pre>
+     * becomes {@code "L-Citrullin Malat 10000 mg"}.
+     *
+     * <p>Blank lines between the number-line and the unit-line are skipped but
+     * not removed; the unit line itself is consumed (not emitted separately).</p>
+     */
+    static String joinSplitUnitLines(String text) {
+        if (text == null) {
+            return null;
+        }
+        String[] lines = text.split("\\r?\\n", -1);
+        StringBuilder sb = new StringBuilder();
+
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+
+            if (ENDS_WITH_DIGIT.matcher(line).matches()) {
+                // Look ahead for the next non-blank line
+                int j = i + 1;
+                while (j < lines.length && lines[j].isBlank()) {
+                    j++;
+                }
+                if (j < lines.length && UNIT_ONLY_LINE.matcher(lines[j]).matches()) {
+                    // Join: append unit to current line, skip the unit line
+                    sb.append(line.stripTrailing())
+                      .append(' ')
+                      .append(lines[j].trim())
+                      .append('\n');
+                    i = j; // advance past the consumed unit line
+                    continue;
+                }
+            }
+
+            sb.append(line).append('\n');
+        }
+        return sb.toString();
+    }
+
+    // -------------------------------------------------------------------------
+    // Ingredient classification
+    // -------------------------------------------------------------------------
 
     /**
      * Classifies {@code name} as sub-ingredient or top-level and adds it to the result list.

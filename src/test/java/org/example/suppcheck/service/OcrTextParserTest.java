@@ -1039,4 +1039,101 @@ class OcrTextParserTest {
         assertEquals("Chrom",                          result.get(4).getName());
         assertEquals(0.2,                              result.get(4).getMg(), 0.0001); // 200 mcg → 0.2 mg
     }
+
+    // --- joinSplitUnitLines() ---
+
+    @Test
+    void joinSplitUnitLines_numberThenUnitOnNextLine_joinsLines() {
+        String input = "L-Citrullin Malat 10000\nmg";
+        String result = OcrTextParser.joinSplitUnitLines(input);
+        assertTrue(result.contains("L-Citrullin Malat 10000 mg"), "Expected joined line, got: " + result);
+    }
+
+    @Test
+    void joinSplitUnitLines_numberThenUnitAfterBlankLine_joinsLines() {
+        String input = "L-Citrullin Malat 10000\n\nmg";
+        String result = OcrTextParser.joinSplitUnitLines(input);
+        assertTrue(result.contains("L-Citrullin Malat 10000 mg"), "Expected joined line across blank, got: " + result);
+    }
+
+    @Test
+    void joinSplitUnitLines_unitAlreadyOnSameLine_unchanged() {
+        String input = "L-Citrullin Malat 10000 mg";
+        String result = OcrTextParser.joinSplitUnitLines(input);
+        assertTrue(result.contains("L-Citrullin Malat 10000 mg"));
+    }
+
+    @Test
+    void joinSplitUnitLines_noSplitNeeded_unchanged() {
+        String input = "Protein 24 g\nL-Leucin 2100 mg";
+        String result = OcrTextParser.joinSplitUnitLines(input);
+        assertTrue(result.contains("Protein 24 g"));
+        assertTrue(result.contains("L-Leucin 2100 mg"));
+    }
+
+    @Test
+    void joinSplitUnitLines_null_returnsNull() {
+        assertNull(OcrTextParser.joinSplitUnitLines(null));
+    }
+
+    @Test
+    void joinSplitUnitLines_unitLineIsConsumed_notEmittedSeparately() {
+        // The "mg" line must not appear as a standalone line after join
+        String input = "L-Citrullin Malat 10000\nmg\nTaurin 2000 mg";
+        String result = OcrTextParser.joinSplitUnitLines(input);
+        String[] lines = result.split("\\r?\\n");
+        long mgOnlyLines = java.util.Arrays.stream(lines)
+                .filter(l -> l.trim().equals("mg"))
+                .count();
+        assertEquals(0, mgOnlyLines, "Unit-only line should be consumed, not emitted separately");
+    }
+
+    @Test
+    void joinSplitUnitLines_gUnit_joinsCorrectly() {
+        String input = "Eiweiß 24\ng";
+        String result = OcrTextParser.joinSplitUnitLines(input);
+        assertTrue(result.contains("Eiweiß 24 g"));
+    }
+
+    @Test
+    void joinSplitUnitLines_mcgUnit_joinsCorrectly() {
+        String input = "Vitamin D3 25\nmcg";
+        String result = OcrTextParser.joinSplitUnitLines(input);
+        assertTrue(result.contains("Vitamin D3 25 mcg"));
+    }
+
+    // --- parse() integration with joinSplitUnitLines ---
+
+    @Test
+    void parse_splitAmountAndUnit_parsesCorrectly() {
+        List<IngredientDto> result = OcrTextParser.parse("L-Citrullin Malat 10000\nmg");
+
+        assertEquals(1, result.size());
+        assertEquals("L-Citrullin Malat", result.getFirst().getName());
+        assertEquals(10000.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_splitAmountAndUnitWithBlankLine_parsesCorrectly() {
+        List<IngredientDto> result = OcrTextParser.parse("L-Citrullin Malat 10000\n\nmg");
+
+        assertEquals(1, result.size());
+        assertEquals("L-Citrullin Malat", result.getFirst().getName());
+        assertEquals(10000.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_splitUnitAmongOtherIngredients_allParsed() {
+        String text = "Taurin 2000 mg\nL-Citrullin Malat 10000\nmg\nKoffein 200 mg";
+
+        List<IngredientDto> result = OcrTextParser.parse(text);
+
+        assertEquals(3, result.size());
+        assertEquals("Taurin",            result.get(0).getName());
+        assertEquals(2000.0,              result.get(0).getMg(), 0.001);
+        assertEquals("L-Citrullin Malat", result.get(1).getName());
+        assertEquals(10000.0,             result.get(1).getMg(), 0.001);
+        assertEquals("Koffein",           result.get(2).getName());
+        assertEquals(200.0,               result.get(2).getMg(), 0.001);
+    }
 }
