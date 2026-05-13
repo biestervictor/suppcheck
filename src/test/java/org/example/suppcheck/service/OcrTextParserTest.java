@@ -407,7 +407,64 @@ class OcrTextParserTest {
         assertEquals("Glucomannan", OcrTextParser.cleanSubIngredientName(">> davon Glucomannan"));
     }
 
-    // --- Space-thousands normalization ---
+    // --- Two-column table rows (Pro 100g | Pro Portion) ---
+
+    @Test
+    void parse_twoColumnLine_mgMg_usesSecondValue() {
+        // "Name  val1 unit1  val2 unit2" — second value is the per-portion amount
+        List<IngredientDto> result = OcrTextParser.parse("L-Leucin 4200 mg 2100 mg");
+
+        assertEquals(1, result.size());
+        assertEquals("L-Leucin", result.getFirst().getName());
+        assertEquals(2100.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_twoColumnLine_gramGram_usesSecondValue() {
+        List<IngredientDto> result = OcrTextParser.parse("Eiweiß 70 g 30 g");
+
+        assertEquals(1, result.size());
+        assertEquals("Eiweiß", result.getFirst().getName());
+        assertEquals(30_000.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_twoColumnLine_mixedUnits_usesSecondValueWithItsUnit() {
+        // First column mcg, second column µg — second value + second unit is used
+        List<IngredientDto> result = OcrTextParser.parse("Vitamin D3 50 mcg 25 µg");
+
+        assertEquals(1, result.size());
+        assertEquals("Vitamin D3", result.getFirst().getName());
+        assertEquals(0.025, result.getFirst().getMg(), 0.0001); // 25 µg → 0.025 mg
+    }
+
+    @Test
+    void parse_twoColumnLine_doesNotMatchSingleValueLine() {
+        // A plain single-value line must NOT be consumed by TWO_COLUMN_LINE
+        List<IngredientDto> result = OcrTextParser.parse("L-Leucin 2100 mg");
+
+        assertEquals(1, result.size());
+        assertEquals(2100.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_twoColumnLines_multipleRows_allUsesSecondValue() {
+        String text = "Protein 70 g 30 g\n" +
+                      "Fett 5 g 2 g\n" +
+                      "Kohlenhydrate 10 g 4 g";
+
+        List<IngredientDto> result = OcrTextParser.parse(text);
+
+        assertEquals(3, result.size());
+        assertEquals("Protein",       result.get(0).getName());
+        assertEquals(30_000.0,        result.get(0).getMg(), 0.001);
+        assertEquals("Fett",          result.get(1).getName());
+        assertEquals(2_000.0,         result.get(1).getMg(), 0.001);
+        assertEquals("Kohlenhydrate", result.get(2).getName());
+        assertEquals(4_000.0,         result.get(2).getMg(), 0.001);
+    }
+
+
 
     @Test
     void parse_spaceThousandsSeparator_parsesCorrectly() {

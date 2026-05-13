@@ -62,10 +62,19 @@ public final class OcrTextParser {
     );
 
     /**
-     * Leading characters that may appear before the opening parenthesis
-     * of a sub-ingredient line: whitespace, dashes (ASCII + unicode),
-     * bullets, asterisks, middle-dots, greater-than signs (e.g. {@code >}, {@code >>}).
+     * Detects a two-column table row of the form:
+     * <pre>
+     *   Name   &lt;pro-100g-amount&gt; &lt;unit&gt;   &lt;per-portion-amount&gt; &lt;unit&gt;
+     * </pre>
+     * Group 1 = name, group 2/3 = first (Pro 100G) value,
+     * group 4/5 = second (Pro Portion) value.
+     * When this pattern matches we use the <b>second</b> value.
      */
+    private static final Pattern TWO_COLUMN_LINE = Pattern.compile(
+            "^\\s*(.+?)\\s*(\\d+[.,]?\\d*)\\s*(g|mg|µg|mcg|ug)\\b\\s+"
+            + "(\\d+[.,]?\\d*)\\s*(g|mg|µg|mcg|ug)\\b.*$",
+            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
+    );
     private static final Pattern LEADING_SPECIAL = Pattern.compile(
             "^[\\s\\-\u2013\u2014\u2022*\u00b7>]+"
     );
@@ -114,10 +123,33 @@ public final class OcrTextParser {
             }
 
             // Normalize space-thousands separator: "4 500" → "4500"
-            line = line.replaceAll("(\\d) (\\d{3})(?=[^\\d]|$)", "$1$2");
+            // Negative lookbehind (?<!\p{L}) ensures we don't merge digit sequences
+            // that are part of a name token (e.g. "E6C6 506" or "VitaminB2 525").
+            line = line.replaceAll("(?<!\\p{L})(\\d) (\\d{3})(?=[^\\d]|$)", "$1$2");
 
-            // Check amount-only FIRST: a line like "100 mg" must not be mis-parsed by
-            // INGREDIENT_LINE as name="1", amount="00".
+            // Check TWO_COLUMN_LINE before INGREDIENT_LINE: a line like
+            // "Eiweiß 70 g 30 g" (Pro 100g | Pro Portion) must use the second value.
+            // INGREDIENT_LINE's greedy .*$ would otherwise capture the first value.
+            Matcher twoCol = TWO_COLUMN_LINE.matcher(line);
+            if (twoCol.matches()) {
+                pendingName = null;
+                noMatchStreak = 0;
+                String name = twoCol.group(1).trim();
+                if (!name.isBlank()) {
+                    double amount;
+                    try {
+                        amount = parseAmount(twoCol.group(4)); // group 4/5 = second (per-portion) value
+                    } catch (NumberFormatException e) {
+                        continue;
+                    }
+                    double mg = toMg(amount, twoCol.group(5).toLowerCase());
+                    lastTopLevel = addParsedEntry(name, mg, result, lastTopLevel);
+                }
+                continue;
+            }
+
+            // Check amount-only BEFORE INGREDIENT_LINE: a line like "100 mg" must not be
+            // mis-parsed by INGREDIENT_LINE as name="1", amount="00".
             Matcher amountOnly = AMOUNT_ONLY_LINE.matcher(line);
             if (amountOnly.matches()) {
                 if (pendingName != null) {
