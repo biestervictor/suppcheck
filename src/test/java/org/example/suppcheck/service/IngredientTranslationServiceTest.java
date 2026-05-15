@@ -291,6 +291,17 @@ class IngredientTranslationServiceTest {
         assertEquals("Magnesium", ing.getName());
     }
 
+    @Test
+    void translate_calcium_translatestoKalzium() {
+        assertEquals("Kalzium", service.translate("Calcium"));
+    }
+
+    @Test
+    void translate_calciumInDb_matchesKalziumFromOcr() {
+        // effectiveName() on both sides: "Calcium" (DB) → "Kalzium", "Kalzium" (OCR) → "Kalzium"
+        assertEquals(service.translate("Calcium"), service.translate("Kalzium"));
+    }
+
     // --- Helper ---
 
     private static IngredientDto dto(String name, double mg) {

@@ -158,6 +158,11 @@ public final class OcrTextParser {
             // Safe: real ingredient names do not begin with a standalone lowercase/uppercase
             // letter followed by a space and an uppercase letter (e.g. "i Schisandra", "J Ginseng").
             line = line.replaceAll("^[ilIJ!](?=\\s+[A-Z\u00c4\u00d6\u00dc])", "");
+            // Strip a single uppercase letter + space that precedes "davon" — OCR table row
+            // markers (e.g. "X", "N") are misread from borders or row numbers in ingredient tables.
+            // "X davonPiperin 10,5 mg" → "davonPiperin 10,5 mg"
+            // Safe: no real ingredient name starts with "[A-Z] davon".
+            line = line.replaceAll("^[A-Z]\\s+(?=(?i)davon)", "");
 
             // Normalize space-thousands separator: "4 500" → "4500"
             // Negative lookbehind (?<!\p{L}) ensures we don't merge digit sequences
@@ -179,6 +184,11 @@ public final class OcrTextParser {
             line = line.replaceAll("(?i)\\bZine\\b", "Zinc");
             // "lodine" — OCR misreads capital I as lowercase l on EU nutrition labels
             line = line.replaceAll("(?i)(?<![a-zA-Z])lodine\\b", "Iodine");
+            // "Paare Phosphat Dinatrium (ATP) (als" — Tesseract garbles the name of
+            // Adenosin 5'-Triphosphat Dinatrium on labels with PEAK ATP® branding.
+            // The correction replaces the misread prefix so the rest of the line
+            // ("(ATP) (als 400 mg") can be parsed normally.
+            line = line.replace("Paare Phosphat Dinatrium", "Adenosin 5'-Triphosphat Dinatrium");
             // "Vitamin ©" — copyright sign U+00A9 is OCR misread of capital C on some label fonts
             line = line.replace("Vitamin \u00a9", "Vitamin C");
             // "Vitamin cC" — OCR double-reads the C: once as a lowercase artifact, then uppercase.
@@ -478,8 +488,13 @@ public final class OcrTextParser {
         name = name.replaceAll("\\s+\\d{4,}[.,]?\\d*\\s*$", "").trim();
         // Strip trailing punctuation/bracket OCR artefacts (e.g. "Vitamin K2 -" → "Vitamin K2")
         name = name.replaceAll("[\\s\\-,\\.\\(]+$", "").trim();
-        // Strip trailing short (1–3 char) lowercase noise tokens (e.g. "au," from "Vitamin B6 au,")
-        name = name.replaceAll("\\s+[a-z\u00e4\u00f6\u00fc\u00df]{1,3}[,.]?$", "").trim();
+        // Strip trailing short (1–3 char) lowercase noise tokens, optionally preceded by "(" —
+        // covers both "Vitamin B6 au," (no paren) and "Adenosin ... (ATP) (als" (with paren).
+        // "(als" is the start of an unclosed "(als PEAK ATP®)" annotation that OCR left dangling.
+        name = name.replaceAll("\\s+\\(?[a-z\u00e4\u00f6\u00fc\u00df]{1,3}[,.]?$", "").trim();
+        // Second pass: re-strip any trailing punctuation/bracket exposed by the token strip
+        // (e.g. "... (ATP) (" left after stripping "als")
+        name = name.replaceAll("[\\s\\-,\\.\\(]+$", "").trim();
         return name;
     }
 

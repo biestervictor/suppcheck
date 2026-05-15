@@ -1971,4 +1971,47 @@ class OcrTextParserTest {
                 result.stream().filter(i -> "Selenium".equals(i.getName())).findFirst().orElseThrow().getMg(),
                 0.0001);
     }
+
+    // ── Hard correction: Paare Phosphat Dinatrium → Adenosin 5'-Triphosphat Dinatrium ──
+
+    @Test
+    void parse_paarePhosphatDinatrium_correctedToAdenosin() {
+        // Real Tesseract output for "Adenosin 5'-Triphosphat Dinatrium (ATP) (als PEAK ATP®) 400 mg"
+        // with ImageMagick preprocessing on crankultimate.png label
+        List<IngredientDto> result = OcrTextParser.parse(
+                "Paare Phosphat Dinatrium (ATP) (als 400 mg");
+        assertEquals(1, result.size());
+        // After correction + cleanTopLevelName the "(als" noise and trailing "(" are stripped
+        assertEquals("Adenosin 5'-Triphosphat Dinatrium (ATP)", result.getFirst().getName());
+        assertEquals(400.0, result.getFirst().getMg(), 0.001);
+    }
+
+    // ── X davonPiperin strip ─────────────────────────────────────────────────
+
+    @Test
+    void parse_xDavonPiperin_parsedAsSubIngredient() {
+        // OCR table-row marker "X" (uppercase letter) before "davon" must be stripped.
+        // "X davonPiperin 10,5 mg" → sub-ingredient "Piperin" attached to parent
+        List<IngredientDto> result = OcrTextParser.parse(
+                "Schwarzer Pfeffer-Extrakt 11 mg\nX davonPiperin 10,5 mg");
+        // Only one top-level ingredient; sub-ingredient is attached to it
+        assertEquals(1, result.size());
+        assertEquals("Schwarzer Pfeffer-Extrakt", result.getFirst().getName());
+        assertEquals(1, result.getFirst().getSubIngredients().size());
+        IngredientDto sub = result.getFirst().getSubIngredients().getFirst();
+        assertEquals("Piperin", sub.getName());
+        assertEquals(10.5, sub.getMg(), 0.001);
+    }
+
+    @Test
+    void parse_xDavonStrip_uppercaseVariants() {
+        // The strip must fire for any single uppercase letter, not just 'X'
+        List<IngredientDto> result = OcrTextParser.parse(
+                "Extrakt 100 mg\nN davonWirkstoff 5 mg");
+        assertEquals(1, result.size());
+        assertEquals(1, result.getFirst().getSubIngredients().size());
+        IngredientDto sub = result.getFirst().getSubIngredients().getFirst();
+        assertEquals("Wirkstoff", sub.getName());
+        assertEquals(5.0, sub.getMg(), 0.001);
+    }
 }

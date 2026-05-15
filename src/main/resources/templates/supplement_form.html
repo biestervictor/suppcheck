@@ -57,6 +57,16 @@
             border-radius: 5px;
             padding: 14px 18px;
             margin-bottom: 18px;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .ocr-section.paste-active {
+            border-color: #4a90d9;
+            background: #e6f0ff;
+        }
+        .ocr-paste-hint {
+            font-size: 0.82em;
+            color: #7a8aaa;
+            margin-top: 5px;
         }
         .ocr-section label {
             display: block;
@@ -215,13 +225,14 @@
     <button type="submit">Speichern</button>
 
     <br/><br/>
-    <div class="ocr-section">
+    <div class="ocr-section" id="ocr-section">
         <label>Bilder hochladen (mehrere möglich für bessere Erkennung kleiner Zeichen):</label>
         <input type="file" id="ocr-image" accept="image/*" multiple/>
         <button type="button" onclick="extractFromImage()">Zutaten erkennen</button>
         <button type="button" th:if="*{id != null}" onclick="checkFromImage()"
                 style="background:#f5a623; color:#fff; margin-left:6px;">🔍 Zutaten prüfen</button>
         <span id="ocr-status"></span>
+        <div class="ocr-paste-hint">Tipp: Bild in Zwischenablage kopieren und <kbd>Strg+V</kbd> drücken, um es direkt einzufügen.</div>
         <details id="ocr-raw-box" style="display:none; margin-top:10px;">
             <summary style="cursor:pointer; color:#555; font-style:italic;">OCR-Rohtext anzeigen</summary>
             <pre id="ocr-raw-text" style="background:#f8f8f8; border:1px solid #ddd; padding:8px; font-size:0.8em; white-space:pre-wrap; max-height:200px; overflow-y:auto; margin-top:6px;"></pre>
@@ -439,6 +450,50 @@
         container.style.display = checked ? 'block' : 'none';
         input.disabled = !checked;
     }
+
+    // =====================================================================
+    // Strg+V — Clipboard-Bild direkt in die OCR-Section einfügen
+    // =====================================================================
+
+    (function() {
+        document.addEventListener('paste', function(event) {
+            var items = event.clipboardData && event.clipboardData.items;
+            if (!items) return;
+
+            var imageFiles = [];
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].type.startsWith('image/')) {
+                    var file = items[i].getAsFile();
+                    if (file) imageFiles.push(file);
+                }
+            }
+            if (imageFiles.length === 0) return;
+
+            // Transfer clipboard images into the file input
+            var fileInput = document.getElementById('ocr-image');
+            var dt = new DataTransfer();
+            // Keep any previously selected files too
+            if (fileInput.files) {
+                for (var j = 0; j < fileInput.files.length; j++) {
+                    dt.items.add(fileInput.files[j]);
+                }
+            }
+            imageFiles.forEach(function(f) { dt.items.add(f); });
+            fileInput.files = dt.files;
+
+            // Visual flash feedback on the OCR section
+            var section = document.getElementById('ocr-section');
+            section.classList.add('paste-active');
+            setTimeout(function() { section.classList.remove('paste-active'); }, 800);
+
+            // Status message
+            var status = document.getElementById('ocr-status');
+            var total = fileInput.files.length;
+            status.textContent = imageFiles.length === 1
+                ? 'Bild aus Zwischenablage eingefügt' + (total > 1 ? ' (' + total + ' Bilder gesamt)' : '') + '.'
+                : imageFiles.length + ' Bilder aus Zwischenablage eingefügt (' + total + ' Bilder gesamt).';
+        });
+    })();
 
     // =====================================================================
     // Check mode – compare stored ingredients against a label image scan

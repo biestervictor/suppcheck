@@ -359,17 +359,17 @@ class CheckServiceTest {
     /**
      * End-to-end check simulating a real Crank Ultimate OCR scan result.
      *
-     * <p>Expected discrepancies:
+     * <p>Expected discrepancies (after all OCR corrections):
      * <ol>
      *   <li>{@code L-Citrullin} sub-ingredient under {@code L-Citrullin Malat} → ONLY_IN_DB
      *       (OCR shows it as a standalone top-level entry instead)</li>
      *   <li>{@code L-Citrullin} (4800 mg) as top-level OCR → ONLY_IN_OCR</li>
-     *   <li>{@code Adenosin 5'-Triphosphat Dinatrium (ATP) (als PEAK ATP®)} → ONLY_IN_DB
-     *       (Tesseract misreads it as "pe ospnat Dinatrium (ATP)")</li>
-     *   <li>{@code pe ospnat Dinatrium (ATP)} → ONLY_IN_OCR</li>
      *   <li>{@code Koffein} → VALUE_MISMATCH (stored 255 mg, OCR reads 200 mg)</li>
      *   <li>{@code Guarana-Extrakt} (275 mg) → ONLY_IN_OCR (appears standalone, not as sub)</li>
      * </ol>
+     * {@code Adenosin 5'-Triphosphat Dinatrium (ATP)} is now a MATCH:
+     * OcrTextParser corrects "Paare Phosphat Dinatrium" → "Adenosin 5'-Triphosphat Dinatrium"
+     * and normalize() strips the parenthetical suffixes on both sides.
      * Everything else must be MATCH.
      */
     @Test
@@ -418,8 +418,10 @@ class CheckServiceTest {
         IngredientDto ocrGlycerinpulver = dtoWithSub("Glycerinpulver (HydroPrime\u00ae)", 2000.0,
                 List.of(dto("Glycerin", 1300.0)));
 
-        // Adenosin completely misread by Tesseract — no parser correction possible
-        IngredientDto ocrPeOspnat = dto("pe ospnat Dinatrium (ATP)", 400.0); // ONLY_IN_OCR
+        // Adenosin: OcrTextParser corrects "Paare Phosphat Dinatrium" → "Adenosin 5'-Triphosphat Dinatrium"
+        // cleanTopLevelName strips "(als" noise → name = "Adenosin 5'-Triphosphat Dinatrium (ATP)"
+        // normalize() strips (ATP) on both sides → keys match → MATCH
+        IngredientDto ocrAdenosin = dto("Adenosin 5'-Triphosphat Dinatrium (ATP)", 400.0);
 
         // Guarana-Extrakt appears as a standalone top-level (not as sub of Koffein)
         IngredientDto ocrGuarana = dto("Guarana-Extrakt", 275.0); // ONLY_IN_OCR
@@ -440,7 +442,7 @@ class CheckServiceTest {
                 dto("L-Tyrosin", 1500.0),
                 dto("Taurin", 1500.0),
                 dto("L-Glycin", 1000.0),
-                ocrPeOspnat,
+                ocrAdenosin,
                 dto("Glucuronolacton", 500.0),
                 dto("Bitterorangenschalen-Extrakt", 350.0),
                 ocrGuarana,
@@ -467,6 +469,10 @@ class CheckServiceTest {
                 .isEqualTo("MATCH");
         assertThat(findByName(result.getIngredientResults(), "Glycerinpulver (HydroPrime\u00ae)").getStatus())
                 .isEqualTo("MATCH");
+        // Adenosin: "Paare Phosphat Dinatrium" correction → name normalises to same key as DB
+        assertThat(findByName(result.getIngredientResults(),
+                "Adenosin 5'-Triphosphat Dinatrium (ATP) (als PEAK ATP\u00ae)").getStatus())
+                .isEqualTo("MATCH");
         for (String name : List.of("L-Tyrosin", "Taurin", "L-Glycin", "Glucuronolacton",
                 "Bitterorangenschalen-Extrakt", "Citicolin", "Gr\u00fcntee-Extrakt",
                 "Rhodiola Rosea Extrakt", "Traubenkern-Extrakt", "Schisandra-Extrakt",
@@ -481,7 +487,7 @@ class CheckServiceTest {
         assertThat(pfefferResult.getSubResults()).hasSize(1);
         assertThat(pfefferResult.getSubResults().get(0).getStatus()).isEqualTo("MATCH");
 
-        // ── Expected discrepancies ────────────────────────────────────────────────
+        // ── Expected discrepancies (4 remaining) ─────────────────────────────────
 
         // 1. L-Citrullin sub under L-Citrullin Malat → ONLY_IN_DB
         IngredientCheckResult citrullinMalatResult =
@@ -498,26 +504,14 @@ class CheckServiceTest {
         assertThat(ocrCitrullinResult.getStatus()).isEqualTo("ONLY_IN_OCR");
         assertThat(ocrCitrullinResult.getOcrMg()).isEqualTo(4800.0);
 
-        // 3. Adenosin 5'-Triphosphat … → ONLY_IN_DB (Tesseract cannot read it)
-        IngredientCheckResult adenosinResult = findByName(result.getIngredientResults(),
-                "Adenosin 5'-Triphosphat Dinatrium (ATP) (als PEAK ATP\u00ae)");
-        assertThat(adenosinResult.getStatus()).isEqualTo("ONLY_IN_DB");
-        assertThat(adenosinResult.getStoredMg()).isEqualTo(400.0);
-
-        // 4. pe ospnat Dinatrium (ATP) → ONLY_IN_OCR (OCR misread of Adenosin)
-        IngredientCheckResult peOspnatResult =
-                findByName(result.getIngredientResults(), "pe ospnat Dinatrium (ATP)");
-        assertThat(peOspnatResult.getStatus()).isEqualTo("ONLY_IN_OCR");
-        assertThat(peOspnatResult.getOcrMg()).isEqualTo(400.0);
-
-        // 5. Koffein → VALUE_MISMATCH (stored 255 mg, OCR reads 200 mg)
+        // 3. Koffein → VALUE_MISMATCH (stored 255 mg, OCR reads 200 mg)
         IngredientCheckResult koffeinResult =
                 findByName(result.getIngredientResults(), "Koffein");
         assertThat(koffeinResult.getStatus()).isEqualTo("VALUE_MISMATCH");
         assertThat(koffeinResult.getStoredMg()).isEqualTo(255.0);
         assertThat(koffeinResult.getOcrMg()).isEqualTo(200.0);
 
-        // 6. Guarana-Extrakt (275 mg) → ONLY_IN_OCR
+        // 4. Guarana-Extrakt (275 mg) → ONLY_IN_OCR
         IngredientCheckResult guaranaResult =
                 findByName(result.getIngredientResults(), "Guarana-Extrakt");
         assertThat(guaranaResult.getStatus()).isEqualTo("ONLY_IN_OCR");
@@ -583,6 +577,33 @@ class CheckServiceTest {
 
         assertThat(result.isHasDiscrepancies()).isFalse();
         assertThat(findByName(result.getIngredientResults(), "Jod").getStatus())
+                .isEqualTo("MATCH");
+    }
+
+    @Test
+    void check_lCitrullinMalatHyphenInDb_matchesLabelWithSpace() {
+        // DB stores "L-Citrullin-Malat" (hyphen), label/OCR uses "L-Citrullin Malat" (space).
+        // normalize() replaces '-' with ' ', so both normalise to the same token sequence.
+        Supplement supp = supplement("1", "Pump", List.of(ingredient("L-Citrullin-Malat", 10000.0)));
+        OcrResult ocrResult = ocr(List.of(dto("L-Citrullin Malat", 10000.0)));
+
+        CheckResult result = service.compare(supp, ocrResult);
+
+        assertThat(result.isHasDiscrepancies()).isFalse();
+        assertThat(findByName(result.getIngredientResults(), "L-Citrullin-Malat").getStatus())
+                .isEqualTo("MATCH");
+    }
+
+    @Test
+    void check_lCitrullinMalatSpaceInDb_matchesOcrWithHyphen() {
+        // Symmetric case: DB stores with space, OCR emits with hyphen.
+        Supplement supp = supplement("1", "Pump", List.of(ingredient("L-Citrullin Malat", 10000.0)));
+        OcrResult ocrResult = ocr(List.of(dto("L-Citrullin-Malat", 10000.0)));
+
+        CheckResult result = service.compare(supp, ocrResult);
+
+        assertThat(result.isHasDiscrepancies()).isFalse();
+        assertThat(findByName(result.getIngredientResults(), "L-Citrullin Malat").getStatus())
                 .isEqualTo("MATCH");
     }
 }

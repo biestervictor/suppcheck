@@ -57,6 +57,7 @@ public class IngredientTranslationService {
         RAW_DICT.put("Molybdenum",             "Molybdän");
         RAW_DICT.put("Manganese",              "Mangan");
         RAW_DICT.put("Potassium",              "Kalium");
+        RAW_DICT.put("Calcium",               "Kalzium");  // EN/label spelling → German
         RAW_DICT.put("Creatine",               "Kreatin");
         RAW_DICT.put("Selenium",               "Selen");
         RAW_DICT.put("Thiamine",               "Thiamin");
