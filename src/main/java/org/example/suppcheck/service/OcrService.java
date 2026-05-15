@@ -220,7 +220,6 @@ public class OcrService {
                     input.toAbsolutePath().toString(),
                     "-resize", "2000x2000<",   // enlarge only if smaller than 2000px
                     "-colorspace", "Gray",
-                    "-unsharp", "0x1",
                     output.toAbsolutePath().toString()
             );
             pb.redirectErrorStream(true);

@@ -134,10 +134,14 @@ public final class OcrTextParser {
             }
 
             // Strip leading OCR table-cell artefacts produced by vertical lines or cell borders:
-            // "|", "°", "·", "<", "_", "}", ")" at the start of a line are OCR noise, not text.
-            // ")" appears when a closing paren from the previous entry bleeds onto the next line.
+            // "|", "°", "·", "<", "_", "}", ")", "]", "[", "="  are OCR noise, not text.
             // "\uFF3F" = U+FF3F FULLWIDTH LOW LINE (＿), OCR sometimes produces this instead of "_".
-            line = line.replaceAll("^[|°·<_\uFF3F})]+\\s*", "");
+            // "\u201a" = U+201A SINGLE LOW-9 QUOTATION MARK (‚), misread from table decorations.
+            line = line.replaceAll("^[|°·<_\uFF3F\\[\\]=\u201a\u2018\u2019})]+\\s*", "");
+            // Strip a single "i" or "l" at line start when followed by whitespace + uppercase:
+            // OCR commonly misreads "|" (vertical table border) as the letter "i" or "l".
+            // Safe: real ingredient names starting with lowercase i/l don't begin "i Uppercase".
+            line = line.replaceAll("^[il](?=\\s+[A-Z\u00c4\u00d6\u00dc])", "");
 
             // Normalize space-thousands separator: "4 500" → "4500"
             // Negative lookbehind (?<!\p{L}) ensures we don't merge digit sequences
@@ -378,7 +382,15 @@ public final class OcrTextParser {
         // Case 4: OCR noise prefix (curly brace, quote marks, …) followed by "davon "
         // e.g. "{ davon Piperin" where { is a table-border artefact
         String stripped = name.replaceAll("^[{\"'`\u201c\u201d\u2018\u2019\\s]+", "");
-        return stripped.toLowerCase(Locale.ROOT).startsWith("davon ");
+        if (stripped.toLowerCase(Locale.ROOT).startsWith("davon ")) {
+            return true;
+        }
+        // Case 5: leading table-row digit(s) + space + "davon " — OCR reads row numbers
+        // from the ingredient table, e.g. "2 davon aus Guarana Extrakt", "3 davon Piperin"
+        if (name.matches("(?i)^\\d+\\s+davon\\s.*")) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -394,6 +406,8 @@ public final class OcrTextParser {
      * </pre>
      */
     static String cleanSubIngredientName(String name) {
+        // Strip leading table-row digit(s) + space (OCR artifact: "2 davon aus Guarana Extrakt")
+        name = name.replaceAll("^\\d+\\s+", "");
         // Strip leading special chars (including OCR noise: {, ", ', `) and opening paren
         name = name.replaceAll("^[\\s\\-\u2013\u2014\u2022*\u00b7>({\"'`\u201c\u201d\u2018\u2019]+", "");
         // Strip trailing closing paren, opening paren (amount-format artifact), and whitespace
