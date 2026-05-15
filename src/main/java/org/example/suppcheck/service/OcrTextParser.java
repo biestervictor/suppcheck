@@ -149,10 +149,11 @@ public final class OcrTextParser {
             }
 
             // Strip leading OCR table-cell artefacts produced by vertical lines or cell borders:
-            // "|", "°", "·", "<", "_", "}", ")", "]", "[", "="  are OCR noise, not text.
+            // "|", "°", "·", "<", "_", "}", ")", "]", "[", "=", "{"  are OCR noise, not text.
             // "\uFF3F" = U+FF3F FULLWIDTH LOW LINE (＿), OCR sometimes produces this instead of "_".
             // "\u201a" = U+201A SINGLE LOW-9 QUOTATION MARK (‚), misread from table decorations.
-            line = line.replaceAll("^[|°·<_\uFF3F\\[\\]=\u201a\u2018\u2019})]+\\s*", "");
+            // "{" = curly brace, OCR misread of rounded table borders (e.g. "{ davon Piperin").
+            line = line.replaceAll("^[|°·<_\uFF3F\\[\\]=\u201a\u2018\u2019}){]+\\s*", "");
             // Strip a single letter at line start when followed by whitespace + uppercase:
             // OCR commonly misreads "|" (vertical table border) as "i", "l", "I", "J", or "!".
             // Safe: real ingredient names do not begin with a standalone lowercase/uppercase
@@ -211,6 +212,7 @@ public final class OcrTextParser {
             line = line.replaceAll("(?<=\\d)a(g|mg|mcg|ug)\\b",   ",4$1"); // "1amg"   → "1,4mg"
             line = line.replaceAll("(?<=\\d,)A(g|mg|mcg|ug)\\b",  "4$1");  // "21,Amg" → "21,4mg"
             line = line.replaceAll("(?<![a-zA-Z])I(mg|mcg|g|ug)\\b", "1$1"); // "Img"  → "1mg"
+            line = line.replaceAll("(?<![a-zA-Z])l(mg|mcg|g|ug)\\b", "1$1"); // "1lmg" → "11mg" (lowercase l misread as 1)
             line = line.replaceAll("(?<=[0-9])ma\\b",              "mg");   // "18ma"   → "18mg" (g→a)
             // ─────────────────────────────────────────────────────────────────
 
