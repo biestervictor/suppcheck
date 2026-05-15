@@ -83,7 +83,11 @@ public class DailyIntakeSnapshotService {
         totals.merge(ing.getName(), ing.getMg() / intervalDays, Double::sum);
         ing.getSubIngredients().forEach(sub -> {
           if (sub.getName() == null || sub.getName().isBlank()) return;
-          totals.merge(sub.getName(), sub.getMg() / intervalDays, Double::sum);
+          // Strip leading "davon " prefix for the calculation key — the name is
+          // stored with "davon" for display purposes, but totals should use the
+          // bare ingredient name (e.g. "davon Glucomannan" → "Glucomannan").
+          String subKey = sub.getName().replaceAll("(?i)^davon\\s+", "");
+          totals.merge(subKey, sub.getMg() / intervalDays, Double::sum);
         });
       });
     }

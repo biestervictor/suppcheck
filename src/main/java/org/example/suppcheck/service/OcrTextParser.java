@@ -76,7 +76,7 @@ public final class OcrTextParser {
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
     );
     private static final Pattern LEADING_SPECIAL = Pattern.compile(
-            "^[\\s\\-\u2013\u2014\u2022*\u00b7>]+"
+            "^[\\s\\-\u2013\u2014\u2022*\u00b7>\u00bb]+"  // \u00bb = » (RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK)
     );
 
     /** Matches a line that consists solely of a unit (possibly with surrounding whitespace). */
@@ -439,31 +439,34 @@ public final class OcrTextParser {
     }
 
     /**
-     * Removes the parenthesis markers and leading special chars from a
-     * sub-ingredient name.
+     * Removes parenthesis markers and leading special chars from a sub-ingredient name,
+     * but intentionally <strong>keeps</strong> the "davon" prefix so it is visible in the UI.
+     *
+     * <p>OCR-merge artifact: when Tesseract omits the space between "davon" and the
+     * ingredient name (e.g. {@code "davonPiperin"}), a space is inserted to produce
+     * {@code "davon Piperin"}.</p>
      *
      * <p>Examples:
      * <pre>
-     *   "(davon L-Leucin)"  →  "davon L-Leucin"
-     *   "– (Whey Isolat"    →  "Whey Isolat"
-     *   "- (L-Isoleucin)"   →  "L-Isoleucin"
-     *   "{ davon Piperin"   →  "Piperin"
+     *   "(davon L-Leucin)"        →  "davon L-Leucin"
+     *   "– (Whey Isolat"          →  "Whey Isolat"
+     *   "- (L-Isoleucin)"         →  "L-Isoleucin"
+     *   "{ davon Piperin"         →  "davon Piperin"
+     *   "»> davon Glucomannan"    →  "davon Glucomannan"
+     *   "davonPiperin"            →  "davon Piperin"
      * </pre>
      */
     static String cleanSubIngredientName(String name) {
         // Strip leading table-row digit(s) + space (OCR artifact: "2 davon aus Guarana Extrakt")
         name = name.replaceAll("^\\d+\\s+", "");
-        // Strip leading special chars (including OCR noise: {, ", ', `) and opening paren
-        name = name.replaceAll("^[\\s\\-\u2013\u2014\u2022*\u00b7>({\"'`\u201c\u201d\u2018\u2019]+", "");
+        // Strip leading special chars (including OCR noise: {, ", ', `, », >) and opening paren
+        name = name.replaceAll("^[\\s\\-\u2013\u2014\u2022*\u00b7>\u00bb({\"'`\u201c\u201d\u2018\u2019]+", "");
         // Strip trailing closing paren, opening paren (amount-format artifact), and whitespace
         name = name.replaceAll("[()\\s]+$", "");
-        // Strip "davon" prefix (with or without following space — OCR sometimes merges the words)
+        // Fix OCR-merge: "davonPiperin" → "davon Piperin" (Tesseract sometimes omits space after "davon")
         String nameLower = name.toLowerCase(Locale.ROOT);
-        if (nameLower.startsWith("davon ")) {
-            name = name.substring(6);
-        } else if (nameLower.startsWith("davon") && name.length() > 5) {
-            // OCR merge artifact: "davonPiperin" → "Piperin"
-            name = name.substring(5);
+        if (nameLower.startsWith("davon") && name.length() > 5 && name.charAt(5) != ' ') {
+            name = "davon " + name.substring(5);
         }
         return name.trim();
     }

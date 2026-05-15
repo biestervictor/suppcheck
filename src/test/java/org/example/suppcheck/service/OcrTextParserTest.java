@@ -171,7 +171,7 @@ class OcrTextParserTest {
         assertEquals("Protein", result.getFirst().getName());
         assertEquals(1, result.getFirst().getSubIngredients().size());
         IngredientDto sub = result.getFirst().getSubIngredients().getFirst();
-        assertEquals("Whey-Konzentrat", sub.getName());
+        assertEquals("davon Whey-Konzentrat", sub.getName());
         assertEquals(20_000.0, sub.getMg(), 0.001);
     }
 
@@ -210,7 +210,7 @@ class OcrTextParserTest {
         assertEquals("Konjakwurzel-Extrakt", result.getFirst().getName());
         assertEquals(1, result.getFirst().getSubIngredients().size());
         IngredientDto sub = result.getFirst().getSubIngredients().getFirst();
-        assertEquals("Glucomannan", sub.getName());
+        assertEquals("davon Glucomannan", sub.getName());
         assertEquals(4500.0, sub.getMg(), 0.001);
     }
 
@@ -248,8 +248,8 @@ class OcrTextParserTest {
 
         assertEquals(1, result.size());
         assertEquals(2, result.getFirst().getSubIngredients().size());
-        assertEquals("Whey-Konzentrat", result.getFirst().getSubIngredients().get(0).getName());
-        assertEquals("Whey-Isolat",     result.getFirst().getSubIngredients().get(1).getName());
+        assertEquals("davon Whey-Konzentrat", result.getFirst().getSubIngredients().get(0).getName());
+        assertEquals("davon Whey-Isolat",     result.getFirst().getSubIngredients().get(1).getName());
     }
 
     @Test
@@ -264,10 +264,10 @@ class OcrTextParserTest {
         assertEquals(2, result.size());
         assertEquals("Protein", result.get(0).getName());
         assertEquals(1, result.get(0).getSubIngredients().size());
-        assertEquals("Whey-Konzentrat", result.get(0).getSubIngredients().getFirst().getName());
+        assertEquals("davon Whey-Konzentrat", result.get(0).getSubIngredients().getFirst().getName());
         assertEquals("Fett", result.get(1).getName());
         assertEquals(1, result.get(1).getSubIngredients().size());
-        assertEquals("gesättigte Fettsäuren", result.get(1).getSubIngredients().getFirst().getName());
+        assertEquals("davon gesättigte Fettsäuren", result.get(1).getSubIngredients().getFirst().getName());
     }
 
     @Test
@@ -288,7 +288,7 @@ class OcrTextParserTest {
 
         assertEquals(1, result.size());
         IngredientDto sub = result.getFirst().getSubIngredients().getFirst();
-        assertEquals("Vitamin D3", sub.getName());
+        assertEquals("davon Vitamin D3", sub.getName());
         assertEquals(0.025, sub.getMg(), 0.0001);
     }
 
@@ -346,7 +346,8 @@ class OcrTextParserTest {
 
     @Test
     void cleanSubIngredientName_removesParens() {
-        assertEquals("L-Leucin", OcrTextParser.cleanSubIngredientName("(davon L-Leucin)"));
+        // Parens are stripped; "davon" prefix is intentionally kept for UI display
+        assertEquals("davon L-Leucin", OcrTextParser.cleanSubIngredientName("(davon L-Leucin)"));
     }
 
     @Test
@@ -396,15 +397,16 @@ class OcrTextParserTest {
         assertEquals(1, result.size());
         assertEquals("Ballaststoffe", result.getFirst().getName());
         assertEquals(1, result.getFirst().getSubIngredients().size());
-        assertEquals("Glucomannan", result.getFirst().getSubIngredients().getFirst().getName());
+        assertEquals("davon Glucomannan", result.getFirst().getSubIngredients().getFirst().getName());
         assertEquals(4_000.0, result.getFirst().getSubIngredients().getFirst().getMg(), 0.001);
     }
 
     @Test
-    void cleanSubIngredientName_stripsDavonPrefix() {
-        assertEquals("Glucomannan", OcrTextParser.cleanSubIngredientName("davon Glucomannan"));
-        assertEquals("L-Leucin", OcrTextParser.cleanSubIngredientName("(davon L-Leucin)"));
-        assertEquals("Glucomannan", OcrTextParser.cleanSubIngredientName(">> davon Glucomannan"));
+    void cleanSubIngredientName_keepsDavonPrefix() {
+        // "davon" is kept for UI display; only leading special chars and parens are stripped
+        assertEquals("davon Glucomannan", OcrTextParser.cleanSubIngredientName("davon Glucomannan"));
+        assertEquals("davon L-Leucin",    OcrTextParser.cleanSubIngredientName("(davon L-Leucin)"));
+        assertEquals("davon Glucomannan", OcrTextParser.cleanSubIngredientName(">> davon Glucomannan"));
     }
 
     // --- OCR normalization: table-cell artefacts (leading | and °) ---
@@ -560,7 +562,8 @@ class OcrTextParserTest {
         IngredientDto trauben = result.stream()
                 .filter(i -> "Traubenkernextrakt".equals(i.getName())).findFirst().orElseThrow();
         assertEquals(1, trauben.getSubIngredients().size());
-        assertEquals("OPC", trauben.getSubIngredients().getFirst().getName());
+        assertEquals("davon OPC", trauben.getSubIngredients().getFirst().getName());
+        assertEquals(15.0, trauben.getSubIngredients().getFirst().getMg(), 0.001);
     }
 
     @Test
@@ -790,7 +793,7 @@ class OcrTextParserTest {
                 .filter(i -> "Traubenkernextrakt".equals(i.getName()))
                 .findFirst().orElseThrow();
         assertEquals(1, trauben.getSubIngredients().size());
-        assertEquals("OPC", trauben.getSubIngredients().getFirst().getName());
+        assertEquals("davon OPC", trauben.getSubIngredients().getFirst().getName());
         assertEquals(15.0, trauben.getSubIngredients().getFirst().getMg(), 0.001);
 
         // Other expected top-level ingredients
@@ -948,7 +951,7 @@ class OcrTextParserTest {
         assertEquals("Grüner Kaffeebohnen-Extrakt", result.getFirst().getName());
         assertEquals(500.0, result.getFirst().getMg(), 0.001);
         assertEquals(1, result.getFirst().getSubIngredients().size());
-        assertEquals("Chlorogensäure", result.getFirst().getSubIngredients().getFirst().getName());
+        assertEquals("davon Chlorogensäure", result.getFirst().getSubIngredients().getFirst().getName());
     }
 
     // --- Noise filtering: carry-forward distance limit ---
@@ -1023,18 +1026,18 @@ class OcrTextParserTest {
         assertEquals("Konjakwurzel-Extrakt",          result.get(0).getName());
         assertEquals(4500.0,                           result.get(0).getMg(), 0.001);
         assertEquals(1,                                result.get(0).getSubIngredients().size());
-        assertEquals("Glucomannan",                    result.get(0).getSubIngredients().getFirst().getName());
+        assertEquals("davon Glucomannan",              result.get(0).getSubIngredients().getFirst().getName());
 
         assertEquals("Grüntee Extrakt",                result.get(1).getName());
         assertEquals(1125.0,                           result.get(1).getMg(), 0.001);
         assertEquals(2,                                result.get(1).getSubIngredients().size());
-        assertEquals("Polyphenols",                    result.get(1).getSubIngredients().get(0).getName());
-        assertEquals("EGCG",                           result.get(1).getSubIngredients().get(1).getName());
+        assertEquals("davon Polyphenols",              result.get(1).getSubIngredients().get(0).getName());
+        assertEquals("davon EGCG",                     result.get(1).getSubIngredients().get(1).getName());
 
         assertEquals("Ceylon Zimt Extrakt",            result.get(2).getName());
         assertEquals("Silberweidenrinden Extrakt",     result.get(3).getName());
         assertEquals(1,                                result.get(3).getSubIngredients().size());
-        assertEquals("Salicin",                        result.get(3).getSubIngredients().getFirst().getName());
+        assertEquals("davon Salicin",                  result.get(3).getSubIngredients().getFirst().getName());
 
         assertEquals("Chrom",                          result.get(4).getName());
         assertEquals(0.2,                              result.get(4).getMg(), 0.0001); // 200 mcg → 0.2 mg
@@ -1141,9 +1144,10 @@ class OcrTextParserTest {
     // --- cleanSubIngredientName() with OCR noise prefixes ---
 
     @Test
-    void cleanSubIngredientName_curlyBracePlusDavon_returnsPureName() {
-        // "{ davon Piperin" is a sub-ingredient with table-border artefact
-        assertEquals("Piperin", OcrTextParser.cleanSubIngredientName("{ davon Piperin"));
+    void cleanSubIngredientName_curlyBracePlusDavon_returnsDavonName() {
+        // "{ davon Piperin" is a sub-ingredient with table-border artefact;
+        // leading "{" is stripped but "davon" is kept for UI display
+        assertEquals("davon Piperin", OcrTextParser.cleanSubIngredientName("{ davon Piperin"));
     }
 
     @Test
@@ -1181,7 +1185,7 @@ class OcrTextParserTest {
         assertEquals("Schwarzer Pfeffer Extrakt", result.getFirst().getName());
         assertEquals(1, result.getFirst().getSubIngredients().size());
         IngredientDto sub = result.getFirst().getSubIngredients().getFirst();
-        assertEquals("Piperin", sub.getName());
+        assertEquals("davon Piperin", sub.getName());
         assertEquals(10.5, sub.getMg(), 0.001);
     }
 
@@ -1518,7 +1522,7 @@ class OcrTextParserTest {
         assertEquals("Koffein", koffein.getName());
         assertEquals(255.0, koffein.getMg(), 0.001);
         assertEquals(1, koffein.getSubIngredients().size());
-        assertEquals("aus Guarana Extrakt", koffein.getSubIngredients().getFirst().getName());
+        assertEquals("davon aus Guarana Extrakt", koffein.getSubIngredients().getFirst().getName());
         assertEquals(55.0, koffein.getSubIngredients().getFirst().getMg(), 0.001);
     }
 
@@ -1542,7 +1546,7 @@ class OcrTextParserTest {
         assertEquals("Schwarzer Pfeffer-Extrakt", pfeffer.getName());
         assertEquals(4.2, pfeffer.getMg(), 0.01);
         assertEquals(1, pfeffer.getSubIngredients().size());
-        assertEquals("Piperin", pfeffer.getSubIngredients().getFirst().getName());
+        assertEquals("davon Piperin", pfeffer.getSubIngredients().getFirst().getName());
         assertEquals(4.0, pfeffer.getSubIngredients().getFirst().getMg(), 0.001);
     }
 
@@ -1557,7 +1561,7 @@ class OcrTextParserTest {
         assertEquals("Glycerinpulver (HydroPrime\u00ae)", glycerin.getName());
         assertEquals(2000.0, glycerin.getMg(), 0.001);
         assertEquals(1, glycerin.getSubIngredients().size());
-        assertEquals("Glycerin", glycerin.getSubIngredients().getFirst().getName());
+        assertEquals("davon Glycerin", glycerin.getSubIngredients().getFirst().getName());
         assertEquals(1300.0, glycerin.getSubIngredients().getFirst().getMg(), 0.001);
     }
 
@@ -1574,7 +1578,7 @@ class OcrTextParserTest {
         IngredientDto aakg = result.getFirst();
         assertEquals("L-Arginin AAKG", aakg.getName());
         assertEquals(1, aakg.getSubIngredients().size());
-        assertEquals("L-Arginin", aakg.getSubIngredients().getFirst().getName());
+        assertEquals("davon L-Arginin", aakg.getSubIngredients().getFirst().getName());
         assertEquals(2800.0, aakg.getSubIngredients().getFirst().getMg(), 0.001);
     }
 
@@ -1629,7 +1633,7 @@ class OcrTextParserTest {
         IngredientDto koffein = result.getFirst();
         assertEquals("Koffein", koffein.getName());
         assertEquals(1, koffein.getSubIngredients().size());
-        assertEquals("aus Guarana Extrakt", koffein.getSubIngredients().getFirst().getName());
+        assertEquals("davon aus Guarana Extrakt", koffein.getSubIngredients().getFirst().getName());
         assertEquals(55.0, koffein.getSubIngredients().getFirst().getMg(), 0.001);
     }
 
@@ -1642,20 +1646,21 @@ class OcrTextParserTest {
         IngredientDto pfeffer = result.getFirst();
         assertEquals("Schwarzer Pfeffer-Extrakt", pfeffer.getName());
         assertEquals(1, pfeffer.getSubIngredients().size());
-        assertEquals("Piperin", pfeffer.getSubIngredients().getFirst().getName());
+        assertEquals("davon Piperin", pfeffer.getSubIngredients().getFirst().getName());
         assertEquals(4.0, pfeffer.getSubIngredients().getFirst().getMg(), 0.001);
     }
 
     @Test
     void parse_digitPrefixDavonNoSpace_parsedAsSubIngredient() {
-        // "3 davonPiperin" — OCR merges "davon" and ingredient name without space
+        // "3 davonPiperin" — OCR merges "davon" and ingredient name without space;
+        // space is inserted → "davon Piperin"
         String text = "Schwarzer Pfeffer-Extrakt (4,2 mg)\n3 davonPiperin (4 mg)";
         List<IngredientDto> result = OcrTextParser.parse(text);
         assertEquals(1, result.size());
         IngredientDto pfeffer = result.getFirst();
         assertEquals("Schwarzer Pfeffer-Extrakt", pfeffer.getName());
         assertEquals(1, pfeffer.getSubIngredients().size());
-        assertEquals("Piperin", pfeffer.getSubIngredients().getFirst().getName());
+        assertEquals("davon Piperin", pfeffer.getSubIngredients().getFirst().getName());
         assertEquals(4.0, pfeffer.getSubIngredients().getFirst().getMg(), 0.001);
     }
 
@@ -1725,9 +1730,9 @@ class OcrTextParserTest {
         List<IngredientDto> result = OcrTextParser.parse(ocrText);
         // "Protein Matrix" has no amount → discarded as pendingName, but "(davon L-Leucin)"
         // contains "davon" → treated as sub-ingredient of... nothing (no top-level yet)
-        // → added as top-level entry
+        // → added as top-level entry (with "davon" kept in the name)
         assertEquals(1, result.size());
-        assertEquals("L-Leucin", result.getFirst().getName());
+        assertEquals("davon L-Leucin", result.getFirst().getName());
         assertEquals(2500.0, result.getFirst().getMg(), 0.001);
     }
 
@@ -1754,19 +1759,19 @@ class OcrTextParserTest {
     @Test
     void cleanSubIngredientName_trailingOpenParenStripped() {
         // Amount-in-parens format leaves a trailing "(" in the parsed name group
-        assertEquals("Glycerin",
+        assertEquals("davon Glycerin",
                 OcrTextParser.cleanSubIngredientName("davon Glycerin ("));
     }
 
     @Test
     void cleanSubIngredientName_trailingOpenParenAfterDavonPiperin() {
-        assertEquals("Piperin",
+        assertEquals("davon Piperin",
                 OcrTextParser.cleanSubIngredientName("davon Piperin ("));
     }
 
     @Test
     void cleanSubIngredientName_trailingOpenParenAusGuaranaExtrakt() {
-        assertEquals("aus Guarana Extrakt",
+        assertEquals("davon aus Guarana Extrakt",
                 OcrTextParser.cleanSubIngredientName("davon aus Guarana Extrakt ("));
     }
 
@@ -1829,28 +1834,28 @@ class OcrTextParserTest {
         IngredientDto aakg = result.stream()
                 .filter(i -> i.getName().startsWith("L-Arginin Alpha")).findFirst().orElseThrow();
         assertEquals(1, aakg.getSubIngredients().size());
-        assertEquals("L-Arginin", aakg.getSubIngredients().getFirst().getName());
+        assertEquals("davon L-Arginin", aakg.getSubIngredients().getFirst().getName());
         assertEquals(2800.0, aakg.getSubIngredients().getFirst().getMg(), 0.001);
 
         // Sub-ingredient: Glycerin under Glycerinpulver
         IngredientDto glycerinpulver = result.stream()
                 .filter(i -> i.getName().startsWith("Glycerinpulver")).findFirst().orElseThrow();
         assertEquals(1, glycerinpulver.getSubIngredients().size());
-        assertEquals("Glycerin", glycerinpulver.getSubIngredients().getFirst().getName());
+        assertEquals("davon Glycerin", glycerinpulver.getSubIngredients().getFirst().getName());
         assertEquals(1300.0, glycerinpulver.getSubIngredients().getFirst().getMg(), 0.001);
 
         // Sub-ingredient: aus Guarana Extrakt under Koffein (digit prefix "2" stripped)
         IngredientDto koffein = result.stream()
                 .filter(i -> "Koffein".equals(i.getName())).findFirst().orElseThrow();
         assertEquals(1, koffein.getSubIngredients().size());
-        assertEquals("aus Guarana Extrakt", koffein.getSubIngredients().getFirst().getName());
+        assertEquals("davon aus Guarana Extrakt", koffein.getSubIngredients().getFirst().getName());
         assertEquals(55.0, koffein.getSubIngredients().getFirst().getMg(), 0.001);
 
         // Sub-ingredient: Piperin under Schwarzer Pfeffer-Extrakt (digit prefix "3" stripped)
         IngredientDto pfeffer = result.stream()
                 .filter(i -> "Schwarzer Pfeffer-Extrakt".equals(i.getName())).findFirst().orElseThrow();
         assertEquals(1, pfeffer.getSubIngredients().size());
-        assertEquals("Piperin", pfeffer.getSubIngredients().getFirst().getName());
+        assertEquals("davon Piperin", pfeffer.getSubIngredients().getFirst().getName());
         assertEquals(4.0, pfeffer.getSubIngredients().getFirst().getMg(), 0.001);
     }
 
@@ -1991,7 +1996,7 @@ class OcrTextParserTest {
     @Test
     void parse_xDavonPiperin_parsedAsSubIngredient() {
         // OCR table-row marker "X" (uppercase letter) before "davon" must be stripped.
-        // "X davonPiperin 10,5 mg" → sub-ingredient "Piperin" attached to parent
+        // "X davonPiperin 10,5 mg" → sub-ingredient "davon Piperin" attached to parent
         List<IngredientDto> result = OcrTextParser.parse(
                 "Schwarzer Pfeffer-Extrakt 11 mg\nX davonPiperin 10,5 mg");
         // Only one top-level ingredient; sub-ingredient is attached to it
@@ -1999,7 +2004,7 @@ class OcrTextParserTest {
         assertEquals("Schwarzer Pfeffer-Extrakt", result.getFirst().getName());
         assertEquals(1, result.getFirst().getSubIngredients().size());
         IngredientDto sub = result.getFirst().getSubIngredients().getFirst();
-        assertEquals("Piperin", sub.getName());
+        assertEquals("davon Piperin", sub.getName());
         assertEquals(10.5, sub.getMg(), 0.001);
     }
 
@@ -2011,7 +2016,82 @@ class OcrTextParserTest {
         assertEquals(1, result.size());
         assertEquals(1, result.getFirst().getSubIngredients().size());
         IngredientDto sub = result.getFirst().getSubIngredients().getFirst();
-        assertEquals("Wirkstoff", sub.getName());
+        assertEquals("davon Wirkstoff", sub.getName());
         assertEquals(5.0, sub.getMg(), 0.001);
+    }
+
+    // ── gen.png OCR integration — guillemet »> prefix and real-world label ───
+
+    @Test
+    void isSubIngredient_guillemetArrowPrefix_returnsTrue() {
+        // Tesseract on gen.png produces "»> davon Glucomannan" — guillemet U+00BB must
+        // be treated as a leading special char (sub-ingredient marker)
+        assertTrue(OcrTextParser.isSubIngredient("\u00bb> davon Glucomannan"));
+    }
+
+    @Test
+    void cleanSubIngredientName_guillemetArrowPrefix_keepsDavon() {
+        // "»> davon Glucomannan" → guillemet and > stripped → "davon Glucomannan"
+        assertEquals("davon Glucomannan",
+                OcrTextParser.cleanSubIngredientName("\u00bb> davon Glucomannan"));
+    }
+
+    @Test
+    void parse_genPngRealOcr_subIngredientsWithGuillemetPrefix() {
+        // Exact Tesseract output from gen.png (preprocessed with ImageMagick).
+        // Key issue: "»>" (U+00BB + ">") prefix on Glucomannan sub-ingredient.
+        String ocrText =
+                "Konjakwurzel-Extrakt 4500 mg = |\n" +
+                "\u00bb> davon Glucomannan 4275 mg = |\n" +     // guillemet »> prefix
+                "Gr\u00fcntee Extrakt 1125 mg =)\n" +
+                ">> davon Polyphenols 1103 mg -\n" +
+                ">> davon EGCG 506 mg - 3x3 Kapseln\n" +
+                "Ceylon Zimt Extrakt 450 mg = |\n" +
+                "Silberweidenrinden Extrakt 450. mg -\n" +
+                ">> davon Salicin 68. mg = |\n" +
+                "Chrom 200 mcg 500 |\n" +
+                "3x3 Kapseln\n" +
+                "t\u00e4glich vor den Mahlzeiten\n" +
+                "Ern\u00e4hrung mit reichlich Wasser";
+
+        List<IngredientDto> result = OcrTextParser.parse(ocrText);
+
+        // 5 top-level ingredients
+        List<String> topNames = result.stream().map(IngredientDto::getName).toList();
+        assertTrue(topNames.contains("Konjakwurzel-Extrakt"),       "Konjakwurzel-Extrakt missing");
+        assertTrue(topNames.contains("Gr\u00fcntee Extrakt"),       "Grüntee Extrakt missing");
+        assertTrue(topNames.contains("Ceylon Zimt Extrakt"),        "Ceylon Zimt Extrakt missing");
+        assertTrue(topNames.contains("Silberweidenrinden Extrakt"), "Silberweidenrinden Extrakt missing");
+        assertTrue(topNames.contains("Chrom"),                      "Chrom missing");
+
+        // Glucomannan is a sub-ingredient of Konjakwurzel-Extrakt (»> prefix handled)
+        IngredientDto konjak = result.stream()
+                .filter(i -> "Konjakwurzel-Extrakt".equals(i.getName())).findFirst().orElseThrow();
+        assertEquals(4500.0, konjak.getMg(), 0.001);
+        assertEquals(1, konjak.getSubIngredients().size());
+        IngredientDto gluco = konjak.getSubIngredients().getFirst();
+        assertEquals("davon Glucomannan", gluco.getName());
+        assertEquals(4275.0, gluco.getMg(), 0.001);
+
+        // Grüntee Extrakt has Polyphenols and EGCG sub-ingredients
+        IngredientDto gruente = result.stream()
+                .filter(i -> "Gr\u00fcntee Extrakt".equals(i.getName())).findFirst().orElseThrow();
+        assertEquals(1125.0, gruente.getMg(), 0.001);
+        assertEquals(2, gruente.getSubIngredients().size());
+        assertEquals("davon Polyphenols", gruente.getSubIngredients().get(0).getName());
+        assertEquals("davon EGCG",        gruente.getSubIngredients().get(1).getName());
+
+        // Silberweidenrinden Extrakt has Salicin sub-ingredient (450. mg parsed correctly)
+        IngredientDto silber = result.stream()
+                .filter(i -> "Silberweidenrinden Extrakt".equals(i.getName())).findFirst().orElseThrow();
+        assertEquals(450.0, silber.getMg(), 0.001);
+        assertEquals(1, silber.getSubIngredients().size());
+        assertEquals("davon Salicin", silber.getSubIngredients().getFirst().getName());
+        assertEquals(68.0, silber.getSubIngredients().getFirst().getMg(), 0.001);
+
+        // Chrom: two-column line handled — uses 200 mcg (per-portion) value
+        IngredientDto chrom = result.stream()
+                .filter(i -> "Chrom".equals(i.getName())).findFirst().orElseThrow();
+        assertEquals(0.2, chrom.getMg(), 0.0001);
     }
 }
