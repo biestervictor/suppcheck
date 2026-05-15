@@ -227,7 +227,7 @@
     <br/><br/>
     <div class="ocr-section" id="ocr-section">
         <label>Bilder hochladen (mehrere möglich für bessere Erkennung kleiner Zeichen):</label>
-        <input type="file" id="ocr-image" accept="image/*" multiple onchange="extractFromImage()"/>
+        <input type="file" id="ocr-image" accept="image/*" multiple onchange="autoRunOcr()"/>
         <button type="button" onclick="extractFromImage()">Zutaten erkennen</button>
         <button type="button" th:if="*{id != null}" onclick="checkFromImage()"
                 style="background:#f5a623; color:#fff; margin-left:6px;">🔍 Zutaten prüfen</button>
@@ -455,6 +455,17 @@
     // Strg+V — Clipboard-Bild direkt in die OCR-Section einfügen
     // =====================================================================
 
+    // Runs the appropriate OCR action depending on context:
+    // - Editing an existing supplement (has ID) → checkFromImage()
+    // - Creating a new supplement               → extractFromImage()
+    function autoRunOcr() {
+        if (getSupplementId()) {
+            checkFromImage();
+        } else {
+            extractFromImage();
+        }
+    }
+
     (function() {
         document.addEventListener('paste', function(event) {
             var items = event.clipboardData && event.clipboardData.items;
@@ -481,13 +492,14 @@
             imageFiles.forEach(function(f) { dt.items.add(f); });
             fileInput.files = dt.files;
 
-            // Visual flash feedback on the OCR section
+            // Auto flash feedback
             var section = document.getElementById('ocr-section');
             section.classList.add('paste-active');
             setTimeout(function() { section.classList.remove('paste-active'); }, 800);
 
-            // Auto-trigger OCR analysis immediately after paste
-            extractFromImage();
+            // Auto-trigger OCR: check mode when editing an existing supplement,
+            // extract mode when creating a new one.
+            autoRunOcr();
         });
     })();
 
