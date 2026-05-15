@@ -1853,4 +1853,122 @@ class OcrTextParserTest {
         assertEquals("Piperin", pfeffer.getSubIngredients().getFirst().getName());
         assertEquals(4.0, pfeffer.getSubIngredients().getFirst().getMg(), 0.001);
     }
+
+    // ── OCR correction: lodine → Iodine ──────────────────────────────────────
+
+    @Test
+    void parse_lodine_correctedToIodine() {
+        // OCR misreads capital I as lowercase l on EU nutrition labels
+        List<IngredientDto> result = OcrTextParser.parse("lodine 150 ug");
+        assertEquals(1, result.size());
+        assertEquals("Iodine", result.getFirst().getName());
+        assertEquals(0.15, result.getFirst().getMg(), 0.0001);
+    }
+
+    @Test
+    void parse_lodine_twoColumn_correctedToIodine() {
+        // Two-column row: per-100g | per-portion — parser uses per-portion value
+        List<IngredientDto> result = OcrTextParser.parse("lodine 2556,82 ug 150,00 ug 100,00%");
+        assertEquals(1, result.size());
+        assertEquals("Iodine", result.getFirst().getName());
+        assertEquals(0.15, result.getFirst().getMg(), 0.0001);
+    }
+
+    // ── Header-line filter ────────────────────────────────────────────────────
+
+    @Test
+    void parse_headerLineProHundredG_skipped() {
+        // "Mineralien Pro 100G Pro Portion" must not produce an ingredient
+        List<IngredientDto> result = OcrTextParser.parse(
+                "Mineralien Pro 100G Pro Portion % RM* pro Portion\n" +
+                "Selenium 1397,73ug 82,00 ug");
+        assertEquals(1, result.size(), "Header row must be skipped");
+        assertEquals("Selenium", result.getFirst().getName());
+        assertEquals(0.082, result.getFirst().getMg(), 0.0001);
+    }
+
+    @Test
+    void parse_headerLineWeitereInformationen_skipped() {
+        // "Weitere Informationen Pro 100G Pro Portion" must not produce an ingredient
+        List<IngredientDto> result = OcrTextParser.parse(
+                "Vitamin K2 - 35ug\n" +
+                "Weitere Informationen Pro 100G Pro Portion");
+        assertEquals(1, result.size(), "Header row must be skipped");
+        assertEquals("Vitamin K2", result.getFirst().getName());
+    }
+
+    @Test
+    void parse_vitaminePro100G_headerSkipped() {
+        List<IngredientDto> result = OcrTextParser.parse(
+                "Vitamine Pro 100G Pro Portion % RM* pro Portion\n" +
+                "Vitamin C 200 mg");
+        assertEquals(1, result.size(), "Header row must be skipped");
+        assertEquals("Vitamin C", result.getFirst().getName());
+    }
+
+    // ── Bodylab2 integration test (real Tesseract + ImageMagick output) ───────
+
+    /**
+     * Integration test using the real OCR output produced by
+     * {@code magick bodylab2.png -resize "2000x2000<" -colorspace Gray out.png &&
+     * tesseract out.png stdout --psm 6 -l deu}.
+     *
+     * <p>Verifies:</p>
+     * <ul>
+     *   <li>Header rows ("Mineralien Pro 100G …", "Weitere Informationen …") are skipped</li>
+     *   <li>{@code lodine} is corrected to {@code Iodine}</li>
+     *   <li>{@code VitamincC} is corrected to {@code Vitamin C}</li>
+     *   <li>Two-column table rows use the per-portion value (second column)</li>
+     * </ul>
+     */
+    @Test
+    void parse_bodylab2_realOcrOutput_skipsHeaders_correctsLodineAndVitaminC() {
+        String ocrText =
+                "VitamincC 3409,09mg 200,00 mg\n" +
+                "Mineralien Pro 100G Pro Portion % RM* pro Portion\n" +
+                "lodine 2556,82 ug 150,00 ug 100,00%\n" +
+                "Weitere Informationen Pro 100G Pro Portion\n" +
+                "Vitamin K2 - 35ug\n" +
+                "Chrome 852,27 ug 50,00 ug\n" +
+                "Selenium 1397,73ug 82,00 ug";
+
+        List<IngredientDto> result = OcrTextParser.parse(ocrText);
+        List<String> names = result.stream().map(IngredientDto::getName).toList();
+
+        // Headers must not appear as ingredients
+        assertTrue(names.stream().noneMatch(n -> n.contains("Pro 100") || n.startsWith("Mineralien Pro")),
+                "Header rows must be skipped; found: " + names);
+        assertTrue(names.stream().noneMatch(n -> n.startsWith("Weitere")),
+                "Weitere Informationen header must be skipped; found: " + names);
+
+        // VitamincC → Vitamin C (two-column → per-portion value)
+        assertTrue(names.contains("Vitamin C"), "VitamincC must be corrected to Vitamin C");
+        assertEquals(200.0,
+                result.stream().filter(i -> "Vitamin C".equals(i.getName())).findFirst().orElseThrow().getMg(),
+                0.001);
+
+        // lodine → Iodine (two-column → per-portion value 150 µg = 0.15 mg)
+        assertTrue(names.contains("Iodine"), "lodine must be corrected to Iodine");
+        assertEquals(0.15,
+                result.stream().filter(i -> "Iodine".equals(i.getName())).findFirst().orElseThrow().getMg(),
+                0.0001);
+
+        // Vitamin K2 parsed correctly
+        assertTrue(names.contains("Vitamin K2"), "Vitamin K2 must be parsed");
+        assertEquals(0.035,
+                result.stream().filter(i -> "Vitamin K2".equals(i.getName())).findFirst().orElseThrow().getMg(),
+                0.0001);
+
+        // Chrome (translation Chrome→Chrom happens in IngredientTranslationService, not parser)
+        assertTrue(names.contains("Chrome"), "Chrome must be parsed");
+        assertEquals(0.050,
+                result.stream().filter(i -> "Chrome".equals(i.getName())).findFirst().orElseThrow().getMg(),
+                0.0001);
+
+        // Selenium (translation Selenium→Selen happens in IngredientTranslationService, not parser)
+        assertTrue(names.contains("Selenium"), "Selenium must be parsed");
+        assertEquals(0.082,
+                result.stream().filter(i -> "Selenium".equals(i.getName())).findFirst().orElseThrow().getMg(),
+                0.0001);
+    }
 }

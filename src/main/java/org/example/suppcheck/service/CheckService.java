@@ -31,6 +31,18 @@ public class CheckService {
     static final double TOLERANCE_FACTOR = 0.05;
     static final double TOLERANCE_MIN_MG = 1.0;
 
+    private final IngredientTranslationService translationService;
+
+    /** No-arg constructor used by unit tests and legacy callers. */
+    public CheckService() {
+        this.translationService = new IngredientTranslationService();
+    }
+
+    /** Spring-injected constructor (primary). */
+    public CheckService(IngredientTranslationService translationService) {
+        this.translationService = translationService;
+    }
+
     /**
      * Compares the supplement stored in the database against the OCR result and
      * returns a {@link CheckResult} describing every discrepancy found.
@@ -43,10 +55,10 @@ public class CheckService {
         List<IngredientDto> ocrIngredients =
                 ocrResult.getIngredients() != null ? ocrResult.getIngredients() : List.of();
 
-        // Build a mutable map: normalised name → OCR DTO so we can track unmatched ones.
+        // Build a mutable map: effective name → OCR DTO so we can track unmatched ones.
         Map<String, IngredientDto> ocrMap = new LinkedHashMap<>();
         for (IngredientDto dto : ocrIngredients) {
-            ocrMap.put(normalize(dto.getName()), dto);
+            ocrMap.put(effectiveName(dto.getName()), dto);
         }
 
         List<IngredientCheckResult> results = new ArrayList<>();
@@ -56,7 +68,7 @@ public class CheckService {
                 supplement.getIngredients() != null ? supplement.getIngredients() : List.of();
 
         for (Ingredient stored : storedIngredients) {
-            String key = normalize(stored.getName());
+            String key = effectiveName(stored.getName());
             IngredientDto ocr = ocrMap.remove(key); // remove so we can detect ONLY_IN_OCR later
 
             if (ocr == null) {
@@ -102,6 +114,16 @@ public class CheckService {
 
     // --- helpers ---
 
+    /**
+     * Applies translation (EN→DE) followed by {@link #normalize(String)} to give
+     * a canonical comparison key.  Used on <em>both</em> the DB-stored name and
+     * the OCR-parsed name so that e.g. "Selenium" (DB) matches "Selen" (OCR after
+     * translation) without any special-casing.
+     */
+    private String effectiveName(String name) {
+        return normalize(translationService.translate(name));
+    }
+
     private List<IngredientCheckResult> compareSubIngredients(
             List<Ingredient> storedSubs, List<IngredientDto> ocrSubs) {
 
@@ -114,7 +136,7 @@ public class CheckService {
         Map<String, IngredientDto> ocrSubMap = new LinkedHashMap<>();
         if (ocrSubs != null) {
             for (IngredientDto dto : ocrSubs) {
-                ocrSubMap.put(normalize(dto.getName()), dto);
+                ocrSubMap.put(effectiveName(dto.getName()), dto);
             }
         }
 
@@ -122,7 +144,7 @@ public class CheckService {
 
         if (storedSubs != null) {
             for (Ingredient stored : storedSubs) {
-                String key = normalize(stored.getName());
+                String key = effectiveName(stored.getName());
                 IngredientDto ocr = ocrSubMap.remove(key);
                 if (ocr == null) {
                     results.add(new IngredientCheckResult(

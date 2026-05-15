@@ -88,6 +88,21 @@ public final class OcrTextParser {
     /** Matches a line whose last non-whitespace character is a digit. */
     private static final Pattern ENDS_WITH_DIGIT = Pattern.compile(".*\\d\\s*$");
 
+    /**
+     * Matches nutritional-table header rows that contain no ingredient data.
+     * Examples:
+     * <pre>
+     *   Mineralien Pro 100G Pro Portion % RM* pro Portion
+     *   Weitere Informationen Pro 100G Pro Portion
+     *   Vitamine Pro 100G Pro Portion % RM* pro Portion
+     * </pre>
+     * These lines must be skipped before pattern-matching to avoid creating
+     * bogus ingredients like "Mineralien Pro = 100 000 mg".
+     */
+    private static final Pattern HEADER_LINE = Pattern.compile(
+            "(?i)\\bPro\\s+\\d+\\s*[Gg]\\b"
+    );
+
     private OcrTextParser() {
     }
 
@@ -162,6 +177,8 @@ public final class OcrTextParser {
             line = line.replaceAll("(?i)\\bSelenlum\\b", "Selenium");
             line = line.replaceAll("(?i)\\bBlotin\\b", "Biotin");
             line = line.replaceAll("(?i)\\bZine\\b", "Zinc");
+            // "lodine" — OCR misreads capital I as lowercase l on EU nutrition labels
+            line = line.replaceAll("(?i)(?<![a-zA-Z])lodine\\b", "Iodine");
             // "Vitamin ©" — copyright sign U+00A9 is OCR misread of capital C on some label fonts
             line = line.replace("Vitamin \u00a9", "Vitamin C");
             // "Vitamin cC" — OCR double-reads the C: once as a lowercase artifact, then uppercase.
@@ -190,6 +207,15 @@ public final class OcrTextParser {
             // Check TWO_COLUMN_LINE before INGREDIENT_LINE: a line like
             // "Eiweiß 70 g 30 g" (Pro 100g | Pro Portion) must use the second value.
             // INGREDIENT_LINE's greedy .*$ would otherwise capture the first value.
+            // But first, skip nutritional-table header rows that happen to contain a
+            // unit token (e.g. "Mineralien Pro 100G Pro Portion") — these must not be
+            // treated as ingredients.
+            if (HEADER_LINE.matcher(line).find()) {
+                pendingName = null;
+                noMatchStreak = 0;
+                continue;
+            }
+
             Matcher twoCol = TWO_COLUMN_LINE.matcher(line);
             if (twoCol.matches()) {
                 pendingName = null;

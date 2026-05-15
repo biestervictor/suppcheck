@@ -523,4 +523,66 @@ class CheckServiceTest {
         assertThat(guaranaResult.getStatus()).isEqualTo("ONLY_IN_OCR");
         assertThat(guaranaResult.getOcrMg()).isEqualTo(275.0);
     }
+
+    // -----------------------------------------------------------------------
+    // Translation-aware matching (CheckService + IngredientTranslationService)
+    // -----------------------------------------------------------------------
+
+    /**
+     * DB stores "Selenium" (English), OCR parser emits "Selenium", which
+     * IngredientTranslationService translates to "Selen".
+     * After effectiveName() on both sides the keys agree → MATCH.
+     */
+    @Test
+    void check_seleniumInDb_translatedToSelen_matchesOcrSelen() {
+        // DB stores English name "Selenium"
+        Supplement supp = supplement("1", "Multi", List.of(ingredient("Selenium", 0.082)));
+        // OCR produces "Selen" (German — already translated by IngredientTranslationService)
+        OcrResult ocrResult = ocr(List.of(dto("Selen", 0.082)));
+
+        CheckResult result = service.compare(supp, ocrResult);
+
+        assertThat(result.isHasDiscrepancies()).isFalse();
+        assertThat(findByName(result.getIngredientResults(), "Selenium").getStatus())
+                .isEqualTo("MATCH");
+    }
+
+    @Test
+    void check_seleniumInOcr_matchesSelenInDb() {
+        // DB stores German "Selen", OCR emits English "Selenium"
+        Supplement supp = supplement("1", "Multi", List.of(ingredient("Selen", 0.082)));
+        OcrResult ocrResult = ocr(List.of(dto("Selenium", 0.082)));
+
+        CheckResult result = service.compare(supp, ocrResult);
+
+        assertThat(result.isHasDiscrepancies()).isFalse();
+        assertThat(findByName(result.getIngredientResults(), "Selen").getStatus())
+                .isEqualTo("MATCH");
+    }
+
+    @Test
+    void check_chromeInOcr_matchesChromInDb() {
+        // DB stores "Chrom", OCR emits "Chrome" — translation must normalise both
+        Supplement supp = supplement("1", "Multi", List.of(ingredient("Chrom", 0.050)));
+        OcrResult ocrResult = ocr(List.of(dto("Chrome", 0.050)));
+
+        CheckResult result = service.compare(supp, ocrResult);
+
+        assertThat(result.isHasDiscrepancies()).isFalse();
+        assertThat(findByName(result.getIngredientResults(), "Chrom").getStatus())
+                .isEqualTo("MATCH");
+    }
+
+    @Test
+    void check_iodineInOcr_matchesJodInDb() {
+        // DB stores "Jod", OCR parser corrects lodine→Iodine, translation maps Iodine→Jod
+        Supplement supp = supplement("1", "Multi", List.of(ingredient("Jod", 0.15)));
+        OcrResult ocrResult = ocr(List.of(dto("Iodine", 0.15)));
+
+        CheckResult result = service.compare(supp, ocrResult);
+
+        assertThat(result.isHasDiscrepancies()).isFalse();
+        assertThat(findByName(result.getIngredientResults(), "Jod").getStatus())
+                .isEqualTo("MATCH");
+    }
 }
