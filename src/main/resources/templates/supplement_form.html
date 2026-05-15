@@ -227,7 +227,7 @@
     <br/><br/>
     <div class="ocr-section" id="ocr-section">
         <label>Bilder hochladen (mehrere möglich für bessere Erkennung kleiner Zeichen):</label>
-        <input type="file" id="ocr-image" accept="image/*" multiple/>
+        <input type="file" id="ocr-image" accept="image/*" multiple onchange="extractFromImage()"/>
         <button type="button" onclick="extractFromImage()">Zutaten erkennen</button>
         <button type="button" th:if="*{id != null}" onclick="checkFromImage()"
                 style="background:#f5a623; color:#fff; margin-left:6px;">🔍 Zutaten prüfen</button>
@@ -486,12 +486,8 @@
             section.classList.add('paste-active');
             setTimeout(function() { section.classList.remove('paste-active'); }, 800);
 
-            // Status message
-            var status = document.getElementById('ocr-status');
-            var total = fileInput.files.length;
-            status.textContent = imageFiles.length === 1
-                ? 'Bild aus Zwischenablage eingefügt' + (total > 1 ? ' (' + total + ' Bilder gesamt)' : '') + '.'
-                : imageFiles.length + ' Bilder aus Zwischenablage eingefügt (' + total + ' Bilder gesamt).';
+            // Auto-trigger OCR analysis immediately after paste
+            extractFromImage();
         });
     })();
 
