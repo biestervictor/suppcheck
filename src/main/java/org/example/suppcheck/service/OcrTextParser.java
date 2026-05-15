@@ -162,6 +162,11 @@ public final class OcrTextParser {
             line = line.replaceAll("(?i)\\bSelenlum\\b", "Selenium");
             line = line.replaceAll("(?i)\\bBlotin\\b", "Biotin");
             line = line.replaceAll("(?i)\\bZine\\b", "Zinc");
+            // "Vitamin ©" — copyright sign U+00A9 is OCR misread of capital C on some label fonts
+            line = line.replace("Vitamin \u00a9", "Vitamin C");
+            // "Vitamin cC" — OCR double-reads the C: once as a lowercase artifact, then uppercase.
+            // Generalised: "Vitamin [lowercase-letter][uppercase-letter+optional-digit]" → "Vitamin [uppercase]"
+            line = line.replaceAll("\\bVitamin\\s+[a-z]([A-Z]\\d*)\\b", "Vitamin $1");
             // "Vitamin Da" → "Vitamin D3": digit 3 OCR'd as letter a after D
             line = line.replaceAll("(?i)\\bVitamin D[aA]\\b", "Vitamin D3");
             // "Lryrosin" → "L-Tyrosin": OCR confuses "T-" with "r" after "L"

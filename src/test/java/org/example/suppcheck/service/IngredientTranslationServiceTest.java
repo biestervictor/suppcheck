@@ -156,6 +156,12 @@ class IngredientTranslationServiceTest {
     }
 
     @Test
+    void translate_chrome_translates() {
+        // "Chrome" is the English short form / common OCR variant of "Chromium"
+        assertEquals("Chrom", service.translate("Chrome"));
+    }
+
+    @Test
     void translate_molybdenum_translates() {
         assertEquals("Molybdän", service.translate("Molybdenum"));
     }

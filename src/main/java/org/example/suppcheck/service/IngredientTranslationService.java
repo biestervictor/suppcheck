@@ -61,6 +61,7 @@ public class IngredientTranslationService {
         RAW_DICT.put("Selenium",               "Selen");
         RAW_DICT.put("Thiamine",               "Thiamin");
         RAW_DICT.put("Chromium",               "Chrom");
+        RAW_DICT.put("Chrome",                 "Chrom");   // English short form / OCR variant
         RAW_DICT.put("Caffeine",               "Koffein");
         RAW_DICT.put("Taurine",                "Taurin");
         RAW_DICT.put("Iodine",                 "Jod");

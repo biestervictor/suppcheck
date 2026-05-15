@@ -1248,6 +1248,37 @@ class OcrTextParserTest {
     }
 
     @Test
+    void parse_vitaminCopyrightSign_parsedAsVitaminC() {
+        // "Vitamin ©" — U+00A9 COPYRIGHT SIGN is OCR misread of capital C on some label fonts
+        List<IngredientDto> result = OcrTextParser.parse("Vitamin \u00a9 200 mg");
+
+        assertEquals(1, result.size());
+        assertEquals("Vitamin C", result.getFirst().getName());
+        assertEquals(200.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_vitaminLowercaseCPrefixUppercaseC_parsedAsVitaminC() {
+        // "Vitamin cC" — OCR double-reads the C: lowercase artifact + actual uppercase.
+        // Seen on Bodylab labels where the 'C' has a stylised lowercase-c shadow.
+        List<IngredientDto> result = OcrTextParser.parse("Vitamin cC 229 mg");
+
+        assertEquals(1, result.size());
+        assertEquals("Vitamin C", result.getFirst().getName());
+        assertEquals(229.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_vitaminLowercasePrefixUppercaseLetter_generalCase() {
+        // Generalisation: any "Vitamin [lowercase][uppercase]" pattern → "Vitamin [uppercase]"
+        // e.g. "Vitamin eE" (rare but defensive) → "Vitamin E"
+        List<IngredientDto> result = OcrTextParser.parse("Vitamin eE 12 mg");
+
+        assertEquals(1, result.size());
+        assertEquals("Vitamin E", result.getFirst().getName());
+    }
+
+    @Test
     void parse_calclum_normalizedToCalcium() {
         List<IngredientDto> result = OcrTextParser.parse("Calclum 420 mg");
 
@@ -1654,6 +1685,35 @@ class OcrTextParserTest {
         assertEquals("Adenosin 5'-Triphosphat Dinatrium (ATP) (als PEAK ATP\u00ae)",
                 result.getFirst().getName());
         assertEquals(400.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_adenosin_realTesseractOutput_isDropped() {
+        // DOCUMENTATION TEST — explains why Adenosin is ONLY_IN_DB in real checks.
+        //
+        // Actual Tesseract output from crankultimate.png (verified 2026-05-15):
+        //   "Adenosin 5-Triphosphat Dinatrium (ATP) (als zoomg"
+        //
+        // Tesseract reads "PEAK ATP®) 400 mg" as "zoomg" — no digit precedes "mg",
+        // so INGREDIENT_LINE / TWO_COLUMN_LINE never match.  The line becomes a
+        // pendingName but is discarded when the next proper ingredient line arrives.
+        // Result: Adenosin completely absent from the OCR ingredient list → ONLY_IN_DB.
+        //
+        // WHY EARLIER TESTS DID NOT CATCH THIS:
+        // All previous Adenosin tests used IDEALISED multi-line splits
+        // ("Adenosin 5'-Triphosphat Dinatrium\n(ATP) (als PEAK ATP®) 400 mg")
+        // that never actually occur in practice.  No test ran Tesseract on the
+        // real image.  This test documents the real behaviour so regressions are visible.
+        String realOcrLine =
+                "Adenosin 5-Triphosphat Dinatrium (ATP) (als zoomg\n" +
+                "Bitterorangenschalen-Extrakt 350 mg";
+        List<IngredientDto> result = OcrTextParser.parse(realOcrLine);
+
+        List<String> names = result.stream().map(IngredientDto::getName).toList();
+        assertFalse(names.stream().anyMatch(n -> n.toLowerCase().contains("adenosin")),
+                "Adenosin with unreadable amount must NOT appear in parsed result");
+        assertTrue(names.contains("Bitterorangenschalen-Extrakt"),
+                "Next ingredient after dropped Adenosin line must still be parsed");
     }
 
     @Test
