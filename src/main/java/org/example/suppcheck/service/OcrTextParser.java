@@ -153,12 +153,18 @@ public final class OcrTextParser {
             // "\uFF3F" = U+FF3F FULLWIDTH LOW LINE (＿), OCR sometimes produces this instead of "_".
             // "\u201a" = U+201A SINGLE LOW-9 QUOTATION MARK (‚), misread from table decorations.
             // "{" = curly brace, OCR misread of rounded table borders (e.g. "{ davon Piperin").
-            line = line.replaceAll("^[|°·<_\uFF3F\\[\\]=\u201a\u2018\u2019}){]+\\s*", "");
+            // "@", "&" = OCR misread of table decorations / row markers.
+            // "\u00a9" = © (copyright symbol) at line start is an OCR misread (stripped before © → C conversion).
+            line = line.replaceAll("^[|°·<_\uFF3F\\[\\]=\u201a\u2018\u2019}){@&\u00a9]+\\s*", "");
+            // Strip lowercase letter + bracket(s) at line start: "x} Mangan" → "Mangan".
+            // OCR sometimes produces a misread cell-border char followed by } or similar brackets.
+            line = line.replaceAll("^[a-z][}){\\[\\]]+\\s*", "");
             // Strip a single letter at line start when followed by whitespace + uppercase:
             // OCR commonly misreads "|" (vertical table border) as "i", "l", "I", "J", or "!".
+            // Also strips "s" (e.g. "s Selen") — no real ingredient starts with standalone "s ".
             // Safe: real ingredient names do not begin with a standalone lowercase/uppercase
-            // letter followed by a space and an uppercase letter (e.g. "i Schisandra", "J Ginseng").
-            line = line.replaceAll("^[ilIJ!](?=\\s+[A-Z\u00c4\u00d6\u00dc])", "");
+            // letter followed by a space and an uppercase letter (e.g. "i Schisandra", "s Selen").
+            line = line.replaceAll("^[ilIJs!](?=\\s+[A-Z\u00c4\u00d6\u00dc])", "");
             // Strip a single uppercase letter + space that precedes "davon" — OCR table row
             // markers (e.g. "X", "N") are misread from borders or row numbers in ingredient tables.
             // "X davonPiperin 10,5 mg" → "davonPiperin 10,5 mg"
@@ -166,18 +172,20 @@ public final class OcrTextParser {
             line = line.replaceAll("^[A-Z]\\s+(?=(?i)davon)", "");
 
             // Normalize space-thousands separator: "4 500" → "4500"
-            // Negative lookbehind (?<!\p{L}) ensures we don't merge digit sequences
-            // that are part of a name token (e.g. "E6C6 506" or "VitaminB2 525").
-            line = line.replaceAll("(?<!\\p{L})(\\d) (\\d{3})(?=[^\\d]|$)", "$1$2");
+            // Negative lookbehind (?<![\p{L}\d]) ensures we don't merge digit sequences
+            // that are part of a name token (e.g. "E6C6 506", "VitaminB2 525", "B12 750").
+            line = line.replaceAll("(?<![\\p{L}\\d])(\\d) (\\d{3})(?=[^\\d]|$)", "$1$2");
 
             // ── OCR misreading corrections ────────────────────────────────────
             // © (copyright symbol) OCR'd instead of letter C — common on EU labels
             line = line.replace("\u00a9", "C");
             // Turkish dotless i (ı, U+0131) OCR'd instead of digit 1
             line = line.replace("\u0131", "1");
-            // Vitamin directly followed by letter/digit without space → insert space
-            // "VitaminE" → "Vitamin E", "VitaminB12" → "Vitamin B12"
-            line = line.replaceAll("(?i)\\bVitamin([ABCDEK0-9])", "Vitamin $1");
+             // Vitamin directly followed by letter without space → insert space (Step 1).
+             // Case of the captured letter is preserved; Steps 2+3 normalise it to uppercase.
+             // "VitaminE" → "Vitamin E", "VitaminB12" → "Vitamin B12",
+             // "Vitaminc" → "Vitamin c" (Step 3 will uppercase), "VitamincC" → "Vitamin cC" (Step 2 will fix)
+             line = line.replaceAll("(?i)\\bVitamin([ABCDEK])", "Vitamin $1");
             // Specific ingredient name OCR misreadings (common multi-lingual EU labels)
             line = line.replaceAll("(?i)\\bCalclum\\b", "Calcium");
             line = line.replaceAll("(?i)\\bSelenlum\\b", "Selenium");
@@ -195,6 +203,11 @@ public final class OcrTextParser {
             // "Vitamin cC" — OCR double-reads the C: once as a lowercase artifact, then uppercase.
             // Generalised: "Vitamin [lowercase-letter][uppercase-letter+optional-digit]" → "Vitamin [uppercase]"
             line = line.replaceAll("\\bVitamin\\s+[a-z]([A-Z]\\d*)\\b", "Vitamin $1");
+            // Step 3: isolated lowercase vitamin letter → uppercase: "Vitamin c" → "Vitamin C"
+            // (handles OCR output where the letter was not double-read but simply lowercased)
+            line = java.util.regex.Pattern.compile("\\bVitamin ([a-z])\\b")
+                    .matcher(line)
+                    .replaceAll(mr -> "Vitamin " + mr.group(1).toUpperCase(Locale.ROOT));
             // "Vitamin Da" → "Vitamin D3": digit 3 OCR'd as letter a after D
             line = line.replaceAll("(?i)\\bVitamin D[aA]\\b", "Vitamin D3");
             // "Lryrosin" → "L-Tyrosin": OCR confuses "T-" with "r" after "L"
@@ -205,9 +218,13 @@ public final class OcrTextParser {
             // immediately before the unit ("4meg") has no word-boundary before the
             // first unit letter.
             line = line.replaceAll("(?<![a-zA-Z])meg\\b", "mcg"); // "17,4meg" → "17,4mcg"
-            line = line.replaceAll("(?<![a-zA-Z])u9\\b",  "µg");  // "10u9"    → "10µg"
-            // µg OCR'd as "19" directly before "/" (e.g. "10 19/400 I.E.")
-            line = line.replaceAll("(\\d+)\\s+19(?=/)", "$1 µg"); // "10 19/…" → "10 µg/…"
+             line = line.replaceAll("(?<![a-zA-Z])u9\\b",  "µg");  // "10u9"    → "10µg"
+             // µg OCR'd as "19" directly before "/" (e.g. "10 19/400 I.E.")
+             line = line.replaceAll("(\\d+)\\s+19(?=/)", "$1 µg"); // "10 19/…" → "10 µg/…"
+             // µg OCR'd as "19" glued to decimal number without space
+             // e.g. "5,5019" → "5,50 µg" (Vitamin B12 two-column row on bodylabtricky.png)
+             // Negative lookahead avoids touching real decimals already followed by a unit.
+             line = line.replaceAll("(\\d+[.,]\\d+)19\\b(?!\\s*(?:g|mg|µg|mcg|ug)\\b)", "$1 µg");
             // Digit/letter confusions adjacent to a unit
             line = line.replaceAll("(?<=\\d)a(g|mg|mcg|ug)\\b",   ",4$1"); // "1amg"   → "1,4mg"
             line = line.replaceAll("(?<=\\d,)A(g|mg|mcg|ug)\\b",  "4$1");  // "21,Amg" → "21,4mg"
