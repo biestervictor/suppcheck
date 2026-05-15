@@ -2094,4 +2094,91 @@ class OcrTextParserTest {
                 .filter(i -> "Chrom".equals(i.getName())).findFirst().orElseThrow();
         assertEquals(0.2, chrom.getMg(), 0.0001);
     }
+
+    // -------------------------------------------------------------------------
+    // OCR unit misread: lowercase 'l' adjacent to unit letters
+    // -------------------------------------------------------------------------
+
+    @Test
+    void parse_lowercaseLBeforeUnit_treatedAsDigitOne() {
+        // "1lmg" — Tesseract sometimes reads "11mg" as "1lmg" because the second "1"
+        // looks like a lowercase "l".  The fix must convert "l" → "1" so that the
+        // ingredient and its amount are both captured correctly.
+        String ocr = "Schwarzer Pfeffer-Extrakt 1lmg\ndavon Piperin 10,5mg";
+        List<IngredientDto> result = OcrTextParser.parse(ocr);
+
+        List<String> names = result.stream().map(IngredientDto::getName).toList();
+        assertTrue(names.contains("Schwarzer Pfeffer-Extrakt"),
+                "Schwarzer Pfeffer-Extrakt must be parsed even with 1lmg");
+        IngredientDto pfeffer = result.stream()
+                .filter(i -> "Schwarzer Pfeffer-Extrakt".equals(i.getName()))
+                .findFirst().orElseThrow();
+        assertEquals(11.0, pfeffer.getMg(), 0.001, "1lmg → 11mg");
+        // davon Piperin must attach to Schwarzer Pfeffer-Extrakt, NOT to any previous ingredient
+        assertEquals(1, pfeffer.getSubIngredients().size(),
+                "davon Piperin must be sub of Schwarzer Pfeffer-Extrakt");
+        assertEquals("davon Piperin", pfeffer.getSubIngredients().getFirst().getName());
+        assertEquals(10.5, pfeffer.getSubIngredients().getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_curlyBraceBeforeSubIngredient_attachedToCorrectParent() {
+        // "{ davon Piperin 10,5mg" — "{" is an OCR table-border artefact that was previously
+        // NOT stripped in the main loop (only handled in isSubIngredient Case 4).
+        // After adding "{" to the leading-noise strip the sub-ingredient should still resolve
+        // correctly — and crucially, must attach to the LAST TOP-LEVEL ingredient, not to
+        // whatever pendingName happened to be set.
+        String ocr = "Schwarzer Pfeffer-Extrakt 11mg\n{ davon Piperin 10,5mg";
+        List<IngredientDto> result = OcrTextParser.parse(ocr);
+
+        IngredientDto pfeffer = result.stream()
+                .filter(i -> "Schwarzer Pfeffer-Extrakt".equals(i.getName()))
+                .findFirst().orElseThrow();
+        assertEquals(1, pfeffer.getSubIngredients().size());
+        assertEquals("davon Piperin", pfeffer.getSubIngredients().getFirst().getName());
+        assertEquals(10.5, pfeffer.getSubIngredients().getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_crank2RealOcr_panaxNotDuplicated_piperineCorrectParent() {
+        // Real Tesseract output from crank2.png (bottom portion of the label).
+        // Key bugs to guard against:
+        // 1. "Extrakt aus Panax notoginseng und Astragalus" must appear exactly ONCE.
+        // 2. "davon Piperin" must attach to "Schwarzer Pfeffer-Extrakt", not to Panax.
+        // 3. "Schwarzer Pfeffer-Extrakt 1lmg" must be parsed (lowercase l = digit 1 fix).
+        String ocr =
+                "a  Glucosyl Hesperidin (CITRAPEAK\u00ae) 200 mg\n" +
+                "Kiefernrinden-Extrakt 200 mg\n" +
+                "| Extrakt aus Panax notoginseng und Astragalus\n" +
+                "35mg\n" +
+                "f  membranceus\n" +
+                "CC\n" +
+                "Schwarzer Pfeffer-Extrakt 1lmg\n" +
+                "{ davon Piperin 10,5mg";
+
+        List<IngredientDto> result = OcrTextParser.parse(ocr);
+
+        // Panax appears exactly once
+        long panaxCount = result.stream()
+                .filter(i -> i.getName().contains("Panax"))
+                .count();
+        assertEquals(1, panaxCount, "Extrakt aus Panax must appear exactly once");
+
+        IngredientDto panax = result.stream()
+                .filter(i -> i.getName().contains("Panax"))
+                .findFirst().orElseThrow();
+        assertEquals(35.0, panax.getMg(), 0.001);
+        // Panax must NOT have davon Piperin as sub-ingredient
+        assertTrue(panax.getSubIngredients().isEmpty(),
+                "Panax must have no sub-ingredients (davon Piperin belongs to Schwarzer Pfeffer)");
+
+        // Schwarzer Pfeffer-Extrakt is parsed and has davon Piperin
+        IngredientDto pfeffer = result.stream()
+                .filter(i -> "Schwarzer Pfeffer-Extrakt".equals(i.getName()))
+                .findFirst().orElseThrow();
+        assertEquals(11.0, pfeffer.getMg(), 0.001);
+        assertEquals(1, pfeffer.getSubIngredients().size());
+        assertEquals("davon Piperin", pfeffer.getSubIngredients().getFirst().getName());
+        assertEquals(10.5, pfeffer.getSubIngredients().getFirst().getMg(), 0.001);
+    }
 }

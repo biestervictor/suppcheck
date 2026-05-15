@@ -211,7 +211,18 @@
 
         .check-modal-box input[type="file"] {
             display: block;
-            margin: 12px 0 18px 0;
+            margin: 12px 0 10px 0;
+        }
+
+        .check-paste-hint {
+            font-size: 0.82em;
+            color: #7a8aaa;
+            margin-bottom: 14px;
+        }
+
+        .check-modal-box.paste-active {
+            border: 2px solid #4a90d9;
+            background: #e6f0ff;
         }
 
         #check-status {
@@ -420,7 +431,8 @@
     <div class="check-modal-box">
         <h3 id="check-modal-title">Supplement prüfen</h3>
         <label for="check-image">Bild(er) hochladen (mehrere möglich):</label>
-        <input type="file" id="check-image" accept="image/*" multiple/>
+        <input type="file" id="check-image" accept="image/*" multiple onchange="startCheck()"/>
+        <div class="check-paste-hint">Tipp: Bild in Zwischenablage kopieren und <kbd>Strg+V</kbd> drücken, um es direkt einzufügen.</div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
             <button onclick="startCheck()" style="background:#2d6cdf; color:#fff; border:none; padding:8px 18px; border-radius:4px; cursor:pointer; font-size:0.95em;">🔍 Prüfen starten</button>
             <button onclick="closeCheckModal()" style="background:#aaa; color:#fff; border:none; padding:8px 18px; border-radius:4px; cursor:pointer; font-size:0.95em;">Abbrechen</button>
@@ -497,6 +509,41 @@
             status.style.color = '#c0392b';
         });
     }
+
+    // Paste handler: injects clipboard images into the check modal file input
+    // and auto-triggers startCheck() – but only when the modal is open.
+    (function() {
+        document.addEventListener('paste', function(event) {
+            if (!currentCheckId) return; // modal not open
+            var items = event.clipboardData && event.clipboardData.items;
+            if (!items) return;
+
+            var imageFiles = [];
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].type.startsWith('image/')) {
+                    var file = items[i].getAsFile();
+                    if (file) imageFiles.push(file);
+                }
+            }
+            if (imageFiles.length === 0) return;
+
+            var fileInput = document.getElementById('check-image');
+            var dt = new DataTransfer();
+            if (fileInput.files) {
+                for (var j = 0; j < fileInput.files.length; j++) {
+                    dt.items.add(fileInput.files[j]);
+                }
+            }
+            imageFiles.forEach(function(f) { dt.items.add(f); });
+            fileInput.files = dt.files;
+
+            var box = document.querySelector('.check-modal-box');
+            box.classList.add('paste-active');
+            setTimeout(function() { box.classList.remove('paste-active'); }, 800);
+
+            startCheck();
+        });
+    })();
 </script>
 <script>
     function adjustStock(btn, delta) {
