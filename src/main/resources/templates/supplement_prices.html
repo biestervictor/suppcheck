@@ -48,6 +48,65 @@
             background: #eaf1fb;
         }
 
+        /* ── Tabs ─────────────────────────────────────────────────────── */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 18px;
+            border-bottom: 2px solid #d0d8e8;
+        }
+
+        .tab-btn {
+            background: #eaf1fb;
+            color: #2d6cdf;
+            border: 1px solid #d0d8e8;
+            border-bottom: none;
+            padding: 8px 20px;
+            border-radius: 4px 4px 0 0;
+            cursor: pointer;
+            font-size: 0.95em;
+            font-weight: bold;
+            transition: background 0.15s;
+        }
+
+        .tab-btn.active {
+            background: #fff;
+            color: #1b4e9b;
+            border-bottom: 2px solid #fff;
+            margin-bottom: -2px;
+        }
+
+        .tab-btn:hover:not(.active) {
+            background: #d8e8f8;
+        }
+
+        /* ── Ingredient history ───────────────────────────────────────── */
+        .ing-history-entry {
+            margin-bottom: 28px;
+        }
+
+        .ing-history-date {
+            font-weight: bold;
+            color: #2d6cdf;
+            font-size: 1.0em;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #d0d8e8;
+            padding-bottom: 4px;
+        }
+
+        .ing-change-added    { color: #1a7a3a; background: #d5f5e3; }
+        .ing-change-removed  { color: #922b21; background: #fadbd8; }
+        .ing-change-modified { color: #935116; background: #fdebd0; }
+
+        .ing-change-added td:first-child::before    { content: '+ '; font-weight: bold; }
+        .ing-change-removed td:first-child::before  { content: '− '; font-weight: bold; }
+        .ing-change-modified td:first-child::before { content: '~ '; font-weight: bold; }
+
+        .ing-history-empty {
+            color: #888;
+            font-style: italic;
+            padding: 16px 0;
+        }
     </style>
     <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
 </head>
@@ -61,28 +120,89 @@
 </th:block>
 
 <div class="container">
-    <canvas id="priceChart" width="900" height="360"></canvas>
 
-    <table>
-        <thead>
-        <tr>
-            <th>Datum</th>
-            <th>Preis</th>
-            <th>OVP</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr th:each="p : ${supplement.prices}">
-            <td th:text="${#temporals.format(p.date, 'yyyy-MM-dd')}">2026-01-01</td>
-            <td th:text="${T(java.lang.String).format('%.2f €', p.price)}">0.00 €</td>
-            <td th:text="${p.ovp > 0 ? T(java.lang.String).format('%.2f €', p.ovp) : '-'}">0.00 €</td>
-        </tr>
-        </tbody>
-    </table>
+    <!-- ── Tab navigation ── -->
+    <div class="tabs">
+        <button class="tab-btn active" id="tab-btn-prices"
+                onclick="showTab('prices')">Preisentwicklung</button>
+        <button class="tab-btn" id="tab-btn-ingredients"
+                onclick="showTab('ingredients')">Zutaten-Entwicklung</button>
+    </div>
+
+    <!-- ── Tab: Preisentwicklung ── -->
+    <div id="tab-prices">
+        <canvas id="priceChart" width="900" height="360"></canvas>
+
+        <table>
+            <thead>
+            <tr>
+                <th>Datum</th>
+                <th>Preis</th>
+                <th>OVP</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="p : ${supplement.prices}">
+                <td th:text="${#temporals.format(p.date, 'yyyy-MM-dd')}">2026-01-01</td>
+                <td th:text="${T(java.lang.String).format('%.2f €', p.price)}">0.00 €</td>
+                <td th:text="${p.ovp > 0 ? T(java.lang.String).format('%.2f €', p.ovp) : '-'}">0.00 €</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ── Tab: Zutaten-Entwicklung ── -->
+    <div id="tab-ingredients" style="display:none">
+
+        <th:block th:if="${ingredientHistoryReversed.isEmpty()}">
+            <p class="ing-history-empty">Noch keine Zutatenänderungen erfasst.
+                Änderungen werden beim nächsten Speichern automatisch aufgezeichnet.</p>
+        </th:block>
+
+        <!-- Entries in reverse chronological order (newest first) -->
+        <th:block th:each="entry, stat : ${ingredientHistoryReversed}">
+            <div class="ing-history-entry">
+                <div class="ing-history-date"
+                     th:text="${#temporals.format(entry.date, 'dd.MM.yyyy')}">01.01.2026</div>
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Zutat</th>
+                        <th>Änderung</th>
+                        <th>Vorher</th>
+                        <th>Nachher</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="c : ${entry.changes}"
+                        th:classappend="${c.changeType == 'ADDED'} ? 'ing-change-added' :
+                                        (${c.changeType == 'REMOVED'} ? 'ing-change-removed' : 'ing-change-modified')">
+                        <td th:text="${c.name}">L-Leucin</td>
+                        <td th:text="${c.changeType == 'ADDED'} ? 'Hinzugefügt' :
+                                      (${c.changeType == 'REMOVED'} ? 'Entfernt' : 'Wert geändert')">-</td>
+                        <td th:text="${c.oldMg != null} ? ${#numbers.formatDecimal(c.oldMg, 1, 3)} + ' mg' : '–'">–</td>
+                        <td th:text="${c.newMg != null} ? ${#numbers.formatDecimal(c.newMg, 1, 3)} + ' mg' : '–'">–</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </th:block>
+    </div>
+
 </div>
 
 <script th:inline="javascript">
     /*<![CDATA[*/
+    // ── Tab switching ──────────────────────────────────────────────────────
+    function showTab(name) {
+        document.getElementById('tab-prices').style.display     = name === 'prices'      ? '' : 'none';
+        document.getElementById('tab-ingredients').style.display = name === 'ingredients' ? '' : 'none';
+        document.getElementById('tab-btn-prices').classList.toggle('active',     name === 'prices');
+        document.getElementById('tab-btn-ingredients').classList.toggle('active', name === 'ingredients');
+        if (name === 'prices') draw();
+    }
+
+    // ── Price chart (unchanged) ────────────────────────────────────────────
     const prices = /*[[${supplement.prices}]]*/ [];
 
     const canvas = document.getElementById('priceChart');
@@ -144,13 +264,11 @@
         const plotH = (h - padding - bottomPadding);
         const xStep = prices.length === 1 ? 0 : plotW / (prices.length - 1);
 
-        // Y-axis labels
         ctx.fillStyle = '#333';
         ctx.font = '12px Arial';
         ctx.fillText(max.toFixed(2) + ' €', 6, padding + 4);
         ctx.fillText(min.toFixed(2) + ' €', 6, h - bottomPadding);
 
-        // Draw a line for a given value extractor
         function drawLine(extractFn, color) {
             ctx.strokeStyle = color;
             ctx.lineWidth = 2;
@@ -165,18 +283,15 @@
             });
             ctx.stroke();
 
-            // Points + labels
             prices.forEach((p, i) => {
                 const val = extractFn(p);
                 if (val <= 0) return;
                 const x = padding + i * xStep;
                 const y = (h - bottomPadding) - ((val - min) / range) * plotH;
-
                 ctx.fillStyle = color;
                 ctx.beginPath();
                 ctx.arc(x, y, 4, 0, Math.PI * 2);
                 ctx.fill();
-
                 ctx.font = 'bold 11px Arial';
                 const label = val.toFixed(2) + ' €';
                 const lw = ctx.measureText(label).width;
@@ -184,7 +299,6 @@
             });
         }
 
-        // Date labels on x-axis
         prices.forEach((p, i) => {
             const x = padding + i * xStep;
             ctx.fillStyle = '#333';
@@ -199,7 +313,6 @@
         drawLine(p => Number(p.price), '#2d6cdf');
         drawLine(p => Number(p.ovp), '#e68a00');
 
-        // Legend
         const legends = [
             { label: 'Preis', color: '#2d6cdf' },
             { label: 'OVP', color: '#e68a00' }

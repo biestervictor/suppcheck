@@ -40,7 +40,7 @@ jobs:
           cache: maven
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: java
 
@@ -56,6 +56,8 @@ jobs:
           mvn versions:set -DnewVersion="${NEW_VERSION}" -DgenerateBackupPoms=false -q
 
       - name: Build with Maven
+        env:
+          MAVEN_OPTS: "-Duser.timezone=Europe/Berlin"
         run: mvn clean install -Dspring.profiles.active=ci
 
       - name: Extract version from pom.xml
@@ -66,7 +68,7 @@ jobs:
           echo "Extracted version: $VERSION"
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           output: results.sarif
 

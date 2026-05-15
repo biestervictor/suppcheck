@@ -30,6 +30,12 @@ public class Supplement {
    */
   private List<PriceEntry> prices = new ArrayList<>();
 
+  /**
+   * Ingredient change history. Each entry captures the diff from one save event.
+   * Newest entries are appended at the end.
+   */
+  private List<IngredientHistoryEntry> ingredientHistory = new ArrayList<>();
+
 
   /**
    * Price coming from forms/DTOs. This is NOT persisted and must be merged into {@link #prices} by the service.
@@ -55,6 +61,26 @@ public class Supplement {
    * Ist MHD-Produkt (Mindesthaltbarkeitsdatum-Ware).
    */
   private boolean mhdProdukt;
+
+  /**
+   * True wenn dieses Supplement nicht täglich eingenommen wird.
+   * In diesem Fall gibt {@link #consumptionIntervalDays} an, alle wie viele Tage
+   * eine Portion eingenommen wird.
+   */
+  private boolean nonDaily = false;
+
+  /**
+   * Einnahmeintervall in Tagen (nur relevant wenn {@link #nonDaily} true ist).
+   * Beispiel: 3 = alle 3 Tage. Minimaler sinnvoller Wert: 2.
+   * Für tägliche Einnahme wird immer 1 angenommen.
+   */
+  private int consumptionIntervalDays = 1;
+
+  /**
+   * Lagerbestand (Anzahl Portionen/Packungen). Kann nicht unter 0 fallen.
+   * Dokumente ohne dieses Feld defaulten auf 0.
+   */
+  private int stock = 0;
 
   /**
    * Returns the latest historical price if present.

@@ -22,4 +22,14 @@ public class SupplementSaveDto {
   private Double discount;
   private boolean mhdProdukt;
 
+  /**
+   * True wenn dieses Supplement nicht täglich eingenommen wird.
+   */
+  private boolean nonDaily;
+
+  /**
+   * Einnahmeintervall in Tagen (nur relevant wenn nonDaily = true).
+   */
+  private int consumptionIntervalDays = 1;
+
 }

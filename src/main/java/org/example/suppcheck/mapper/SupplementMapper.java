@@ -26,6 +26,8 @@ public final class SupplementMapper {
     supp.setOvp(dto.getOvp() != null ? dto.getOvp() : 0d);
     supp.setDiscount(dto.getDiscount());
     supp.setMhdProdukt(dto.isMhdProdukt());
+    supp.setNonDaily(dto.isNonDaily());
+    supp.setConsumptionIntervalDays(dto.getConsumptionIntervalDays() > 1 ? dto.getConsumptionIntervalDays() : 1);
 
     List<Ingredient> ingredients = new ArrayList<>();
     if (dto.getIngredients() != null) {

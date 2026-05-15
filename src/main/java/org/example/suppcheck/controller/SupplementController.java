@@ -2,18 +2,27 @@ package org.example.suppcheck.controller;
 
 import java.util.*;
 
+import org.example.suppcheck.dto.CheckResult;
+import org.example.suppcheck.dto.IngredientDto;
 import org.example.suppcheck.dto.IngredientWithSources;
+import org.example.suppcheck.dto.OcrResult;
 import org.example.suppcheck.dto.SupplementSaveDto;
 import org.example.suppcheck.mapper.SupplementMapper;
 import org.example.suppcheck.model.Ingredient;
+import org.example.suppcheck.model.IngredientHistoryEntry;
 import org.example.suppcheck.model.Shop;
 import org.example.suppcheck.model.Supplement;
 import org.example.suppcheck.model.SupplementType;
 import org.example.suppcheck.service.DailyIntakeSnapshotService;
+import org.example.suppcheck.service.CheckService;
+import org.example.suppcheck.service.OcrService;
 import org.example.suppcheck.service.SupplementService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Controller for the Supplement entity.
@@ -28,22 +37,40 @@ public class SupplementController {
 
     private final SupplementService supplementService;
     private final DailyIntakeSnapshotService snapshotService;
+    private final OcrService ocrService;
+    private final CheckService checkService;
 
     /**
      * Constructor for SupplementController.
      *
      * @param supplementService the SupplementService instance
      * @param snapshotService   the DailyIntakeSnapshotService instance
+     * @param ocrService        the OcrService instance
      */
     @SuppressWarnings("java:S2384")
     public SupplementController(SupplementService supplementService,
-                                DailyIntakeSnapshotService snapshotService) {
+                                DailyIntakeSnapshotService snapshotService,
+                                OcrService ocrService,
+                                CheckService checkService) {
         this.supplementService = supplementService;
         this.snapshotService = snapshotService;
+        this.ocrService = ocrService;
+        this.checkService = checkService;
     }
 
-    private void addFormAttributes(Model model) {
-        model.addAttribute("types", Arrays.stream(SupplementType.values())
+    /**
+     * Calculates the effective daily price for a supplement.
+     * For non-daily supplements the per-portion cost is divided by the consumption interval.
+     */
+    private static double pricePerDay(Supplement supp) {
+        double perPortion = supp.getPrice() / supp.getPortionSize();
+        if (supp.isNonDaily() && supp.getConsumptionIntervalDays() > 1) {
+            return perPortion / supp.getConsumptionIntervalDays();
+        }
+        return perPortion;
+    }
+
+    private void addFormAttributes(Model model) {        model.addAttribute("types", Arrays.stream(SupplementType.values())
                 .map(SupplementType::name)
                 .toList());
         model.addAttribute(SHOPS, Arrays.stream(Shop.values())
@@ -92,6 +119,11 @@ public class SupplementController {
         Supplement supplement = supplementService.getSupplementById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Supplement mit ID " + id + " nicht gefunden"));
         model.addAttribute(MODEL_SUPPLEMENT, supplement);
+        // Ingredient history in reverse chronological order (newest first)
+        List<IngredientHistoryEntry> historyReversed = new ArrayList<>(
+                supplement.getIngredientHistory() != null ? supplement.getIngredientHistory() : List.of());
+        Collections.reverse(historyReversed);
+        model.addAttribute("ingredientHistoryReversed", historyReversed);
         // Auto-Snapshot: speichert den aktuellen Intake-Stand (max. 1× pro Tag)
         snapshotService.saveSnapshot(supplementService.getAllSupplements());
         return "supplement_prices";
@@ -127,15 +159,15 @@ public class SupplementController {
         for (Supplement supp : supplements) {
 
 
-            if (!supp.isInactive() && supp.getSupplementType().equals(SupplementType.BASIC.name())) {
-                preisProTag += supp.getPrice() / supp.getPortionSize();
+        if (!supp.isInactive() && supp.getSupplementType().equals(SupplementType.BASIC.name())) {
+                preisProTag += pricePerDay(supp);
             } else if (!supp.isInactive() && supp.getSupplementType().equals(SupplementType.EXTENDED.name())) {
-                preisProTagExtended += supp.getPrice() / supp.getPortionSize();
+                preisProTagExtended += pricePerDay(supp);
             } else if (!supp.isInactive() && supp.getSupplementType().equals(SupplementType.WHEY.name())) {
-                avgWheyPrice += supp.getPrice() / supp.getPortionSize();
+                avgWheyPrice += pricePerDay(supp);
                 wheyCount++;
             } else if (!supp.isInactive()) {
-                preisWorkout += supp.getPrice() / supp.getPortionSize();
+                preisWorkout += pricePerDay(supp);
             }
 
 
@@ -190,6 +222,11 @@ public class SupplementController {
     public String saveSupplement(@ModelAttribute SupplementSaveDto supplementDto) {
         Supplement supplement = SupplementMapper.toEntity(supplementDto);
         supplementService.saveSupplement(supplement);
+        // On update redirect back to the edit page so the user can confirm their changes.
+        // On create, go to the new-supplement form (ready for the next entry).
+        if (supplement.getId() != null) {
+            return "redirect:/supplements/edit/" + supplement.getId() + "?success";
+        }
         return "redirect:/supplements/new?success";
     }
 
@@ -208,5 +245,112 @@ public class SupplementController {
         model.addAttribute("supplements", supplements);
         return "supplements_compare";
     }
+
+    /**
+     * Returns the union of all ingredient names from active WHEY supplements as
+     * a JSON template (amounts set to 0).  Used by the form JS to pre-fill the
+     * ingredient list when the user selects the WHEY type.
+     *
+     * @return list of ingredient DTOs with name populated and mg = 0
+     */
+    @GetMapping(value = "/api/whey-template", produces = "application/json")
+    @ResponseBody
+    public List<IngredientDto> getWheyTemplate() {
+        return supplementService.getWheyIngredientTemplate();
+    }
+
+    /**
+     * Accepts one or more image uploads, runs Tesseract OCR on each, and returns
+     * the merged + deduplicated ingredient list as JSON so the form can
+     * auto-populate the ingredient rows.
+     *
+     * <p>When multiple images are provided (e.g. a wide-angle shot and a
+     * zoomed-in crop of the small-print section), OCR accuracy improves because
+     * Tesseract performs better on larger characters.  Duplicate ingredient
+     * names that appear in several images are silently collapsed into one entry.</p>
+     *
+     * @param files one or more uploaded nutrition-label images
+     * @return 200 with merged ingredient list, or 500 on OCR failure
+     */
+    @PostMapping(value = "/ocr-extract", produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<OcrResult> ocrExtract(
+            @RequestParam("image") List<MultipartFile> files) {
+        try {
+            OcrResult result = ocrService.extractIngredients(files);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Runs OCR on the uploaded image(s) and compares the result against the
+     * supplement's stored ingredient list.  Nothing is saved – the response is
+     * purely informational so the UI can highlight discrepancies.
+     *
+     * @param id    the supplement to check
+     * @param files one or more nutrition-label images
+     * @return 200 with {@link CheckResult} JSON, or 500 on failure
+     */
+    @PostMapping(value = "/check/{id}", produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<CheckResult> checkSupplement(
+            @PathVariable String id,
+            @RequestParam("image") List<MultipartFile> files) {
+        try {
+            Supplement supplement = supplementService.getSupplementById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Supplement mit ID " + id + " nicht gefunden"));
+            OcrResult ocrResult = ocrService.extractIngredients(files);
+            CheckResult result = checkService.compare(supplement, ocrResult);
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Adjusts the stock of a supplement by delta (positive = add, negative = remove).
+     * Stock is floored at 0.
+     *
+     * @param id    the supplement id
+     * @param delta the amount to add or remove
+     * @return JSON with the new stock value, e.g. {"stock": 3}
+     */
+    @PostMapping(value = "/{id}/stock", produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<Map<String, Integer>> adjustStock(
+            @PathVariable String id,
+            @RequestParam int delta) {
+        try {
+            int newStock = supplementService.adjustStock(id, delta);
+            return ResponseEntity.ok(Map.of("stock", newStock));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    /**
+     * Returns the full ingredient-change history for a supplement, newest last.
+     *
+     * @param id the supplement id
+     * @return JSON list of {@link IngredientHistoryEntry}
+     */
+    @GetMapping(value = "/{id}/ingredient-history", produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<List<IngredientHistoryEntry>> getIngredientHistory(
+            @PathVariable String id) {
+        return supplementService.getSupplementById(id)
+                .map(s -> {
+                    List<IngredientHistoryEntry> hist = s.getIngredientHistory() != null
+                            ? s.getIngredientHistory()
+                            : List.of();
+                    return ResponseEntity.ok(hist);
+                })
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+    }
 }
+
 

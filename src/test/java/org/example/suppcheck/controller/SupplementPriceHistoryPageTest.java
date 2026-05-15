@@ -12,6 +12,8 @@ import org.example.suppcheck.model.DailyIntakeSnapshot;
 import org.example.suppcheck.model.PriceEntry;
 import org.example.suppcheck.model.Supplement;
 import org.example.suppcheck.service.DailyIntakeSnapshotService;
+import org.example.suppcheck.service.CheckService;
+import org.example.suppcheck.service.OcrService;
 import org.example.suppcheck.service.SupplementService;
 import org.junit.jupiter.api.Test;
 import org.springframework.ui.ConcurrentModel;
@@ -22,7 +24,9 @@ class SupplementPriceHistoryPageTest {
   void showPriceHistory_setsSupplementInModel_andReturnsViewName() {
     SupplementService supplementService = mock(SupplementService.class);
     DailyIntakeSnapshotService snapshotService = mock(DailyIntakeSnapshotService.class);
-    SupplementController controller = new SupplementController(supplementService, snapshotService);
+    OcrService ocrService = mock(OcrService.class);
+    CheckService checkService = mock(CheckService.class);
+    SupplementController controller = new SupplementController(supplementService, snapshotService, ocrService, checkService);
 
     Supplement supp = new Supplement();
     supp.setId("id-1");

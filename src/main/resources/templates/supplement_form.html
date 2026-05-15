@@ -51,6 +51,104 @@
         .subingredient-list {
             margin-left: 32px;
         }
+        .ocr-section {
+            background: #f0f4ff;
+            border: 1px solid #c0d0f0;
+            border-radius: 5px;
+            padding: 14px 18px;
+            margin-bottom: 18px;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .ocr-section.paste-active {
+            border-color: #4a90d9;
+            background: #e6f0ff;
+        }
+        .ocr-paste-hint {
+            font-size: 0.82em;
+            color: #7a8aaa;
+            margin-top: 5px;
+        }
+        .ocr-section label {
+            display: block;
+            margin-bottom: 8px;
+        }
+        #ocr-status {
+            margin-left: 10px;
+            font-style: italic;
+            color: #555;
+        }
+        .whey-hint {
+            display: none;
+            background: #fffbe6;
+            border: 1px solid #ffe58f;
+            border-radius: 4px;
+            padding: 6px 12px;
+            margin-top: 6px;
+            font-size: 0.9em;
+            color: #7a5f00;
+        }
+
+        /* ---- Check result annotations ---- */
+        .check-banner {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 6px;
+            padding: 10px 16px;
+            margin-bottom: 18px;
+            font-size: 0.95em;
+        }
+
+        .check-hint {
+            display: inline-block;
+            margin-left: 8px;
+            padding: 2px 9px;
+            border-radius: 10px;
+            font-size: 0.82em;
+            font-weight: bold;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        .check-match     { background: #d5f5e3; color: #1e8449; border: 1px solid #a9dfbf; }
+        .check-mismatch  { background: #fdebd0; color: #c0392b; border: 1px solid #f5cba7; }
+        .check-only-db   { background: #f2f3f4; color: #7f8c8d; border: 1px solid #d5d8dc; }
+
+        .check-extra-section {
+            background: #fef9e7;
+            border: 1px solid #f39c12;
+            border-radius: 6px;
+            padding: 10px 16px;
+            margin-top: 12px;
+            font-size: 0.9em;
+            color: #7d6608;
+        }
+
+        .ocr-recognized-section {
+            background: #f0f8ff;
+            border: 1px solid #b0d0f0;
+            border-radius: 6px;
+            padding: 10px 16px;
+            margin-top: 12px;
+            font-size: 0.9em;
+        }
+
+        .ocr-recognized-section summary {
+            cursor: pointer;
+            color: #2d6cdf;
+            font-weight: bold;
+        }
+
+        .ocr-add-checkbox-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin: 4px 0;
+        }
+
+        .ocr-add-checkbox-row label {
+            cursor: pointer;
+            font-weight: normal;
+        }
     </style>
     <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
 </head>
@@ -81,18 +179,29 @@
     <input id="portions" required th:field="*{portionSize}" type="number"/><br/><br/>
     <br/><br/>
     <label for="type">Typ:</label>
-    <select id="type" th:field="*{supplementType}">
+    <select id="type" th:field="*{supplementType}" onchange="onTypeChanged(this.value)">
         <option th:value="''" th:text="'-- bitte wählen --'"></option>
         <option th:each="t : ${types}"
                 th:value="${t}"
                 th:text="${t}">
         </option>
     </select>
+    <div id="whey-hint" class="whey-hint">
+        Zutaten wurden aus vorhandenen Whey-Produkten vorbelegt – bitte Mengen (mg) ausfüllen.
+    </div>
     <br/><br/>
     <label for="isInactive">Inaktiv:</label>
     <input id="isInactive" th:field="*{inactive}" type="checkbox"/><br/><br/>
     <label for="mhdProdukt">MHD-Produkt:</label>
     <input id="mhdProdukt" th:field="*{mhdProdukt}" type="checkbox"/><br/><br/>
+    <label for="nonDaily">Nicht täglich:</label>
+    <input id="nonDaily" th:field="*{nonDaily}" type="checkbox" onchange="toggleIntervalField(this.checked)"/><br/><br/>
+    <div id="interval-container" th:style="${supplement.nonDaily} ? 'display:block' : 'display:none'">
+        <label for="consumptionIntervalDays">Einnahme alle X Tage:</label>
+        <input id="consumptionIntervalDays" th:field="*{consumptionIntervalDays}" type="number" min="2" step="1" style="width:80px;"
+               th:disabled="${!supplement.nonDaily}"/>
+        <span style="color:#777;font-size:0.9em;margin-left:6px;">Tage (z.B. 3 = alle 3 Tage)</span><br/><br/>
+    </div>
 
     <div id="ingredients-list">
         <div class="ingredient-row" th:each="ingredient, iStat : *{ingredients}">
@@ -114,6 +223,21 @@
 
     <button onclick="addIngredient()" type="button">Zutat hinzufügen</button>
     <button type="submit">Speichern</button>
+
+    <br/><br/>
+    <div class="ocr-section" id="ocr-section">
+        <label>Bilder hochladen (mehrere möglich für bessere Erkennung kleiner Zeichen):</label>
+        <input type="file" id="ocr-image" accept="image/*" multiple onchange="autoRunOcr()"/>
+        <button type="button" onclick="extractFromImage()">Zutaten erkennen</button>
+        <button type="button" th:if="*{id != null}" onclick="checkFromImage()"
+                style="background:#f5a623; color:#fff; margin-left:6px;">🔍 Zutaten prüfen</button>
+        <span id="ocr-status"></span>
+        <div class="ocr-paste-hint">Tipp: Bild in Zwischenablage kopieren und <kbd>Strg+V</kbd> drücken, um es direkt einzufügen.</div>
+        <details id="ocr-raw-box" style="display:none; margin-top:10px;">
+            <summary style="cursor:pointer; color:#555; font-style:italic;">OCR-Rohtext anzeigen</summary>
+            <pre id="ocr-raw-text" style="background:#f8f8f8; border:1px solid #ddd; padding:8px; font-size:0.8em; white-space:pre-wrap; max-height:200px; overflow-y:auto; margin-top:6px;"></pre>
+        </details>
+    </div>
 </form>
 
 <th:block th:if="${param.success}">
@@ -187,8 +311,6 @@
         updateIngredientIndices();
     }
 
-    window.addEventListener('DOMContentLoaded', updateIngredientIndices);
-
     // Preis automatisch berechnen: OVP * (1 - Rabatt/100)
     function calculatePrice() {
         const ovpField = document.getElementById('ovp');
@@ -206,6 +328,467 @@
 
     document.getElementById('ovp').addEventListener('blur', calculatePrice);
     document.getElementById('discount').addEventListener('blur', calculatePrice);
+
+    // --- Whey Auto-fill ---
+
+    function onTypeChanged(value) {
+        if (value !== 'WHEY') return;
+
+        fetch('/supplements/api/whey-template')
+            .then(function(r) {
+                if (!r.ok) throw new Error('Keine Vorlage verfügbar');
+                return r.json();
+            })
+            .then(function(ingredients) {
+                if (!ingredients || ingredients.length === 0) return;
+                const list = document.getElementById('ingredients-list');
+                list.innerHTML = '';
+                ingredients.forEach(function(ing) {
+                    addIngredientFromTemplate(ing);
+                });
+                updateIngredientIndices();
+                document.getElementById('whey-hint').style.display = 'block';
+            })
+            .catch(function() {
+                // No existing Whey supplements – silently ignore, user fills manually
+            });
+    }
+
+    function addIngredientFromTemplate(ing) {
+        const list = document.getElementById('ingredients-list');
+        const div = document.createElement('div');
+        div.className = 'ingredient-row';
+
+        const subHtml = (ing.subIngredients || []).map(function(sub) {
+            return '<div>' +
+                '<input type="text" placeholder="Sub-Name" value="' + escapeHtml(sub.name) + '" />' +
+                '<input type="number" step="any" placeholder="mg" class="subingredient-mg" value="' + (sub.mg != null ? sub.mg : '') + '" />' +
+                '<button type="button" onclick="removeSubIngredient(this)">Entfernen</button>' +
+                '</div>';
+        }).join('');
+
+        div.innerHTML =
+            '<input type="text" placeholder="Name" value="' + escapeHtml(ing.name) + '" />' +
+            '<input type="number" step="any" placeholder="mg" class="ingredient-mg" value="' + (ing.mg != null ? ing.mg : '') + '" />' +
+            '<button type="button" onclick="removeIngredient(this)">Entfernen</button>' +
+            '<div class="subingredient-list">' + subHtml + '</div>' +
+            '<button type="button" onclick="addSubIngredient(this)">Sub-Ingridient hinzufügen</button>';
+
+        list.appendChild(div);
+    }
+
+    // --- OCR Image Extraction ---
+
+    function extractFromImage() {
+        const fileInput = document.getElementById('ocr-image');
+        const status = document.getElementById('ocr-status');
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            status.textContent = 'Bitte zuerst ein Bild auswählen.';
+            return;
+        }
+
+        const count = fileInput.files.length;
+        status.textContent = count > 1
+            ? 'Wird erkannt… (' + count + ' Bilder)'
+            : 'Wird erkannt…';
+
+        const formData = new FormData();
+        for (let i = 0; i < count; i++) {
+            formData.append('image', fileInput.files[i]);
+        }
+
+        fetch('/supplements/ocr-extract', {
+            method: 'POST',
+            body: formData
+        })
+        .then(function(r) {
+            if (!r.ok) throw new Error('OCR-Fehler (HTTP ' + r.status + ')');
+            return r.json();
+        })
+        .then(function(result) {
+            const ingredients = result.ingredients || [];
+            const rawText = result.rawText || '';
+
+            // Show raw text in collapsible box
+            const rawBox = document.getElementById('ocr-raw-box');
+            const rawPre = document.getElementById('ocr-raw-text');
+            if (rawText && rawBox) {
+                rawPre.textContent = rawText;
+                rawBox.style.display = 'block';
+            }
+
+            if (!ingredients || ingredients.length === 0) {
+                status.textContent = 'Keine Zutaten erkannt – bitte manuell eintragen.';
+                return;
+            }
+            const list = document.getElementById('ingredients-list');
+            list.innerHTML = '';
+            ingredients.forEach(function(ing) {
+                addIngredientFromTemplate(ing);
+            });
+            updateIngredientIndices();
+            const info = count > 1 ? ' (aus ' + count + ' Bildern, Duplikate entfernt)' : '';
+            status.textContent = ingredients.length + ' Zutat(en) erkannt und eingetragen' + info + '.';
+        })
+        .catch(function(err) {
+            status.textContent = 'Fehler: ' + err.message;
+        });
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;')
+                  .replace(/"/g, '&quot;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;');
+    }
+
+    function toggleIntervalField(checked) {
+        var container = document.getElementById('interval-container');
+        var input = document.getElementById('consumptionIntervalDays');
+        container.style.display = checked ? 'block' : 'none';
+        input.disabled = !checked;
+    }
+
+    // =====================================================================
+    // Strg+V — Clipboard-Bild direkt in die OCR-Section einfügen
+    // =====================================================================
+
+    // Runs the appropriate OCR action depending on context:
+    // - Editing an existing supplement (has ID) → checkFromImage()
+    // - Creating a new supplement               → extractFromImage()
+    function autoRunOcr() {
+        if (getSupplementId()) {
+            checkFromImage();
+        } else {
+            extractFromImage();
+        }
+    }
+
+    (function() {
+        document.addEventListener('paste', function(event) {
+            var items = event.clipboardData && event.clipboardData.items;
+            if (!items) return;
+
+            var imageFiles = [];
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].type.startsWith('image/')) {
+                    var file = items[i].getAsFile();
+                    if (file) imageFiles.push(file);
+                }
+            }
+            if (imageFiles.length === 0) return;
+
+            // Transfer clipboard images into the file input
+            var fileInput = document.getElementById('ocr-image');
+            var dt = new DataTransfer();
+            // Keep any previously selected files too
+            if (fileInput.files) {
+                for (var j = 0; j < fileInput.files.length; j++) {
+                    dt.items.add(fileInput.files[j]);
+                }
+            }
+            imageFiles.forEach(function(f) { dt.items.add(f); });
+            fileInput.files = dt.files;
+
+            // Auto flash feedback
+            var section = document.getElementById('ocr-section');
+            section.classList.add('paste-active');
+            setTimeout(function() { section.classList.remove('paste-active'); }, 800);
+
+            // Auto-trigger OCR: check mode when editing an existing supplement,
+            // extract mode when creating a new one.
+            autoRunOcr();
+        });
+    })();
+
+    // =====================================================================
+    // Check mode – compare stored ingredients against a label image scan
+    // =====================================================================
+
+    // Supplement ID is in the hidden input (only present when editing).
+    function getSupplementId() {
+        var el = document.querySelector('input[type="hidden"][name="id"]');
+        return el ? el.value : null;
+    }
+
+    // Called from the "Zutaten prüfen" button in the OCR section.
+    function checkFromImage() {
+        var fileInput = document.getElementById('ocr-image');
+        var status = document.getElementById('ocr-status');
+        var supplementId = getSupplementId();
+
+        if (!supplementId) {
+            status.textContent = 'Prüfen nur beim Bearbeiten möglich.';
+            return;
+        }
+        if (!fileInput.files || fileInput.files.length === 0) {
+            status.textContent = 'Bitte zuerst ein Bild auswählen.';
+            return;
+        }
+
+        var count = fileInput.files.length;
+        status.textContent = count > 1 ? 'Wird geprüft… (' + count + ' Bilder)' : 'Wird geprüft…';
+        status.style.color = '#555';
+
+        var formData = new FormData();
+        for (var i = 0; i < count; i++) {
+            formData.append('image', fileInput.files[i]);
+        }
+
+        fetch('/supplements/check/' + supplementId, {
+            method: 'POST',
+            body: formData
+        })
+        .then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
+        .then(function(result) {
+            // Show raw text
+            var rawBox = document.getElementById('ocr-raw-box');
+            var rawPre = document.getElementById('ocr-raw-text');
+            if (result.rawText && rawBox) {
+                rawPre.textContent = result.rawText;
+                rawBox.style.display = 'block';
+            }
+
+            if (!result.hasDiscrepancies) {
+                status.textContent = '✅ Alle Zutaten stimmen überein!';
+                status.style.color = '#27ae60';
+            } else {
+                status.textContent = '⚠️ Auffälligkeiten gefunden – siehe Markierungen unten.';
+                status.style.color = '#e67e22';
+            }
+            applyCheckAnnotations(result);
+        })
+        .catch(function(err) {
+            status.textContent = 'Fehler: ' + err.message;
+            status.style.color = '#c0392b';
+        });
+    }
+
+    // On page load: check if the list page stored a check result for us.
+    window.addEventListener('DOMContentLoaded', function() {
+        updateIngredientIndices();
+
+        var supplementId = getSupplementId();
+        if (!supplementId) return;
+
+        var key = 'checkResult-' + supplementId;
+        var stored = sessionStorage.getItem(key);
+        if (!stored) return;
+        sessionStorage.removeItem(key); // consume once
+        try {
+            applyCheckAnnotations(JSON.parse(stored));
+        } catch (e) { /* ignore malformed data */ }
+    });
+
+    // Normalises an ingredient name for fuzzy lookup – mirrors CheckService.normalize() in Java:
+    //  1. strip parenthetical content  (HydroPrime®)
+    //  2. replace hyphens with spaces  L-Citrullin → L Citrullin
+    //  3. strip leading "davon "       davon Piperin → Piperin
+    //  4. lowercase, trim, collapse whitespace
+    function normalizeIngName(name) {
+        if (!name) return '';
+        return name
+            .replace(/\s*\([^)]*\)/g, '')
+            .replace(/-/g, ' ')
+            .replace(/^davon\s+/i, '')
+            .toLowerCase()
+            .trim()
+            .replace(/\s+/g, ' ');
+    }
+
+    // Storage for ONLY_IN_OCR items so checkbox handlers can access them by index
+    var _ocrOnlyIngredients = [];
+
+    function applyCheckAnnotations(checkResult) {
+        // Remove any previous annotations so re-checking doesn't stack them.
+        document.querySelectorAll('.check-hint, .check-banner, .check-extra-section, .ocr-recognized-section').forEach(function(el) {
+            el.remove();
+        });
+        _ocrOnlyIngredients = [];
+
+        // Build lookup map: normalised name → result
+        var resultMap = {};
+        (checkResult.ingredientResults || []).forEach(function(r) {
+            resultMap[normalizeIngName(r.name)] = r;
+        });
+
+        // Annotate each ingredient row
+        document.querySelectorAll('#ingredients-list .ingredient-row').forEach(function(row) {
+            var nameInput = row.querySelector('input[type="text"]:not([placeholder="Sub-Name"])');
+            if (!nameInput || !nameInput.value) return;
+            var result = resultMap[normalizeIngName(nameInput.value)];
+            if (!result) return;
+
+            var mgInput = row.querySelector('input.ingredient-mg');
+            if (mgInput) {
+                mgInput.insertAdjacentElement('afterend', buildHint(result.status, result.ocrMg, result.storedMg, mgInput));
+            }
+
+            // Annotate sub-ingredients
+            if (result.subResults && result.subResults.length > 0) {
+                var subMap = {};
+                result.subResults.forEach(function(sr) { subMap[normalizeIngName(sr.name)] = sr; });
+                row.querySelectorAll('.subingredient-list > div').forEach(function(subDiv) {
+                    var subName = subDiv.querySelector('input[placeholder="Sub-Name"]');
+                    if (!subName || !subName.value) return;
+                    var sr = subMap[normalizeIngName(subName.value)];
+                    if (!sr) return;
+                    var subMg = subDiv.querySelector('input.subingredient-mg');
+                    if (subMg) {
+                        subMg.insertAdjacentElement('afterend', buildHint(sr.status, sr.ocrMg, sr.storedMg, subMg));
+                    }
+                });
+            }
+        });
+
+        var ingredientsList = document.getElementById('ingredients-list');
+
+        // ── OCR-recognised ingredients dropdown ──────────────────────────────
+        var ocrIngredients = checkResult.ocrIngredients || [];
+        if (ocrIngredients.length > 0) {
+            var ocrSection = document.createElement('details');
+            ocrSection.className = 'ocr-recognized-section';
+            var ocrSummary = document.createElement('summary');
+            ocrSummary.textContent = 'OCR-erkannte Zutaten (' + ocrIngredients.length + ')';
+            ocrSection.appendChild(ocrSummary);
+
+            var ocrList = document.createElement('ul');
+            ocrList.style.cssText = 'margin:6px 0 0 0; padding-left:20px;';
+            ocrIngredients.forEach(function(ing) {
+                var li = document.createElement('li');
+                li.textContent = ing.name + ' (' + formatMg(ing.mg) + ' mg)';
+                if (ing.subIngredients && ing.subIngredients.length > 0) {
+                    var subUl = document.createElement('ul');
+                    ing.subIngredients.forEach(function(sub) {
+                        var subLi = document.createElement('li');
+                        subLi.textContent = sub.name + ' (' + formatMg(sub.mg) + ' mg)';
+                        subUl.appendChild(subLi);
+                    });
+                    li.appendChild(subUl);
+                }
+                ocrList.appendChild(li);
+            });
+            ocrSection.appendChild(ocrList);
+            ingredientsList.insertAdjacentElement('afterend', ocrSection);
+        }
+
+        // ── ONLY_IN_OCR section with checkboxes ──────────────────────────────
+        var onlyInOcr = (checkResult.ingredientResults || []).filter(function(r) {
+            return r.status === 'ONLY_IN_OCR';
+        });
+        if (onlyInOcr.length > 0) {
+            _ocrOnlyIngredients = onlyInOcr;
+            var section = document.createElement('div');
+            section.className = 'check-extra-section';
+
+            var html = '<b>⚠ Im Bild gefunden, aber nicht gespeichert:</b><br>' +
+                '<small style="color:#7d6608;">Häkchen setzen zum Hinzufügen – wird erst beim <b>Speichern</b> gespeichert.</small>' +
+                '<div style="margin-top:8px;">';
+
+            onlyInOcr.forEach(function(r, idx) {
+                // Collect OCR sub-ingredients for this ONLY_IN_OCR item
+                var ocrSubs = (r.subResults || []).filter(function(sr) { return sr.ocrMg > 0; });
+                var subHtml = '';
+                if (ocrSubs.length > 0) {
+                    subHtml = '<ul style="margin:2px 0 0 0; padding-left:20px; font-size:0.9em;">';
+                    ocrSubs.forEach(function(sr) {
+                        subHtml += '<li>' + escapeHtml(sr.name) + ' (' + formatMg(sr.ocrMg) + ' mg)</li>';
+                    });
+                    subHtml += '</ul>';
+                }
+
+                html += '<div class="ocr-add-checkbox-row">' +
+                    '<input type="checkbox" id="ocr-add-' + idx + '" ' +
+                    'onchange="toggleOcrIngredient(this, ' + idx + ')">' +
+                    '<label for="ocr-add-' + idx + '">' +
+                    escapeHtml(r.name) + ' (' + formatMg(r.ocrMg) + ' mg)' +
+                    subHtml +
+                    '</label>' +
+                    '</div>';
+            });
+            html += '</div>';
+            section.innerHTML = html;
+            ingredientsList.insertAdjacentElement('afterend', section);
+        }
+
+        // Info banner at top of form
+        var discrepancyCount = (checkResult.ingredientResults || []).filter(function(r) {
+            return r.status !== 'MATCH' ||
+                (r.subResults && r.subResults.some(function(sr) { return sr.status !== 'MATCH'; }));
+        }).length;
+        var banner = document.createElement('div');
+        banner.className = 'check-banner';
+        if (discrepancyCount === 0) {
+            banner.innerHTML = '✅ <b>Prüfergebnis:</b> Alle Zutaten stimmen mit dem Bild überein.';
+        } else {
+            banner.innerHTML = '⚠️ <b>Prüfergebnis:</b> ' + discrepancyCount +
+                ' Auffälligkeit(en) gefunden. Abweichungen sind neben den Feldern markiert. ' +
+                'Bitte prüfen und ggf. korrigieren, bevor du speicherst.';
+        }
+        document.querySelector('form').insertBefore(banner, document.querySelector('form').firstChild);
+    }
+
+    /**
+     * Called when the user checks/unchecks an ONLY_IN_OCR ingredient checkbox.
+     * Adds the ingredient to the form's ingredient list (staged, not yet saved).
+     */
+    function toggleOcrIngredient(checkbox, idx) {
+        if (!checkbox.checked) return;
+        var ingredient = _ocrOnlyIngredients[idx];
+        if (!ingredient) return;
+
+        var ing = {
+            name: ingredient.name,
+            mg: ingredient.ocrMg,
+            subIngredients: (ingredient.subResults || [])
+                .filter(function(sr) { return sr.ocrMg > 0; })
+                .map(function(sr) { return { name: sr.name, mg: sr.ocrMg }; })
+        };
+        addIngredientFromTemplate(ing);
+        updateIngredientIndices();
+        checkbox.disabled = true;
+        checkbox.parentElement.style.opacity = '0.5';
+    }
+
+    function buildHint(status, ocrMg, storedMg, inputEl) {
+        var hint = document.createElement('span');
+        hint.className = 'check-hint';
+        if (status === 'MATCH') {
+            hint.className += ' check-match';
+            hint.textContent = '✓ OCR: ' + formatMg(ocrMg) + ' mg';
+        } else if (status === 'VALUE_MISMATCH') {
+            hint.className += ' check-mismatch';
+            hint.textContent = '⚠ OCR: ' + formatMg(ocrMg) + ' mg  (gespeichert: ' + formatMg(storedMg) + ' mg)';
+            if (inputEl) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = '✓ Übernehmen';
+                btn.style.cssText = 'margin-left:8px; padding:1px 8px; font-size:0.85em; font-weight:bold;' +
+                    ' background:#d5f5e3; color:#1e8449; border:1px solid #a9dfbf; border-radius:8px; cursor:pointer;';
+                btn.addEventListener('click', function() {
+                    inputEl.value = ocrMg;
+                    hint.className = 'check-hint check-match';
+                    hint.textContent = '✓ OCR: ' + formatMg(ocrMg) + ' mg';
+                });
+                hint.appendChild(btn);
+            }
+        } else if (status === 'ONLY_IN_DB') {
+            hint.className += ' check-only-db';
+            hint.textContent = '? Nicht im Bild erkannt';
+        }
+        return hint;
+    }
+
+    function formatMg(mg) {
+        if (mg === null || mg === undefined) return '?';
+        if (mg === Math.floor(mg)) return mg.toString();
+        return mg.toFixed(1).replace('.', ',');
+    }
 </script>
 </body>
 </html>
