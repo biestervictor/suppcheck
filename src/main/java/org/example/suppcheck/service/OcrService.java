@@ -22,6 +22,13 @@ import org.springframework.web.multipart.MultipartFile;
  * In Docker this is provided via the Dockerfile; locally via
  * {@code brew install tesseract} (macOS) or the OS package manager.</p>
  *
+ * <h3>Image preprocessing</h3>
+ * <p>Before handing an image to Tesseract, this service optionally pre-processes it
+ * with ImageMagick ({@code convert}): the image is upscaled to at least 2000 px on
+ * the short edge (only if currently smaller) and converted to grayscale.  This
+ * significantly improves OCR accuracy on blurry or low-resolution label photos.
+ * If ImageMagick is not available, the original image is used unchanged.</p>
+ *
  * <h3>Multi-image support</h3>
  * <p>When several images of the same label are uploaded (e.g. one wide-angle and one
  * zoomed-in shot for small print), OCR is run on each independently.  The resulting
@@ -33,6 +40,9 @@ import org.springframework.web.multipart.MultipartFile;
 public class OcrService {
 
     private static final int TIMEOUT_SECONDS = 30;
+
+    /** ImageMagick command name (v6 on Debian/Ubuntu uses {@code convert}). */
+    static final String IMAGEMAGICK_CMD = "convert";
 
     private final IngredientTranslationService translationService;
 
@@ -142,13 +152,17 @@ public class OcrService {
 
         Path tempInput = Files.createTempFile("ocr-in-", ext);
         Path tempOutputBase = Files.createTempFile("ocr-out-", "");
+        Path preprocessed = null;
 
         try {
             file.transferTo(tempInput.toFile());
 
+            preprocessed = preprocessWithImageMagick(tempInput);
+            Path ocrInput = (preprocessed != null) ? preprocessed : tempInput;
+
             ProcessBuilder pb = new ProcessBuilder(
                     "tesseract",
-                    tempInput.toAbsolutePath().toString(),
+                    ocrInput.toAbsolutePath().toString(),
                     tempOutputBase.toAbsolutePath().toString(),
                     "-l", "deu",
                     "--psm", "6"   // uniform block: reads row-by-row, not column-by-column
@@ -180,6 +194,52 @@ public class OcrService {
         } finally {
             Files.deleteIfExists(tempInput);
             Files.deleteIfExists(tempOutputBase);
+            if (preprocessed != null) {
+                Files.deleteIfExists(preprocessed);
+            }
+        }
+    }
+
+    /**
+     * Pre-processes an image with ImageMagick before OCR:
+     * <ul>
+     *   <li>Upscales to at least 2000 px on the long edge (only if currently smaller)</li>
+     *   <li>Converts to grayscale</li>
+     *   <li>Applies a mild unsharp mask to compensate for blur</li>
+     * </ul>
+     *
+     * @param input path to the original image
+     * @return path to the preprocessed PNG temp file, or {@code null} if ImageMagick
+     *         is not available (caller should fall back to the original image)
+     */
+    Path preprocessWithImageMagick(Path input) throws IOException, InterruptedException {
+        Path output = Files.createTempFile("ocr-pre-", ".png");
+        try {
+            ProcessBuilder pb = new ProcessBuilder(
+                    IMAGEMAGICK_CMD,
+                    input.toAbsolutePath().toString(),
+                    "-resize", "2000x2000<",   // enlarge only if smaller than 2000px
+                    "-colorspace", "Gray",
+                    "-unsharp", "0x1",
+                    output.toAbsolutePath().toString()
+            );
+            pb.redirectErrorStream(true);
+            Process p = pb.start();
+            boolean done = p.waitFor(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            if (!done) {
+                p.destroyForcibly();
+                Files.deleteIfExists(output);
+                return null;
+            }
+            if (p.exitValue() != 0) {
+                Files.deleteIfExists(output);
+                return null;
+            }
+            return output;
+        } catch (IOException e) {
+            // ImageMagick not installed — silently fall back to original
+            Files.deleteIfExists(output);
+            return null;
         }
     }
 
