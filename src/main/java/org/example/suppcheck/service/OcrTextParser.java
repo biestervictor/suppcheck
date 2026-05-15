@@ -138,10 +138,11 @@ public final class OcrTextParser {
             // "\uFF3F" = U+FF3F FULLWIDTH LOW LINE (＿), OCR sometimes produces this instead of "_".
             // "\u201a" = U+201A SINGLE LOW-9 QUOTATION MARK (‚), misread from table decorations.
             line = line.replaceAll("^[|°·<_\uFF3F\\[\\]=\u201a\u2018\u2019})]+\\s*", "");
-            // Strip a single "i" or "l" at line start when followed by whitespace + uppercase:
-            // OCR commonly misreads "|" (vertical table border) as the letter "i" or "l".
-            // Safe: real ingredient names starting with lowercase i/l don't begin "i Uppercase".
-            line = line.replaceAll("^[il](?=\\s+[A-Z\u00c4\u00d6\u00dc])", "");
+            // Strip a single letter at line start when followed by whitespace + uppercase:
+            // OCR commonly misreads "|" (vertical table border) as "i", "l", "I", "J", or "!".
+            // Safe: real ingredient names do not begin with a standalone lowercase/uppercase
+            // letter followed by a space and an uppercase letter (e.g. "i Schisandra", "J Ginseng").
+            line = line.replaceAll("^[ilIJ!](?=\\s+[A-Z\u00c4\u00d6\u00dc])", "");
 
             // Normalize space-thousands separator: "4 500" → "4500"
             // Negative lookbehind (?<!\p{L}) ensures we don't merge digit sequences
@@ -375,19 +376,22 @@ public final class OcrTextParser {
         if (name.startsWith("(")) {
             return true;
         }
-        // Case 3: name starts with "davon " (German "of which") — also a sub-ingredient indicator
-        if (name.toLowerCase(Locale.ROOT).startsWith("davon ")) {
+        // Case 3: name starts with "davon" (with or without following space/letter).
+        // Handles both "davon Piperin" and OCR-merged "davonPiperin".
+        String lower = name.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("davon") && lower.length() > 5) {
             return true;
         }
-        // Case 4: OCR noise prefix (curly brace, quote marks, …) followed by "davon "
+        // Case 4: OCR noise prefix (curly brace, quote marks, …) followed by "davon"
         // e.g. "{ davon Piperin" where { is a table-border artefact
         String stripped = name.replaceAll("^[{\"'`\u201c\u201d\u2018\u2019\\s]+", "");
-        if (stripped.toLowerCase(Locale.ROOT).startsWith("davon ")) {
+        String strippedLower = stripped.toLowerCase(Locale.ROOT);
+        if (strippedLower.startsWith("davon") && strippedLower.length() > 5) {
             return true;
         }
-        // Case 5: leading table-row digit(s) + space + "davon " — OCR reads row numbers
-        // from the ingredient table, e.g. "2 davon aus Guarana Extrakt", "3 davon Piperin"
-        if (name.matches("(?i)^\\d+\\s+davon\\s.*")) {
+        // Case 5: leading table-row digit(s) + space + "davon" — OCR reads row numbers
+        // from the ingredient table, e.g. "2 davon aus Guarana Extrakt", "3 davonPiperin"
+        if (name.matches("(?i)^\\d+\\s+davon.*")) {
             return true;
         }
         return false;
@@ -412,9 +416,13 @@ public final class OcrTextParser {
         name = name.replaceAll("^[\\s\\-\u2013\u2014\u2022*\u00b7>({\"'`\u201c\u201d\u2018\u2019]+", "");
         // Strip trailing closing paren, opening paren (amount-format artifact), and whitespace
         name = name.replaceAll("[()\\s]+$", "");
-        // Strip "davon " prefix — it is a sub-ingredient indicator, not part of the name
-        if (name.toLowerCase(Locale.ROOT).startsWith("davon ")) {
+        // Strip "davon" prefix (with or without following space — OCR sometimes merges the words)
+        String nameLower = name.toLowerCase(Locale.ROOT);
+        if (nameLower.startsWith("davon ")) {
             name = name.substring(6);
+        } else if (nameLower.startsWith("davon") && name.length() > 5) {
+            // OCR merge artifact: "davonPiperin" → "Piperin"
+            name = name.substring(5);
         }
         return name.trim();
     }

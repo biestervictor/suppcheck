@@ -1575,6 +1575,21 @@ class OcrTextParserTest {
     }
 
     @Test
+    void parse_uppercaseJAndExclamation_pipeArtefact_stripped() {
+        // "J Ginsengwurzel-Extrakt" — 'J' is a common OCR misread of '|' (vertical table border)
+        List<IngredientDto> resultJ = OcrTextParser.parse("J Ginsengwurzel-Extrakt (200 mg)");
+        assertEquals(1, resultJ.size());
+        assertEquals("Ginsengwurzel-Extrakt", resultJ.getFirst().getName());
+        assertEquals(200.0, resultJ.getFirst().getMg(), 0.001);
+
+        // "! Curcuma-Extrakt" — '!' is also a common OCR misread of '|'
+        List<IngredientDto> resultExcl = OcrTextParser.parse("! Curcuma-Extrakt (100 mg)");
+        assertEquals(1, resultExcl.size());
+        assertEquals("Curcuma-Extrakt", resultExcl.getFirst().getName());
+        assertEquals(100.0, resultExcl.getFirst().getMg(), 0.001);
+    }
+
+    @Test
     void parse_digitPrefixDavon_parsedAsSubIngredient() {
         // "2 davon aus Guarana Extrakt" — table row number "2" prepended by OCR
         String text = "Koffein (255 mg)\n2 davon aus Guarana Extrakt (55 mg)";
@@ -1591,6 +1606,19 @@ class OcrTextParserTest {
     void parse_digitPrefixDavon_singleWord_parsedAsSubIngredient() {
         // "3 davon Piperin" — table row number "3" prepended by OCR
         String text = "Schwarzer Pfeffer-Extrakt (4,2 mg)\n3 davon Piperin (4 mg)";
+        List<IngredientDto> result = OcrTextParser.parse(text);
+        assertEquals(1, result.size());
+        IngredientDto pfeffer = result.getFirst();
+        assertEquals("Schwarzer Pfeffer-Extrakt", pfeffer.getName());
+        assertEquals(1, pfeffer.getSubIngredients().size());
+        assertEquals("Piperin", pfeffer.getSubIngredients().getFirst().getName());
+        assertEquals(4.0, pfeffer.getSubIngredients().getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_digitPrefixDavonNoSpace_parsedAsSubIngredient() {
+        // "3 davonPiperin" — OCR merges "davon" and ingredient name without space
+        String text = "Schwarzer Pfeffer-Extrakt (4,2 mg)\n3 davonPiperin (4 mg)";
         List<IngredientDto> result = OcrTextParser.parse(text);
         assertEquals(1, result.size());
         IngredientDto pfeffer = result.getFirst();
