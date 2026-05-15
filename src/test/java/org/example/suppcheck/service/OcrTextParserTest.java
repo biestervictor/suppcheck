@@ -1468,6 +1468,15 @@ class OcrTextParserTest {
     }
 
     @Test
+    void parse_fullwidthUnderscore_strippedAndParsedAsTopLevel() {
+        // U+FF3F FULLWIDTH LOW LINE (＿) — OCR produces this instead of ASCII _ on some labels
+        List<IngredientDto> result = OcrTextParser.parse("\uFF3F Glucuronolacton (500 mg)");
+        assertEquals(1, result.size());
+        assertEquals("Glucuronolacton", result.getFirst().getName());
+        assertEquals(500.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
     void parse_leadingClosingBraceWithDavon_parsedAsSubIngredient() {
         // "} davon aus Guarana Extrakt" appears under Koffein
         String text = "Koffein (255 mg)\n} davon aus Guarana Extrakt (55 mg)";
@@ -1519,6 +1528,51 @@ class OcrTextParserTest {
         assertEquals(1, glycerin.getSubIngredients().size());
         assertEquals("Glycerin", glycerin.getSubIngredients().getFirst().getName());
         assertEquals(1300.0, glycerin.getSubIngredients().getFirst().getMg(), 0.001);
+    }
+
+    // ── Multi-line ingredient names (OCR splits long name over two lines) ────
+
+    @Test
+    void parse_adenosinAtp_multiLineName_firstLineHasNoAmount() {
+        // OCR splits "Adenosin 5'-Triphosphat Dinatrium (ATP) (als PEAK ATP®) 400 mg" into two lines.
+        // Line 1 has no amount → pendingName; Line 2 starts with '(' but is NOT a sub-ingredient.
+        String ocrText =
+                "Adenosin 5'-Triphosphat Dinatrium\n" +
+                "(ATP) (als PEAK ATP\u00ae) 400 mg";
+        List<IngredientDto> result = OcrTextParser.parse(ocrText);
+        assertEquals(1, result.size(), "should be exactly one top-level ingredient");
+        assertEquals("Adenosin 5'-Triphosphat Dinatrium (ATP) (als PEAK ATP\u00ae)",
+                result.getFirst().getName());
+        assertEquals(400.0, result.getFirst().getMg(), 0.001);
+        assertTrue(result.getFirst().getSubIngredients().isEmpty());
+    }
+
+    @Test
+    void parse_adenosinAtp_multiLineName_twoPartParenthetical() {
+        // Variant: first line includes "(ATP)", second line starts with "(als PEAK ATP®)"
+        String ocrText =
+                "Adenosin 5'-Triphosphat Dinatrium (ATP)\n" +
+                "(als PEAK ATP\u00ae) 400 mg";
+        List<IngredientDto> result = OcrTextParser.parse(ocrText);
+        assertEquals(1, result.size());
+        assertEquals("Adenosin 5'-Triphosphat Dinatrium (ATP) (als PEAK ATP\u00ae)",
+                result.getFirst().getName());
+        assertEquals(400.0, result.getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parse_multiLineNameCombining_doesNotAffectRealSubIngredients() {
+        // Ensure that a real "davon"-sub-ingredient is NOT combined even when there's a pendingName
+        String ocrText =
+                "Protein Matrix\n" +
+                "(davon L-Leucin) 2500 mg";
+        List<IngredientDto> result = OcrTextParser.parse(ocrText);
+        // "Protein Matrix" has no amount → discarded as pendingName, but "(davon L-Leucin)"
+        // contains "davon" → treated as sub-ingredient of... nothing (no top-level yet)
+        // → added as top-level entry
+        assertEquals(1, result.size());
+        assertEquals("L-Leucin", result.getFirst().getName());
+        assertEquals(2500.0, result.getFirst().getMg(), 0.001);
     }
 
     // ── OCR corrections: Lryrosin, Sitterorangenschalen ──────────────────────
@@ -1574,13 +1628,15 @@ class OcrTextParserTest {
             "Lryrosin (1500 mg)\n" +
             "Taurin (1500 mg)\n" +
             "L-Glycin (1000 mg)\n" +
-            "_ Glucuronolacton (500 mg)\n" +
+            "Adenosin 5'-Triphosphat Dinatrium\n" +
+            "(ATP) (als PEAK ATP\u00ae) 400 mg\n" +
+            "\uFF3F Glucuronolacton (500 mg)\n" +
             "Sitterorangenschalen-Extrakt (350 mg)\n" +
             ") Guarana-Extrakt (275 mg)\n" +
             "Koffein (255 mg)\n" +
             "} davon aus Guarana Extrakt (55 mg)\n" +
             "Citicolin (250 mg)\n" +
-            "Grüntee-Extrakt (250 mg)\n" +
+            "Gr\u00fcntee-Extrakt (250 mg)\n" +
             "Rhodiola Rosea Extrakt (250 mg)\n" +
             "Traubenkern-Extrakt (250 mg)\n" +
             "Schisandra-Extrakt (200 mg)\n" +
@@ -1593,10 +1649,16 @@ class OcrTextParserTest {
         List<String> topNames = result.stream().map(IngredientDto::getName).toList();
 
         // OCR corrections applied
-        assertTrue(topNames.contains("L-Tyrosin"),                 "Lryrosin → L-Tyrosin");
-        assertTrue(topNames.contains("Bitterorangenschalen-Extrakt"), "Sitter → Bitter");
-        assertTrue(topNames.contains("Guarana-Extrakt"),           "leading ) stripped");
-        assertTrue(topNames.contains("Glucuronolacton"),           "leading _ stripped");
+        assertTrue(topNames.contains("L-Tyrosin"),                    "Lryrosin → L-Tyrosin");
+        assertTrue(topNames.contains("Bitterorangenschalen-Extrakt"),  "Sitter → Bitter");
+        assertTrue(topNames.contains("Guarana-Extrakt"),               "leading ) stripped");
+        assertTrue(topNames.contains("Glucuronolacton"),               "leading \uFF3F stripped");
+
+        // Multi-line name: Adenosin ATP
+        assertTrue(topNames.contains("Adenosin 5'-Triphosphat Dinatrium (ATP) (als PEAK ATP\u00ae)"),
+                "Adenosin multi-line name combined");
+        assertEquals(400.0, findMg(result, "Adenosin 5'-Triphosphat Dinatrium (ATP) (als PEAK ATP\u00ae)"),
+                0.001);
 
         // Top-level amounts
         assertEquals(6000.0, findMg(result, "L-Citrullin Malat"), 0.001);

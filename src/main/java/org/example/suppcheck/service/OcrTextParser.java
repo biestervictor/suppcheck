@@ -136,7 +136,8 @@ public final class OcrTextParser {
             // Strip leading OCR table-cell artefacts produced by vertical lines or cell borders:
             // "|", "°", "·", "<", "_", "}", ")" at the start of a line are OCR noise, not text.
             // ")" appears when a closing paren from the previous entry bleeds onto the next line.
-            line = line.replaceAll("^[|°·<_})]+\\s*", "");
+            // "\uFF3F" = U+FF3F FULLWIDTH LOW LINE (＿), OCR sometimes produces this instead of "_".
+            line = line.replaceAll("^[|°·<_\uFF3F})]+\\s*", "");
 
             // Normalize space-thousands separator: "4 500" → "4500"
             // Negative lookbehind (?<!\p{L}) ensures we don't merge digit sequences
@@ -221,9 +222,18 @@ public final class OcrTextParser {
 
             Matcher m = INGREDIENT_LINE.matcher(line);
             if (m.matches()) {
+                String name = m.group(1).trim();
+                // Multi-line name: if a name-only line set pendingName and the next parsed
+                // fragment starts with '(' but contains no "davon", it is a parenthetical
+                // continuation of the name — not a sub-ingredient.
+                // Example: "Adenosin 5'-Triphosphat Dinatrium" + "(ATP) (als PEAK ATP®)"
+                if (pendingName != null
+                        && name.startsWith("(")
+                        && !name.toLowerCase(Locale.ROOT).contains("davon")) {
+                    name = pendingName + " " + name;
+                }
                 pendingName = null;
                 noMatchStreak = 0;
-                String name = m.group(1).trim();
                 if (name.isBlank()) {
                     continue;
                 }
