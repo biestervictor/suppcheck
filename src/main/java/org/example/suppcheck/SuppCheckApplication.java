@@ -10,7 +10,8 @@ import org.springframework.context.annotation.ComponentScan;
 
 @SpringBootApplication
 @ComponentScan(basePackages = {"org.example.suppcheck.controller", "org.example.suppcheck.service",
-    "org.example.suppcheck.model", "org.example.suppcheck.repository"})
+    "org.example.suppcheck.model", "org.example.suppcheck.repository",
+    "org.example.suppcheck.health"})
 public class SuppCheckApplication {
 
   /**

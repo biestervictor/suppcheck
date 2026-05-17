@@ -78,6 +78,23 @@
 
 ## Kubernetes Cluster
 
+### Kubectl Contexts
+
+| Context        | Cluster        | Zweck                        |
+|----------------|----------------|------------------------------|
+| `k3d-mycluster`| k3d (lokal)    | **Dev-Stage** (`suppcheck-dev.biester.vip`) |
+| `microk8s`     | MicroK8s (RPi) | **Prod-Stage** (`suppcheck-kubitos.biester.vip`) |
+
+```bash
+# Dev-Stage (k3d)
+kubectl --context k3d-mycluster get pods -n suppcheck
+kubectl --context k3d-mycluster logs -n suppcheck deployment/suppcheck
+
+# Prod-Stage (MicroK8s)
+kubectl --kubeconfig ~/.kube/config get pods -n suppcheck
+kubectl --kubeconfig ~/.kube/config logs -n suppcheck deployment/suppcheck
+```
+
 ### Produktionscluster (MicroK8s auf Raspberry Pi 4)
 - **Kubeconfig:** `~/.kube/config`
 - **Server:** `https://192.168.178.90:16443`
