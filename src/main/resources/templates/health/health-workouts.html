@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/head :: common-meta}"></th:block>
+    <title>Workouts</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 0; }
+        h1   { margin: 28px 0 16px; text-align: center; color: #2d6cdf; }
+        h2   { color: #2d6cdf; margin: 0 0 12px; }
+
+        .page-content { max-width: 1300px; margin: 0 auto; padding: 0 20px 40px; }
+
+        .top-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+            margin-bottom: 28px;
+        }
+        @media (max-width: 800px) { .top-grid { grid-template-columns: 1fr; } }
+
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        }
+
+        .kpi-card {
+            background: #2d6cdf;
+            color: #fff;
+            border-radius: 8px;
+            padding: 20px 24px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .kpi-num  { font-size: 3em; font-weight: bold; }
+        .kpi-lbl  { font-size: 0.9em; opacity: 0.85; }
+
+        /* Workout table */
+        .workout-table { width: 100%; border-collapse: collapse; }
+        .workout-table th, .workout-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+            font-size: 0.88em;
+        }
+        .workout-table th  { background: #eaf1fb; font-size: 0.82em; }
+        .workout-table tr:hover td { background: #f5f8ff; }
+
+        /* Filter bar */
+        .filter-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+        .filter-bar select {
+            padding: 6px 10px; border: 1px solid #bfc9d1;
+            border-radius: 4px; font-size: 0.9em; background: #fff;
+        }
+        .filter-bar label { font-weight: bold; font-size: 0.9em; }
+
+        .back-link { color: #2d6cdf; text-decoration: none; font-size: 0.9em; }
+        .back-link:hover { text-decoration: underline; }
+    </style>
+    <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{fragments/nav :: main-nav}"></th:block>
+<div class="page-content">
+<h1>Workouts</h1>
+<p><a class="back-link" th:href="@{/health}">← Zurück zum Dashboard</a></p>
+
+<!-- ── Top-Grid: KPI + Typ-Chart ── -->
+<div class="top-grid">
+    <div class="kpi-card">
+        <div class="kpi-num" th:text="${totalWorkouts}">0</div>
+        <div class="kpi-lbl">Workouts gesamt</div>
+    </div>
+    <div class="card">
+        <h2>Workouts nach Typ</h2>
+        <canvas id="typeChart" height="120"></canvas>
+    </div>
+</div>
+
+<!-- ── Workout-Liste ── -->
+<div class="card">
+    <h2>Alle Workouts</h2>
+    <div class="filter-bar">
+        <label for="typeFilter">Typ:</label>
+        <select id="typeFilter" onchange="applyFilter()">
+            <option value="">Alle</option>
+            <option th:each="entry : ${workoutCounts}"
+                    th:value="${entry.key}"
+                    th:text="${entry.key + ' (' + entry.value + ')'}"></option>
+        </select>
+    </div>
+    <table class="workout-table" id="workoutTable">
+        <thead><tr>
+            <th>Datum</th>
+            <th>Typ</th>
+            <th>Dauer (min)</th>
+            <th>Kalorien</th>
+            <th>Distanz (km)</th>
+            <th>Quelle</th>
+        </tr></thead>
+        <tbody>
+        <tr th:each="w : ${allWorkouts}" th:data-type="${w.activityType}">
+            <td th:text="${w.date}"></td>
+            <td th:text="${w.activityLabel}"></td>
+            <td th:text="${#numbers.formatDecimal(w.durationMinutes, 1, 0)}"></td>
+            <td th:text="${w.caloriesBurned > 0 ? #numbers.formatDecimal(w.caloriesBurned, 1, 0) + ' kcal' : '-'}"></td>
+            <td th:text="${w.distanceKm > 0 ? #numbers.formatDecimal(w.distanceKm, 1, 2) + ' km' : '-'}"></td>
+            <td th:text="${w.sourceName}"></td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(allWorkouts)}">
+            <td colspan="6" style="color:#aaa; font-style:italic;">Keine Workouts gefunden.</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</div><!-- page-content -->
+
+<script th:inline="javascript">
+    const typeLabels = /*[[${typeLabels}]]*/ [];
+    const typeValues = /*[[${typeValues}]]*/ [];
+
+    new Chart(document.getElementById('typeChart'), {
+        type: 'bar',
+        data: {
+            labels: typeLabels,
+            datasets: [{
+                label: 'Anzahl',
+                data: typeValues,
+                backgroundColor: 'rgba(45, 108, 223, 0.65)',
+                borderColor: '#2d6cdf',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { x: { beginAtZero: true } }
+        }
+    });
+
+    function applyFilter() {
+        var selected = document.getElementById('typeFilter').value;
+        document.querySelectorAll('#workoutTable tbody tr').forEach(function(row) {
+            var rowType = row.getAttribute('data-type');
+            row.style.display = (!selected || rowType === selected) ? '' : 'none';
+        });
+    }
+</script>
+</body>
+</html>

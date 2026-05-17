@@ -2181,4 +2181,86 @@ class OcrTextParserTest {
         assertEquals("davon Piperin", pfeffer.getSubIngredients().getFirst().getName());
         assertEquals(10.5, pfeffer.getSubIngredients().getFirst().getMg(), 0.001);
     }
+
+    // -------------------------------------------------------------------------
+    // bodylabtricky.png — Vitamin letter uppercase + µg-as-19 fix
+    // -------------------------------------------------------------------------
+
+    @Test
+    void parse_vitaminLowercaseLetter_uppercased() {
+        // "Vitaminc" and "VitaminE" — OCR produces wrong case; must always become "Vitamin C" / "Vitamin E"
+        List<IngredientDto> result = OcrTextParser.parse(
+                "Vitaminc 31250,00mg 229,17mg\n" +
+                "VitaminE 1250,00mg 9,17mg");
+        List<String> names = result.stream().map(IngredientDto::getName).toList();
+        assertTrue(names.contains("Vitamin C"), "Vitaminc must become Vitamin C, got: " + names);
+        assertTrue(names.contains("Vitamin E"), "VitaminE must become Vitamin E, got: " + names);
+        assertFalse(names.stream().anyMatch(n -> n.contains("Vitamin c") || n.contains("Vitamin e")),
+                "Lowercase vitamin letters must not remain: " + names);
+    }
+
+    @Test
+    void parse_muGAsGluedSuffix19_corrected() {
+        // "5,5019" → "5,50 µg": µg OCR'd as "19" glued directly to the decimal number.
+        // This is the key issue on bodylabtricky.png for Vitamin B12.
+        List<IngredientDto> result = OcrTextParser.parse("Vitamin B12 750,00u9 5,5019 220,00%");
+        List<String> names = result.stream().map(IngredientDto::getName).toList();
+        assertTrue(names.contains("Vitamin B12"), "Vitamin B12 must be parsed, got: " + names);
+        // Must use the per-portion value (5,50 µg) not the pro-100g value (750,00 µg)
+        IngredientDto b12 = result.stream()
+                .filter(i -> "Vitamin B12".equals(i.getName())).findFirst().orElseThrow();
+        assertEquals(5.50 / 1000.0, b12.getMg(), 0.000001, "Should use per-portion 5,50 µg");
+    }
+
+    @Test
+    @SuppressWarnings("java:S5961") // many assertions intentional for real-OCR integration test
+    void parse_bodylabTrickyRealOcr_allVitaminsRecognized() {
+        // Actual Tesseract output from bodylabtricky.png (verified 2026-05-15)
+        String ocrText =
+                "Vitamine Pro 100G Pro Portion % RM* pro Portion\n" +
+                "Vitamin A 100000,00 ug 733,33u9 91,67%\n" +
+                "VitaminE 1250,00mg 9,17mg 76,39%\n" +
+                "Vitaminc 31250,00mg 229,17mg 286,46%\n" +
+                "Vitamin B1 412,50mg 3,03mg 275,00%\n" +
+                "Vitamin B2 525,00mg 3,85mg 275,00%\n" +
+                "Vitamin B3 6000,00 mg 44,00mg 275,00%\n" +
+                "Vitamin B6 525,00mg 3,85mg 275,00%\n" +
+                "Folate 75000,00 ug 550,00u9 275,00%\n" +
+                "Vitamin B12 750,00u9 5,5019 220,00%\n" +
+                "Blotin 18750,00 ug 137,50 ug 275,00%\n" +
+                "Vitamin B5 2500,00 mg 18,33 mg 305,56%\n" +
+                "Vitamin D3 2500,00 u9 18,33 ug 366,67%\n" +
+                "VitaminKı - 100mcg";
+
+        List<IngredientDto> result = OcrTextParser.parse(ocrText);
+        List<String> names = result.stream().map(IngredientDto::getName).toList();
+
+        // Header row must be skipped
+        assertTrue(names.stream().noneMatch(n -> n.contains("Pro 100")),
+                "Header must be skipped: " + names);
+
+        // Vitamin names must be uppercase
+        assertTrue(names.contains("Vitamin A"),   "Vitamin A");
+        assertTrue(names.contains("Vitamin E"),   "VitaminE → Vitamin E");
+        assertTrue(names.contains("Vitamin C"),   "Vitaminc → Vitamin C");
+        assertTrue(names.contains("Vitamin B1"),  "Vitamin B1");
+        assertTrue(names.contains("Vitamin B2"),  "Vitamin B2");
+        assertTrue(names.contains("Vitamin B3"),  "Vitamin B3");
+        assertTrue(names.contains("Vitamin B6"),  "Vitamin B6");
+        assertTrue(names.contains("Vitamin B12"), "Vitamin B12");
+        assertTrue(names.contains("Biotin"),      "Blotin → Biotin");
+        assertTrue(names.contains("Vitamin B5"),  "Vitamin B5");
+        assertTrue(names.contains("Vitamin D3"),  "Vitamin D3");
+
+        // Per-portion values (second column) must be used
+        assertEquals(9.17,  findMg(result, "Vitamin E"),  0.01,  "Vitamin E per portion");
+        assertEquals(229.17, findMg(result, "Vitamin C"), 0.01,  "Vitamin C per portion");
+        assertEquals(5.50 / 1000.0, findMg(result, "Vitamin B12"), 0.000001, "Vitamin B12 per portion (µg)");
+        assertEquals(18.33, findMg(result, "Vitamin B5"), 0.01,  "Vitamin B5 per portion");
+        assertEquals(18.33 / 1000.0, findMg(result, "Vitamin D3"), 0.00001, "Vitamin D3 per portion (µg)");
+
+        // No lowercase vitamin letters remain anywhere
+        assertTrue(names.stream().noneMatch(n -> n.matches(".*Vitamin [a-z].*")),
+                "No lowercase vitamin letter should remain: " + names);
+    }
 }

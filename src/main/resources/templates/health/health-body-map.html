@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/head :: common-meta}"></th:block>
+    <title>Aktuelle Messwerte</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 0; }
+        h1   { margin: 28px 0 16px; text-align: center; color: #2d6cdf; }
+        h2   { color: #2d6cdf; margin: 0 0 12px; }
+
+        .page-content { max-width: 1100px; margin: 0 auto; padding: 0 20px 40px; }
+
+        .section { margin-bottom: 32px; }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 14px;
+        }
+        .metric-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 18px 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            border-left: 4px solid #2d6cdf;
+        }
+        .metric-card.red    { border-color: #e74c3c; }
+        .metric-card.green  { border-color: #27ae60; }
+        .metric-card.orange { border-color: #f39c12; }
+        .metric-card.purple { border-color: #8e44ad; }
+        .metric-card.teal   { border-color: #16a085; }
+
+        .metric-label { font-size: 0.8em; color: #888; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+        .metric-value { font-size: 1.9em; font-weight: bold; color: #1a3a5a; }
+        .metric-unit  { font-size: 0.8em; color: #aaa; margin-left: 4px; }
+        .metric-date  { font-size: 0.72em; color: #ccc; margin-top: 6px; }
+        .metric-src   { font-size: 0.72em; color: #bbb; }
+
+        .no-data { color: #aaa; font-style: italic; padding: 20px 0; }
+        .back-link { color: #2d6cdf; text-decoration: none; font-size: 0.9em; }
+        .back-link:hover { text-decoration: underline; }
+    </style>
+    <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{fragments/nav :: main-nav}"></th:block>
+<div class="page-content">
+<h1>Aktuelle Messwerte</h1>
+<p><a class="back-link" th:href="@{/health}">← Zurück zum Dashboard</a></p>
+
+<div th:if="${latestMetrics.isEmpty()}" class="no-data">
+    Keine Daten gefunden. Bitte zuerst <a th:href="@{/health/import}">Daten importieren</a>.
+</div>
+
+<!-- ── Körperzusammensetzung ── -->
+<div class="section" th:unless="${latestMetrics.isEmpty()}">
+    <h2>Körperzusammensetzung</h2>
+    <div class="metric-grid">
+        <div class="metric-card" th:if="${latestMetrics.containsKey('BodyMass')}">
+            <div class="metric-label">Gewicht</div>
+            <div class="metric-value">
+                <span th:text="${#numbers.formatDecimal(latestMetrics['BodyMass'].value, 1, 1)}"></span>
+                <span class="metric-unit" th:text="${latestMetrics['BodyMass'].unit}">kg</span>
+            </div>
+            <div class="metric-date" th:text="${latestMetrics['BodyMass'].date}"></div>
+            <div class="metric-src"  th:text="${latestMetrics['BodyMass'].sourceName}"></div>
+        </div>
+        <div class="metric-card green" th:if="${latestMetrics.containsKey('LeanBodyMass')}">
+            <div class="metric-label">Muskelmasse</div>
+            <div class="metric-value">
+                <span th:text="${#numbers.formatDecimal(latestMetrics['LeanBodyMass'].value, 1, 1)}"></span>
+                <span class="metric-unit" th:text="${latestMetrics['LeanBodyMass'].unit}">kg</span>
+            </div>
+            <div class="metric-date" th:text="${latestMetrics['LeanBodyMass'].date}"></div>
+        </div>
+        <div class="metric-card orange" th:if="${latestMetrics.containsKey('BodyFatPercentage')}">
+            <div class="metric-label">Körperfett</div>
+            <div class="metric-value">
+                <span th:text="${#numbers.formatDecimal(latestMetrics['BodyFatPercentage'].value, 1, 1)}"></span>
+                <span class="metric-unit">%</span>
+            </div>
+            <div class="metric-date" th:text="${latestMetrics['BodyFatPercentage'].date}"></div>
+        </div>
+        <div class="metric-card purple" th:if="${latestMetrics.containsKey('BMI')}">
+            <div class="metric-label">BMI</div>
+            <div class="metric-value">
+                <span th:text="${#numbers.formatDecimal(latestMetrics['BMI'].value, 1, 1)}"></span>
+                <span class="metric-unit">kg/m²</span>
+            </div>
+            <div class="metric-date" th:text="${latestMetrics['BMI'].date}"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Herz-Kreislauf ── -->
+<div class="section" th:unless="${latestMetrics.isEmpty()}">
+    <h2>Herz-Kreislauf</h2>
+    <div class="metric-grid">
+        <div class="metric-card red" th:if="${latestMetrics.containsKey('RestingHeartRate')}">
+            <div class="metric-label">Ruhepuls</div>
+            <div class="metric-value">
+                <span th:text="${#numbers.formatDecimal(latestMetrics['RestingHeartRate'].value, 1, 0)}"></span>
+                <span class="metric-unit">bpm</span>
+            </div>
+            <div class="metric-date" th:text="${latestMetrics['RestingHeartRate'].date}"></div>
+        </div>
+        <div class="metric-card red" th:if="${latestMetrics.containsKey('WalkingHeartRate')}">
+            <div class="metric-label">Gehpuls</div>
+            <div class="metric-value">
+                <span th:text="${#numbers.formatDecimal(latestMetrics['WalkingHeartRate'].value, 1, 0)}"></span>
+                <span class="metric-unit">bpm</span>
+            </div>
+            <div class="metric-date" th:text="${latestMetrics['WalkingHeartRate'].date}"></div>
+        </div>
+        <div class="metric-card green" th:if="${latestMetrics.containsKey('VO2Max')}">
+            <div class="metric-label">VO₂Max</div>
+            <div class="metric-value">
+                <span th:text="${#numbers.formatDecimal(latestMetrics['VO2Max'].value, 1, 1)}"></span>
+                <span class="metric-unit">mL/min·kg</span>
+            </div>
+            <div class="metric-date" th:text="${latestMetrics['VO2Max'].date}"></div>
+        </div>
+        <div class="metric-card" th:if="${latestMetrics.containsKey('SystolicBP')}">
+            <div class="metric-label">Blutdruck systolisch</div>
+            <div class="metric-value">
+                <span th:text="${#numbers.formatDecimal(latestMetrics['SystolicBP'].value, 1, 0)}"></span>
+                <span class="metric-unit">mmHg</span>
+            </div>
+            <div class="metric-date" th:text="${latestMetrics['SystolicBP'].date}"></div>
+        </div>
+        <div class="metric-card" th:if="${latestMetrics.containsKey('DiastolicBP')}">
+            <div class="metric-label">Blutdruck diastolisch</div>
+            <div class="metric-value">
+                <span th:text="${#numbers.formatDecimal(latestMetrics['DiastolicBP'].value, 1, 0)}"></span>
+                <span class="metric-unit">mmHg</span>
+            </div>
+            <div class="metric-date" th:text="${latestMetrics['DiastolicBP'].date}"></div>
+        </div>
+        <div class="metric-card red" th:if="${latestMetrics.containsKey('HRRecovery')}">
+            <div class="metric-label">HF-Erholung (1 min)</div>
+            <div class="metric-value">
+                <span th:text="${#numbers.formatDecimal(latestMetrics['HRRecovery'].value, 1, 0)}"></span>
+                <span class="metric-unit">bpm</span>
+            </div>
+            <div class="metric-date" th:text="${latestMetrics['HRRecovery'].date}"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Fitness & Mobilität ── -->
+<div class="section" th:unless="${latestMetrics.isEmpty()}">
+    <h2>Fitness &amp; Mobilität</h2>
+    <div class="metric-grid">
+        <div class="metric-card teal" th:if="${latestMetrics.containsKey('WalkingSteadiness')}">
+            <div class="metric-label">Gangstabilität</div>
+            <div class="metric-value">
+                <span th:text="${#numbers.formatDecimal(latestMetrics['WalkingSteadiness'].value * 100, 1, 0)}"></span>
+                <span class="metric-unit">%</span>
+            </div>
+            <div class="metric-date" th:text="${latestMetrics['WalkingSteadiness'].date}"></div>
+        </div>
+        <div class="metric-card teal" th:if="${latestMetrics.containsKey('SixMinuteWalkDistance')}">
+            <div class="metric-label">6-Minuten-Gehtest</div>
+            <div class="metric-value">
+                <span th:text="${#numbers.formatDecimal(latestMetrics['SixMinuteWalkDistance'].value, 1, 0)}"></span>
+                <span class="metric-unit" th:text="${latestMetrics['SixMinuteWalkDistance'].unit}">m</span>
+            </div>
+            <div class="metric-date" th:text="${latestMetrics['SixMinuteWalkDistance'].date}"></div>
+        </div>
+        <div class="metric-card purple" th:if="${latestMetrics.containsKey('WristTemperature')}">
+            <div class="metric-label">Handgelenk-Temperatur</div>
+            <div class="metric-value">
+                <span th:text="${#numbers.formatDecimal(latestMetrics['WristTemperature'].value, 1, 1)}"></span>
+                <span class="metric-unit">°C</span>
+            </div>
+            <div class="metric-date" th:text="${latestMetrics['WristTemperature'].date}"></div>
+        </div>
+    </div>
+</div>
+</div><!-- page-content -->
+</body>
+</html>

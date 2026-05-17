@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/head :: common-meta}"></th:block>
+    <title>Health Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 0; }
+        h1   { margin: 28px 0 16px; text-align: center; color: #2d6cdf; }
+        h2   { color: #2d6cdf; margin: 24px 0 12px; }
+
+        .page-content { max-width: 1300px; margin: 0 auto; padding: 0 20px 40px; }
+
+        /* ── KPI-Karten ── */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 14px;
+            margin-bottom: 28px;
+        }
+        .kpi-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 16px 18px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            text-align: center;
+        }
+        .kpi-label { font-size: 0.78em; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+        .kpi-value { font-size: 1.7em; font-weight: bold; color: #2d6cdf; margin: 4px 0 2px; }
+        .kpi-unit  { font-size: 0.78em; color: #aaa; }
+        .kpi-date  { font-size: 0.72em; color: #ccc; margin-top: 4px; }
+
+        /* ── Charts ── */
+        .chart-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            margin-bottom: 24px;
+        }
+
+        /* ── Workout-Liste ── */
+        .workout-table { width: 100%; border-collapse: collapse; }
+        .workout-table th, .workout-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+            font-size: 0.9em;
+        }
+        .workout-table th { background: #eaf1fb; }
+
+        /* ── Stat-Pill ── */
+        .stat-pills { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+        .stat-pill  {
+            background: #eaf1fb;
+            border-radius: 20px;
+            padding: 8px 18px;
+            font-size: 0.9em;
+            color: #2d6cdf;
+        }
+        .stat-pill b { color: #1a3a5a; }
+
+        /* ── Quick-Links ── */
+        .quick-links { display: flex; gap: 12px; flex-wrap: wrap; margin: 20px 0 28px; }
+        .quick-link {
+            display: inline-block;
+            background: #2d6cdf;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 6px;
+            padding: 8px 18px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+        .quick-link:hover { background: #1a4aa8; }
+    </style>
+    <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{fragments/nav :: main-nav}"></th:block>
+<div class="page-content">
+<h1>Health Dashboard</h1>
+
+<!-- ── Quick-Links ── -->
+<div class="quick-links">
+    <a class="quick-link" th:href="@{/health/body-composition}">Körperzusammensetzung</a>
+    <a class="quick-link" th:href="@{/health/body-map}">Aktuelle Messwerte</a>
+    <a class="quick-link" th:href="@{/health/workouts}">Workouts</a>
+    <a class="quick-link" th:href="@{/health/cardio}">Kardio &amp; Schlaf</a>
+    <a class="quick-link" th:href="@{/health/nutrition}">Ernährung</a>
+    <a class="quick-link" th:href="@{/health/import}" style="background:#888;">Daten importieren</a>
+</div>
+
+<!-- ── KPI-Karten ── -->
+<h2>Aktueller Stand</h2>
+<div class="kpi-grid">
+    <div class="kpi-card" th:if="${latestMetrics.containsKey('BodyMass')}">
+        <div class="kpi-label">Gewicht</div>
+        <div class="kpi-value" th:text="${#numbers.formatDecimal(latestMetrics['BodyMass'].value, 1, 1)}">-</div>
+        <div class="kpi-unit" th:text="${latestMetrics['BodyMass'].unit}">kg</div>
+        <div class="kpi-date" th:text="${latestMetrics['BodyMass'].date}"></div>
+    </div>
+    <div class="kpi-card" th:if="${latestMetrics.containsKey('BodyFatPercentage')}">
+        <div class="kpi-label">Körperfett</div>
+        <div class="kpi-value" th:text="${#numbers.formatDecimal(latestMetrics['BodyFatPercentage'].value, 1, 1)}">-</div>
+        <div class="kpi-unit">%</div>
+        <div class="kpi-date" th:text="${latestMetrics['BodyFatPercentage'].date}"></div>
+    </div>
+    <div class="kpi-card" th:if="${latestMetrics.containsKey('LeanBodyMass')}">
+        <div class="kpi-label">Muskelmasse</div>
+        <div class="kpi-value" th:text="${#numbers.formatDecimal(latestMetrics['LeanBodyMass'].value, 1, 1)}">-</div>
+        <div class="kpi-unit" th:text="${latestMetrics['LeanBodyMass'].unit}">kg</div>
+        <div class="kpi-date" th:text="${latestMetrics['LeanBodyMass'].date}"></div>
+    </div>
+    <div class="kpi-card" th:if="${latestMetrics.containsKey('BMI')}">
+        <div class="kpi-label">BMI</div>
+        <div class="kpi-value" th:text="${#numbers.formatDecimal(latestMetrics['BMI'].value, 1, 1)}">-</div>
+        <div class="kpi-unit">kg/m²</div>
+        <div class="kpi-date" th:text="${latestMetrics['BMI'].date}"></div>
+    </div>
+    <div class="kpi-card" th:if="${latestMetrics.containsKey('VO2Max')}">
+        <div class="kpi-label">VO₂Max</div>
+        <div class="kpi-value" th:text="${#numbers.formatDecimal(latestMetrics['VO2Max'].value, 1, 1)}">-</div>
+        <div class="kpi-unit">mL/min·kg</div>
+        <div class="kpi-date" th:text="${latestMetrics['VO2Max'].date}"></div>
+    </div>
+    <div class="kpi-card" th:if="${latestMetrics.containsKey('RestingHeartRate')}">
+        <div class="kpi-label">RHR</div>
+        <div class="kpi-value" th:text="${#numbers.formatDecimal(latestMetrics['RestingHeartRate'].value, 1, 0)}">-</div>
+        <div class="kpi-unit">bpm</div>
+        <div class="kpi-date" th:text="${latestMetrics['RestingHeartRate'].date}"></div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Ø Schlaf (30 T)</div>
+        <div class="kpi-value" th:text="${#numbers.formatDecimal(avgSleep30, 1, 1)}">-</div>
+        <div class="kpi-unit">h</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Ø Schritte (30 T)</div>
+        <div class="kpi-value" th:text="${#numbers.formatDecimal(avgSteps30, 0, 0)}">-</div>
+        <div class="kpi-unit">Schritte/Tag</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Workouts gesamt</div>
+        <div class="kpi-value" th:text="${totalWorkouts}">-</div>
+        <div class="kpi-unit">Einheiten</div>
+    </div>
+</div>
+
+<!-- ── Schritte-Chart (30 Tage) ── -->
+<div class="chart-card">
+    <h2 style="margin-top:0;">Schritte – letzte 30 Tage</h2>
+    <canvas id="stepsChart" height="80"></canvas>
+</div>
+
+<!-- ── Letzte Workouts ── -->
+<h2>Letzte Workouts</h2>
+<table class="workout-table">
+    <thead><tr>
+        <th>Datum</th><th>Typ</th><th>Dauer (min)</th><th>Kalorien</th><th>Distanz (km)</th>
+    </tr></thead>
+    <tbody>
+    <tr th:each="w : ${recentWorkouts}">
+        <td th:text="${w.date}"></td>
+        <td th:text="${w.activityLabel}"></td>
+        <td th:text="${#numbers.formatDecimal(w.durationMinutes, 1, 0)}"></td>
+        <td th:text="${w.caloriesBurned > 0 ? #numbers.formatDecimal(w.caloriesBurned, 1, 0) + ' kcal' : '-'}"></td>
+        <td th:text="${w.distanceKm > 0 ? #numbers.formatDecimal(w.distanceKm, 1, 2) + ' km' : '-'}"></td>
+    </tr>
+    <tr th:if="${#lists.isEmpty(recentWorkouts)}">
+        <td colspan="5" style="color:#aaa; font-style:italic;">Keine Workouts gefunden – bitte erst Daten importieren.</td>
+    </tr>
+    </tbody>
+</table>
+</div><!-- page-content -->
+
+<script th:inline="javascript">
+    const stepLabels = /*[[${stepLabels}]]*/ [];
+    const stepValues = /*[[${stepValues}]]*/ [];
+
+    new Chart(document.getElementById('stepsChart'), {
+        type: 'bar',
+        data: {
+            labels: stepLabels,
+            datasets: [{
+                label: 'Schritte',
+                data: stepValues,
+                backgroundColor: 'rgba(45, 108, 223, 0.5)',
+                borderColor: '#2d6cdf',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/head :: common-meta}"></th:block>
+    <title>Health Import</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 0; }
+        h1   { margin: 28px 0 16px; text-align: center; color: #2d6cdf; }
+
+        .page-content { max-width: 700px; margin: 0 auto; padding: 0 20px 40px; }
+
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 28px 32px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            margin-bottom: 24px;
+        }
+
+        label   { display: block; font-weight: bold; margin-bottom: 6px; }
+        input[type=text] {
+            width: 100%; box-sizing: border-box;
+            padding: 8px 12px; border: 1px solid #bfc9d1;
+            border-radius: 4px; font-size: 0.95em; margin-bottom: 14px;
+        }
+        .btn-primary {
+            background: #2d6cdf; color: #fff; border: none;
+            padding: 10px 24px; border-radius: 6px;
+            cursor: pointer; font-size: 1em; font-weight: bold;
+        }
+        .btn-primary:hover   { background: #1a4aa8; }
+        .btn-primary:disabled { background: #aaa; cursor: not-allowed; }
+
+        .status-box {
+            margin-top: 20px; padding: 14px 18px;
+            border-radius: 6px; font-size: 0.95em;
+        }
+        .status-idle    { background: #f0f0f0; color: #555; }
+        .status-running { background: #fff3cd; color: #856404; }
+        .status-done    { background: #d1e7dd; color: #0f5132; }
+        .status-error   { background: #f8d7da; color: #842029; }
+
+        .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 14px; }
+        .stat-item { text-align: center; }
+        .stat-num  { font-size: 1.5em; font-weight: bold; color: #2d6cdf; }
+        .stat-lbl  { font-size: 0.75em; color: #888; }
+
+        .warning-box {
+            background: #fff3cd; border: 1px solid #ffc107;
+            border-radius: 6px; padding: 12px 16px;
+            margin-bottom: 18px; font-size: 0.9em;
+        }
+    </style>
+    <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{fragments/nav :: main-nav}"></th:block>
+<div class="page-content">
+<h1>Apple Health Import</h1>
+
+<div class="warning-box">
+    <b>Hinweis:</b> Der Import löscht alle vorhandenen Health-Daten und reimportiert sie aus der angegebenen Export.xml.
+    Alle bestehenden Einträge in den Collections <code>health_metrics</code>, <code>health_daily</code> und <code>health_workouts</code> werden entfernt.
+</div>
+
+<div class="card">
+    <form method="post" th:action="@{/health/import}"
+          th:classappend="${status == 'running' ? 'disabled' : ''}">
+        <label for="filePath">Pfad zur Apple Health Export.xml</label>
+        <input type="text" id="filePath" name="filePath"
+               placeholder="/Users/name/apple_health_export/Export.xml"
+               th:disabled="${status == 'running'}" required/>
+        <button class="btn-primary" type="submit"
+                th:disabled="${status == 'running'}">Import starten</button>
+    </form>
+</div>
+
+<!-- ── Status-Box ── -->
+<div id="status-box" class="status-box"
+     th:classappend="${status == 'idle' ? 'status-idle' : status == 'running' ? 'status-running' : status == 'done' ? 'status-done' : 'status-error'}">
+
+    <div th:if="${status == 'idle'}">
+        <b>Bereit.</b> Bitte Pfad eingeben und Import starten.
+    </div>
+    <div th:if="${status == 'running'}">
+        <b>Import läuft…</b> Bitte warten. Die Seite aktualisiert sich automatisch.
+        <div class="stat-grid">
+            <div class="stat-item"><div class="stat-num" id="s-records" th:text="${processedRecords}">0</div><div class="stat-lbl">Records verarbeitet</div></div>
+            <div class="stat-item"><div class="stat-num" id="s-metrics"  th:text="${importedMetrics}">0</div><div class="stat-lbl">Metriken importiert</div></div>
+            <div class="stat-item"><div class="stat-num" id="s-workouts" th:text="${importedWorkouts}">0</div><div class="stat-lbl">Workouts importiert</div></div>
+            <div class="stat-item"><div class="stat-num" id="s-days"     th:text="${importedDays}">0</div><div class="stat-lbl">Tage aggregiert</div></div>
+        </div>
+    </div>
+    <div th:if="${status == 'done'}">
+        <b>Import abgeschlossen!</b>
+        <div class="stat-grid">
+            <div class="stat-item"><div class="stat-num" th:text="${processedRecords}">0</div><div class="stat-lbl">Records verarbeitet</div></div>
+            <div class="stat-item"><div class="stat-num" th:text="${importedMetrics}">0</div><div class="stat-lbl">Metriken importiert</div></div>
+            <div class="stat-item"><div class="stat-num" th:text="${importedWorkouts}">0</div><div class="stat-lbl">Workouts importiert</div></div>
+            <div class="stat-item"><div class="stat-num" th:text="${importedDays}">0</div><div class="stat-lbl">Tage aggregiert</div></div>
+        </div>
+        <div style="margin-top:12px;">
+            <a th:href="@{/health}" style="color:#0f5132; font-weight:bold;">→ Zum Dashboard</a>
+        </div>
+    </div>
+    <div th:if="${status == 'error'}">
+        <b>Fehler:</b> <span th:text="${importError}">Unbekannter Fehler</span>
+    </div>
+</div>
+
+</div><!-- page-content -->
+
+<!-- Polling während Import läuft -->
+<script th:inline="javascript">
+    var isRunning = /*[[${status == 'running'}]]*/ false;
+    if (isRunning) {
+        var poll = setInterval(function() {
+            fetch('/health/import/status')
+                .then(r => r.json())
+                .then(function(data) {
+                    var el = function(id) { return document.getElementById(id); };
+                    if (el('s-records'))  el('s-records').textContent  = data.processedRecords;
+                    if (el('s-metrics'))  el('s-metrics').textContent  = data.importedMetrics;
+                    if (el('s-workouts')) el('s-workouts').textContent = data.importedWorkouts;
+                    if (el('s-days'))     el('s-days').textContent     = data.importedDays;
+                    if (data.status !== 'running') {
+                        clearInterval(poll);
+                        window.location.reload();
+                    }
+                })
+                .catch(function() { /* ignore */ });
+        }, 2000);
+    }
+</script>
+</body>
+</html>

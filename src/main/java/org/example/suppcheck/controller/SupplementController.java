@@ -216,18 +216,13 @@ public class SupplementController {
      * Stores or edits supplements.
      *
      * @param supplementDto the supplement data to save
-     * @return a redirect to the new supplement form with a success message
+     * @return a redirect to the supplements overview
      */
     @PostMapping("/save")
     public String saveSupplement(@ModelAttribute SupplementSaveDto supplementDto) {
         Supplement supplement = SupplementMapper.toEntity(supplementDto);
         supplementService.saveSupplement(supplement);
-        // On update redirect back to the edit page so the user can confirm their changes.
-        // On create, go to the new-supplement form (ready for the next entry).
-        if (supplement.getId() != null) {
-            return "redirect:/supplements/edit/" + supplement.getId() + "?success";
-        }
-        return "redirect:/supplements/new?success";
+        return "redirect:/supplements";
     }
 
     /**
