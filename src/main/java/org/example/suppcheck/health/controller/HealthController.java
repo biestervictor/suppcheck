@@ -1,8 +1,11 @@
 package org.example.suppcheck.health.controller;
 
+import org.example.suppcheck.gymbook.model.GymSession;
+import org.example.suppcheck.gymbook.service.GymBookDashboardService;
 import org.example.suppcheck.health.model.HealthDailyMetric;
 import org.example.suppcheck.health.model.HealthMetric;
 import org.example.suppcheck.health.model.HealthWorkout;
+import org.example.suppcheck.health.model.WorkoutRow;
 import org.example.suppcheck.health.service.HealthDashboardService;
 import org.example.suppcheck.health.service.HealthImportService;
 import org.springframework.http.HttpStatus;
@@ -14,9 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
-
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -38,13 +39,16 @@ import java.util.stream.Collectors;
 @RequestMapping("/health")
 public class HealthController {
 
-    private final HealthDashboardService dashboardService;
-    private final HealthImportService    importService;
+    private final HealthDashboardService  dashboardService;
+    private final HealthImportService     importService;
+    private final GymBookDashboardService gymBookDashboardService;
 
     public HealthController(HealthDashboardService dashboardService,
-                            HealthImportService importService) {
-        this.dashboardService = dashboardService;
-        this.importService    = importService;
+                            HealthImportService importService,
+                            GymBookDashboardService gymBookDashboardService) {
+        this.dashboardService        = dashboardService;
+        this.importService           = importService;
+        this.gymBookDashboardService = gymBookDashboardService;
     }
 
     // ── Dashboard ──────────────────────────────────────────────────────────────
@@ -54,13 +58,13 @@ public class HealthController {
         Map<String, HealthMetric> latest = dashboardService.getLatestBodyMetrics();
         List<HealthDailyMetric>   recent = dashboardService.getRecentDailyMetrics(30);
 
-        // Zeitreihe Schritte & Energie für Minigraph
-        model.addAttribute("latestMetrics",  latest);
-        model.addAttribute("recentDays",     recent);
-        model.addAttribute("recentWorkouts", dashboardService.getRecentWorkouts());
-        model.addAttribute("totalWorkouts",  dashboardService.getTotalWorkoutCount());
-        model.addAttribute("avgSleep30",     dashboardService.getAvgSleepHours(30));
-        model.addAttribute("avgSteps30",     dashboardService.getAvgSteps(30));
+        model.addAttribute("latestMetrics",   latest);
+        model.addAttribute("recentDays",      recent);
+        model.addAttribute("workoutRows",     buildWorkoutRows());
+        model.addAttribute("gymHeatmap30",    gymBookDashboardService.getMuscleHeatmap(30));
+        model.addAttribute("totalWorkouts",   dashboardService.getTotalWorkoutCount());
+        model.addAttribute("avgSleep30",      dashboardService.getAvgSleepHours(30));
+        model.addAttribute("avgSteps30",      dashboardService.getAvgSteps(30));
 
         // Labels & Values für Schritte-Chart
         model.addAttribute("stepLabels", toDateLabels(recent));
@@ -158,8 +162,8 @@ public class HealthController {
         model.addAttribute("totalWorkouts",  dashboardService.getTotalWorkoutCount());
 
         // Chart-Daten: Typ-Labels und Anzahl-Werte
-        model.addAttribute("typeLabels",  counts.keySet().stream().collect(Collectors.toList()));
-        model.addAttribute("typeValues",  counts.values().stream().collect(Collectors.toList()));
+        model.addAttribute("typeLabels",  new ArrayList<>(counts.keySet()));
+        model.addAttribute("typeValues",  new ArrayList<>(counts.values()));
 
         return "health/health-workouts";
     }
@@ -193,6 +197,68 @@ public class HealthController {
         model.addAttribute("carbsValues",   recent.stream().map(HealthDailyMetric::getDietaryCarbsG).collect(Collectors.toList()));
         model.addAttribute("fatValues",     recent.stream().map(HealthDailyMetric::getDietaryFatG).collect(Collectors.toList()));
         return "health/health-nutrition";
+    }
+
+    // ── Gemischte Workout-Zeilen (GymBook + Health) ────────────────────────────
+
+    /**
+     * Erstellt eine nach Datum absteigende Liste der letzten 25 Workout-Einheiten,
+     * gemischt aus GymBook-Sessions und Apple-Health-Workouts.
+     *
+     * <p>Fallback-Logik:
+     * <ul>
+     *   <li>GymBook-Session hat Vorrang für Krafttraining – Apple-Health-Strength-Workouts
+     *       werden für Tage mit GymBook-Session unterdrückt.</li>
+     *   <li>Nicht-Kraft-Workouts aus Apple Health werden immer einbezogen.</li>
+     * </ul>
+     * </p>
+     */
+    private List<WorkoutRow> buildWorkoutRows() {
+        // 1. GymBook-Sessions (bereits top 30, absteigend)
+        List<GymSession> gymSessions = gymBookDashboardService.getRecentSessions();
+        Set<String> gymDates = gymSessions.stream()
+                .map(GymSession::getDate)
+                .collect(Collectors.toSet());
+
+        List<WorkoutRow> rows = new ArrayList<>();
+
+        // 2. GymBook-Zeilen hinzufügen
+        for (GymSession s : gymSessions) {
+            String tag = switch (s.getTag() != null ? s.getTag() : "Sonstige") {
+                case "Push"  -> "Krafttraining (Push)";
+                case "Pull"  -> "Krafttraining (Pull)";
+                case "Beine" -> "Krafttraining (Beine)";
+                default      -> "Krafttraining";
+            };
+            String exNames = s.getExercises().stream()
+                    .map(e -> e.getName())
+                    .filter(n -> n != null && !n.isBlank())
+                    .distinct()
+                    .collect(Collectors.joining(", "));
+            rows.add(new WorkoutRow(s.getDate(), tag, 0, 0, 0, exNames, true));
+        }
+
+        // 3. Health-Workouts hinzufügen (Strength wird unterdrückt wenn GymBook vorhanden)
+        List<HealthWorkout> healthWorkouts = dashboardService.getAllWorkouts();
+        for (HealthWorkout w : healthWorkouts) {
+            boolean isStrength = "TraditionalStrengthTraining".equals(w.getActivityType())
+                              || "FunctionalStrengthTraining".equals(w.getActivityType());
+            if (isStrength && gymDates.contains(w.getDate().toString())) continue;
+
+            String tag = (w.getWorkoutTag() != null && !w.getWorkoutTag().isBlank())
+                    ? w.getWorkoutTag() : w.getActivityLabel();
+            double distKm = isStrength ? 0 : w.getDistanceKm();
+            rows.add(new WorkoutRow(
+                    w.getDate().toString(), tag,
+                    w.getDurationMinutes(), w.getCaloriesBurned(),
+                    distKm, null, false));
+        }
+
+        // 4. Nach Datum absteigend sortieren, auf 25 begrenzen
+        return rows.stream()
+                .sorted(Comparator.comparing(WorkoutRow::getDate).reversed())
+                .limit(25)
+                .collect(Collectors.toList());
     }
 
     // ── Hilfsmethoden ─────────────────────────────────────────────────────────

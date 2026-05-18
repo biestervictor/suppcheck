@@ -1,5 +1,7 @@
 package org.example.suppcheck.health.service;
 
+import org.example.suppcheck.gymbook.model.GymSession;
+import org.example.suppcheck.gymbook.repository.GymSessionRepository;
 import org.example.suppcheck.health.model.HealthDailyMetric;
 import org.example.suppcheck.health.model.HealthMetric;
 import org.example.suppcheck.health.model.HealthWorkout;
@@ -85,6 +87,7 @@ public class HealthImportService {
     private final HealthDailyMetricRepository dailyRepo;
     private final HealthWorkoutRepository   workoutRepo;
     private final MongoTemplate             mongoTemplate;
+    private final GymSessionRepository      gymRepo;
 
     // ── Status ────────────────────────────────────────────────────────────────
     private final AtomicLong processedRecords = new AtomicLong(0);
@@ -97,11 +100,13 @@ public class HealthImportService {
     public HealthImportService(HealthMetricRepository metricRepo,
                                HealthDailyMetricRepository dailyRepo,
                                HealthWorkoutRepository workoutRepo,
-                               MongoTemplate mongoTemplate) {
+                               MongoTemplate mongoTemplate,
+                               GymSessionRepository gymRepo) {
         this.metricRepo    = metricRepo;
         this.dailyRepo     = dailyRepo;
         this.workoutRepo   = workoutRepo;
         this.mongoTemplate = mongoTemplate;
+        this.gymRepo       = gymRepo;
     }
 
     // ── Status-API ────────────────────────────────────────────────────────────
@@ -329,6 +334,7 @@ public class HealthImportService {
                     w.setDistanceKm(dist);
                 } catch (NumberFormatException ignored) {}
             }
+            w.setWorkoutTag(classifyWorkoutTag(type, date));
             workoutBatch.add(w);
         }
 
@@ -386,6 +392,37 @@ public class HealthImportService {
             if (m.getOxygenSamples() > 0)       u.set("avgOxygenSaturation", m.getAvgOxygenSaturation());
             return u;
         }
+    }
+
+    // ── Workout-Klassifikation ────────────────────────────────────────────────
+
+    /**
+     * Klassifiziert einen Workout-Typ als Anzeige-Tag.
+     *
+     * <p>Für Krafttraining wird versucht, den GymBook-Tag für dasselbe Datum
+     * zu lesen (Push / Pull / Beine). Wenn GymBook noch nicht importiert wurde,
+     * fällt der Tag auf "Krafttraining" zurück.</p>
+     *
+     * <p>Package-private für Unit-Tests.</p>
+     */
+    String classifyWorkoutTag(String type, LocalDate date) {
+        return switch (type) {
+            case "Walking", "Hiking" -> "Gehen";
+            case "Running"           -> "Joggen";
+            case "TraditionalStrengthTraining", "FunctionalStrengthTraining" -> {
+                Optional<GymSession> gs = gymRepo.findById(date.toString());
+                if (gs.isPresent() && gs.get().getTag() != null) {
+                    yield switch (gs.get().getTag()) {
+                        case "Push"  -> "Krafttraining (Push)";
+                        case "Pull"  -> "Krafttraining (Pull)";
+                        case "Beine" -> "Krafttraining (Beine)";
+                        default      -> "Krafttraining";
+                    };
+                }
+                yield "Krafttraining";
+            }
+            default -> "Sonstiges";
+        };
     }
 
     // ── Quellen-Filter ────────────────────────────────────────────────────────

@@ -52,15 +52,15 @@
         </select>
     </div>
     <table class="workout-table" id="workoutTable">
-        <thead><tr><th>Datum</th><th>Typ</th><th>Dauer (min)</th><th>Kalorien</th><th>Distanz (km)</th><th>Quelle</th></tr></thead>
+        <thead><tr><th>Datum</th><th>Typ</th><th>Tag</th><th>Dauer (min)</th><th>Kalorien</th><th>Distanz (km)</th></tr></thead>
         <tbody>
         <tr th:each="w : ${allWorkouts}" th:data-type="${w.activityType}">
             <td th:text="${w.date}"></td>
             <td th:text="${w.activityLabel}"></td>
+            <td th:text="${w.workoutTag != null ? w.workoutTag : w.activityLabel}"></td>
             <td th:text="${#numbers.formatDecimal(w.durationMinutes,1,0)}"></td>
             <td th:text="${w.caloriesBurned > 0 ? #numbers.formatDecimal(w.caloriesBurned,1,0) + ' kcal' : '-'}"></td>
-            <td th:text="${w.distanceKm > 0 ? #numbers.formatDecimal(w.distanceKm,1,2) + ' km' : '-'}"></td>
-            <td th:text="${w.sourceName}"></td>
+            <td th:text="${(w.activityType == 'Walking' or w.activityType == 'Running' or w.activityType == 'Hiking') and w.distanceKm > 0 ? #numbers.formatDecimal(w.distanceKm,1,2) + ' km' : '-'}"></td>
         </tr>
         <tr th:if="${#lists.isEmpty(allWorkouts)}">
             <td colspan="6" style="color:#aaa;font-style:italic;">Keine Workouts gefunden.</td>

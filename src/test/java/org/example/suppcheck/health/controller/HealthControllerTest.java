@@ -3,6 +3,7 @@ package org.example.suppcheck.health.controller;
 import org.example.suppcheck.health.model.HealthDailyMetric;
 import org.example.suppcheck.health.model.HealthMetric;
 import org.example.suppcheck.health.model.HealthWorkout;
+import org.example.suppcheck.gymbook.service.GymBookDashboardService;
 import org.example.suppcheck.health.service.HealthDashboardService;
 import org.example.suppcheck.health.service.HealthImportService;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,15 +27,17 @@ import static org.mockito.Mockito.*;
 
 class HealthControllerTest {
 
-    private HealthDashboardService dashboardService;
-    private HealthImportService    importService;
-    private HealthController       controller;
+    private HealthDashboardService  dashboardService;
+    private HealthImportService     importService;
+    private GymBookDashboardService gymBookDashboardService;
+    private HealthController        controller;
 
     @BeforeEach
     void setUp() {
-        dashboardService = mock(HealthDashboardService.class);
-        importService    = mock(HealthImportService.class);
-        controller       = new HealthController(dashboardService, importService);
+        dashboardService        = mock(HealthDashboardService.class);
+        importService           = mock(HealthImportService.class);
+        gymBookDashboardService = mock(GymBookDashboardService.class);
+        controller              = new HealthController(dashboardService, importService, gymBookDashboardService);
 
         // Sensible defaults
         lenient().when(dashboardService.getLatestBodyMetrics()).thenReturn(Map.of());
@@ -46,6 +49,8 @@ class HealthControllerTest {
         lenient().when(dashboardService.getAllMetricSeries(anyString())).thenReturn(List.of());
         lenient().when(dashboardService.getAllWorkouts()).thenReturn(List.of());
         lenient().when(dashboardService.getWorkoutCountByType()).thenReturn(Map.of());
+        lenient().when(gymBookDashboardService.getRecentSessions()).thenReturn(List.of());
+        lenient().when(gymBookDashboardService.getMuscleHeatmap(anyInt())).thenReturn(Map.of());
         lenient().when(importService.getStatus()).thenReturn("idle");
         lenient().when(importService.getProcessedRecords()).thenReturn(0L);
         lenient().when(importService.getImportedMetrics()).thenReturn(0L);
@@ -69,7 +74,8 @@ class HealthControllerTest {
 
         assertTrue(model.containsAttribute("latestMetrics"));
         assertTrue(model.containsAttribute("recentDays"));
-        assertTrue(model.containsAttribute("recentWorkouts"));
+        assertTrue(model.containsAttribute("workoutRows"));
+        assertTrue(model.containsAttribute("gymHeatmap30"));
         assertTrue(model.containsAttribute("totalWorkouts"));
         assertTrue(model.containsAttribute("avgSleep30"));
         assertTrue(model.containsAttribute("avgSteps30"));

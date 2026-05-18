@@ -47,6 +47,20 @@
         }
         .workout-table th { background: #eaf1fb; }
         .workout-table tr:hover td { background: #f5f8ff; }
+        .tag-pill {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.82em;
+            font-weight: 600;
+        }
+        .tag-push  { background: #fde8d0; color: #b45309; }
+        .tag-pull  { background: #dbeafe; color: #1d4ed8; }
+        .tag-beine { background: #d1fae5; color: #065f46; }
+        .tag-kraft { background: #ede9fe; color: #5b21b6; }
+        .tag-gehen { background: #f0fdf4; color: #166534; }
+        .tag-jogg  { background: #ecfdf5; color: #065f46; }
+        .tag-other { background: #f3f4f6; color: #6b7280; }
 
         .stat-pills { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
         .stat-pill  {
@@ -72,6 +86,23 @@
         .quick-link:hover { background: #1a4aa8; }
         .quick-link.secondary { background: #888; }
         .quick-link.secondary:hover { background: #666; }
+
+        /* Compact Body-Map */
+        .bodymap-wrap { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+        .bodymap-svg-col { text-align: center; flex-shrink: 0; }
+        .bodymap-legend  { flex: 1; min-width: 180px; align-self: center; }
+        .bm-muscle-row   { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: .82em; }
+        .bm-bar-wrap     { flex: 1; background: #f0f0f0; border-radius: 3px; height: 6px; overflow: hidden; }
+        .bm-bar          { height: 100%; background: #2d6cdf; border-radius: 3px; }
+        .bm-count        { color: #888; min-width: 28px; text-align: right; font-size: .78em; }
+        /* heat classes for body-map SVG (compact) */
+        .db-mg           { fill: #d0dff5; }
+        .db-mg.heat-max  { fill: #1e3a8a; }
+        .db-mg.heat-1    { fill: #1d4ed8; }
+        .db-mg.heat-2    { fill: #3b82f6; }
+        .db-mg.heat-3    { fill: #60a5fa; }
+        .db-mg.heat-4    { fill: #93c5fd; }
+        .db-mg.heat-5    { fill: #bfdbfe; }
     </style>
 </head>
 <body>
@@ -85,7 +116,8 @@
     <a class="quick-link" th:href="@{/health/workouts}">Workouts</a>
     <a class="quick-link" th:href="@{/health/cardio}">Kardio &amp; Schlaf</a>
     <a class="quick-link" th:href="@{/health/nutrition}">Ernährung</a>
-    <a class="quick-link secondary" th:href="@{/health/import}">Daten importieren</a>
+    <a class="quick-link secondary" th:href="@{/health/import}">Apple Health importieren</a>
+    <a class="quick-link secondary" th:href="@{/gymbook/import}">GymBook importieren</a>
 </div>
 
 <h2>Aktueller Stand</h2>
@@ -148,21 +180,74 @@
     <canvas id="stepsChart" height="80"></canvas>
 </div>
 
-<h2>Letzte Workouts</h2>
+<!-- ── Muskelgruppen Body-Map (kompakt, letzte 30 Tage) ────────────────── -->
+<div class="chart-card">
+    <h2 style="margin-top:0;">
+        Muskelgruppen – letzte 30 Tage
+        <a th:href="@{/gymbook/body-map}" style="font-size:.7em;font-weight:normal;margin-left:12px;color:#888;text-decoration:none;">→ Details</a>
+    </h2>
+    <div class="bodymap-wrap">
+        <div class="bodymap-svg-col">
+            <svg id="dashBodyMapSvg" viewBox="0 0 200 400" width="140" style="max-width:140px">
+                <ellipse cx="100" cy="28" rx="22" ry="26" fill="#c8d8e8"/>
+                <rect x="92" y="50" width="16" height="14" fill="#c8d8e8"/>
+                <ellipse data-muscle="010.shoulders" class="db-mg" cx="62"  cy="74" rx="18" ry="12"/>
+                <ellipse data-muscle="010.shoulders" class="db-mg" cx="138" cy="74" rx="18" ry="12"/>
+                <path data-muscle="020.pectorals" class="db-mg" d="M78 65 Q100 60 122 65 L125 100 Q100 108 75 100 Z"/>
+                <path data-muscle="030.trapezius" class="db-mg" d="M82 64 Q100 58 118 64 L116 72 Q100 66 84 72 Z"/>
+                <rect data-muscle="041.armFlexors"   class="db-mg" x="42"  y="86"  width="14" height="40" rx="7"/>
+                <rect data-muscle="041.armFlexors"   class="db-mg" x="144" y="86"  width="14" height="40" rx="7"/>
+                <rect data-muscle="040.armExtensors" class="db-mg" x="30"  y="86"  width="12" height="38" rx="6"/>
+                <rect data-muscle="040.armExtensors" class="db-mg" x="158" y="86"  width="12" height="38" rx="6"/>
+                <rect data-muscle="050.abdominals"   class="db-mg" x="84"  y="102" width="32" height="52" rx="6"/>
+                <path data-muscle="051.obliques"     class="db-mg" d="M78 105 Q84 108 84 154 Q73 140 72 115 Z"/>
+                <path data-muscle="051.obliques"     class="db-mg" d="M122 105 Q116 108 116 154 Q127 140 128 115 Z"/>
+                <path data-muscle="060.glutes"       class="db-mg" d="M80 158 Q100 153 120 158 L124 192 Q100 200 76 192 Z"/>
+                <rect data-muscle="070.quadriceps"   class="db-mg" x="80"  y="195" width="16" height="70" rx="8"/>
+                <rect data-muscle="070.quadriceps"   class="db-mg" x="104" y="195" width="16" height="70" rx="8"/>
+                <path data-muscle="071.adductors"    class="db-mg" d="M96 195 Q100 200 100 265 Q96 265 92 260 Q88 225 92 195 Z"/>
+                <rect data-muscle="072.thighFlexors" class="db-mg" x="80"  y="265" width="16" height="40" rx="8" opacity=".6"/>
+                <rect data-muscle="072.thighFlexors" class="db-mg" x="104" y="265" width="16" height="40" rx="8" opacity=".6"/>
+                <rect data-muscle="090.calves"       class="db-mg" x="80"  y="305" width="14" height="45" rx="7"/>
+                <rect data-muscle="090.calves"       class="db-mg" x="106" y="305" width="14" height="45" rx="7"/>
+                <path fill="none" stroke="#c8d8e8" stroke-width="1.5"
+                      d="M78 65 Q62 62 45 78 L30 84 L28 158 Q42 168 76 160 L76 195 L80 350 L92 352 L92 270 L100 265 L108 270 L108 352 L120 350 L124 195 L124 160 Q158 168 172 158 L170 84 L155 78 Q138 62 122 65"/>
+            </svg>
+        </div>
+        <div class="bodymap-legend">
+            <div id="dashMuscleList"></div>
+            <div th:if="${gymHeatmap30.isEmpty()}" style="color:#888;font-size:.85em;">
+                Noch keine GymBook-Daten. <a th:href="@{/gymbook/import}" style="color:#2d6cdf;">GymBook importieren</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Letzte Workouts (gemischt GymBook + Health) ─────────────────────── -->
+<h2>Letzte Workouts <a th:href="@{/gymbook}" style="font-size:.65em;font-weight:normal;margin-left:8px;color:#888;text-decoration:none;">GymBook</a></h2>
 <table class="workout-table">
     <thead><tr>
-        <th>Datum</th><th>Typ</th><th>Dauer (min)</th><th>Kalorien</th><th>Distanz (km)</th>
+        <th>Datum</th><th>Tag</th><th>Dauer (min)</th><th>Kalorien</th><th>Distanz</th><th>Übungen</th>
     </tr></thead>
     <tbody>
-    <tr th:each="w : ${recentWorkouts}">
-        <td th:text="${w.date}"></td>
-        <td th:text="${w.activityLabel}"></td>
-        <td th:text="${#numbers.formatDecimal(w.durationMinutes, 1, 0)}"></td>
-        <td th:text="${w.caloriesBurned > 0 ? #numbers.formatDecimal(w.caloriesBurned, 1, 0) + ' kcal' : '-'}"></td>
-        <td th:text="${w.distanceKm > 0 ? #numbers.formatDecimal(w.distanceKm, 1, 2) + ' km' : '-'}"></td>
+    <tr th:each="r : ${workoutRows}">
+        <td th:text="${r.date}"></td>
+        <td>
+            <span th:classappend="${r.tag.contains('Push')} ? 'tag-push' :
+                                   (${r.tag.contains('Pull')} ? 'tag-pull' :
+                                   (${r.tag.contains('Beine')} ? 'tag-beine' :
+                                   (${r.tag.contains('Kraft')} ? 'tag-kraft' :
+                                   (${r.tag == 'Gehen'} ? 'tag-gehen' :
+                                   (${r.tag == 'Joggen'} ? 'tag-jogg' : 'tag-other')))))"
+                  class="tag-pill" th:text="${r.tag}"></span>
+        </td>
+        <td th:text="${r.durationMin > 0 ? #numbers.formatDecimal(r.durationMin, 1, 0) : '-'}"></td>
+        <td th:text="${r.kcal > 0 ? #numbers.formatDecimal(r.kcal, 1, 0) + ' kcal' : '-'}"></td>
+        <td th:text="${r.distKm > 0 ? #numbers.formatDecimal(r.distKm, 1, 2) + ' km' : '-'}"></td>
+        <td style="color:#555;font-size:.85em;" th:text="${r.exercises != null ? r.exercises : '-'}"></td>
     </tr>
-    <tr th:if="${#lists.isEmpty(recentWorkouts)}">
-        <td colspan="5" style="color:#aaa; font-style:italic;">Keine Workouts gefunden – bitte erst Daten importieren.</td>
+    <tr th:if="${#lists.isEmpty(workoutRows)}">
+        <td colspan="6" style="color:#aaa; font-style:italic;">Keine Workouts gefunden – bitte erst Daten importieren.</td>
     </tr>
     </tbody>
 </table>
@@ -180,6 +265,49 @@
         },
         options: { responsive: true, plugins: { legend: { display: false } },
                    scales: { y: { beginAtZero: true } } }
+    });
+
+    // ── Body-Map colorize ──────────────────────────────────────────────────────
+    const gymHeatmap = /*[[${gymHeatmap30}]]*/ {};
+    const MUSCLE_LABELS = {
+        '010.shoulders': 'Schultern', '020.pectorals': 'Brust',
+        '030.trapezius': 'Trapez', '031.dorsalMuscles': 'Rücken (Lat)',
+        '032.lumbarMuscles': 'Unterer Rücken', '040.armExtensors': 'Trizeps',
+        '041.armFlexors': 'Bizeps', '050.abdominals': 'Bauch',
+        '051.obliques': 'Schräge Bauchmuskeln', '060.glutes': 'Gesäß',
+        '070.quadriceps': 'Quadrizeps', '071.adductors': 'Adduktoren',
+        '072.thighFlexors': 'Hamstrings', '090.calves': 'Waden'
+    };
+    const heatVals = Object.values(gymHeatmap);
+    const maxVal = heatVals.length ? Math.max(1, ...heatVals) : 1;
+
+    // Color SVG shapes
+    document.querySelectorAll('#dashBodyMapSvg [data-muscle]').forEach(el => {
+        const id  = el.getAttribute('data-muscle');
+        const cnt = gymHeatmap[id] || 0;
+        if (cnt === 0) return;
+        const ratio = cnt / maxVal;
+        let cls = ratio >= 0.9 ? 'heat-max' :
+                  ratio >= 0.7 ? 'heat-1'   :
+                  ratio >= 0.5 ? 'heat-2'   :
+                  ratio >= 0.3 ? 'heat-3'   :
+                  ratio >= 0.1 ? 'heat-4'   : 'heat-5';
+        el.classList.add(cls);
+        el.setAttribute('title', (MUSCLE_LABELS[id] || id) + ': ' + cnt + '×');
+    });
+
+    // Build muscle legend (top 8)
+    const sorted = Object.entries(gymHeatmap).sort((a,b) => b[1]-a[1]).slice(0, 8);
+    const list   = document.getElementById('dashMuscleList');
+    sorted.forEach(([id, cnt]) => {
+        const label = MUSCLE_LABELS[id] || id;
+        const pct   = Math.round(cnt / maxVal * 100);
+        const row   = document.createElement('div');
+        row.className = 'bm-muscle-row';
+        row.innerHTML = `<span style="min-width:130px;color:#333">${label}</span>
+            <div class="bm-bar-wrap"><div class="bm-bar" style="width:${pct}%"></div></div>
+            <span class="bm-count">${cnt}×</span>`;
+        list.appendChild(row);
     });
 </script>
 </body>

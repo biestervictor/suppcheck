@@ -25,6 +25,12 @@ public class HealthWorkout {
     @Indexed
     private String activityType;
 
+    /**
+     * Klassifiziertes Anzeige-Tag, z.B. "Krafttraining (Push)", "Gehen", "Joggen", "Sonstiges".
+     * Wird beim Import gesetzt (ggf. via GymBook-Lookup).
+     */
+    private String workoutTag;
+
     @Indexed
     private LocalDate date;
 

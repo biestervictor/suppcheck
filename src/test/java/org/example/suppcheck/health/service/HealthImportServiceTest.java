@@ -1,5 +1,7 @@
 package org.example.suppcheck.health.service;
 
+import org.example.suppcheck.gymbook.model.GymSession;
+import org.example.suppcheck.gymbook.repository.GymSessionRepository;
 import org.example.suppcheck.health.model.HealthDailyMetric;
 import org.example.suppcheck.health.model.HealthMetric;
 import org.example.suppcheck.health.model.HealthWorkout;
@@ -16,8 +18,10 @@ import org.springframework.data.mongodb.core.query.Update;
 import java.io.File;
 import java.io.FileWriter;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -34,15 +38,17 @@ class HealthImportServiceTest {
     @TempDir
     Path tempDir;
 
-    private MongoTemplate      mongo;
-    private HealthImportService service;
+    private MongoTemplate         mongo;
+    private GymSessionRepository  gymRepo;
+    private HealthImportService   service;
 
     // Captured upsert calls
     private final List<Update> capturedUpdates = new ArrayList<>();
 
     @BeforeEach
     void setUp() {
-        mongo = mock(MongoTemplate.class);
+        mongo   = mock(MongoTemplate.class);
+        gymRepo = mock(GymSessionRepository.class);
         doAnswer(inv -> { capturedUpdates.add(inv.getArgument(1)); return null; })
                 .when(mongo).upsert(any(Query.class), any(Update.class), any(Class.class));
         doNothing().when(mongo).dropCollection(anyString());
@@ -51,7 +57,8 @@ class HealthImportServiceTest {
                 mock(HealthMetricRepository.class),
                 mock(HealthDailyMetricRepository.class),
                 mock(HealthWorkoutRepository.class),
-                mongo
+                mongo,
+                gymRepo
         );
     }
 
@@ -181,6 +188,71 @@ class HealthImportServiceTest {
         Object stepsInc = getIncValue(capturedUpdates.get(0), "steps");
         assertEquals(1500.0, ((Number) stepsInc).doubleValue(), 0.01,
                 "Only Apple Watch steps counted – QRing and iPhone excluded");
+    }
+
+    // ── classifyWorkoutTag ────────────────────────────────────────────────────
+
+    @Test
+    void classifyWorkoutTag_walking_returnsGehen() {
+        assertEquals("Gehen", service.classifyWorkoutTag("Walking", LocalDate.of(2026, 5, 1)));
+    }
+
+    @Test
+    void classifyWorkoutTag_hiking_returnsGehen() {
+        assertEquals("Gehen", service.classifyWorkoutTag("Hiking", LocalDate.of(2026, 5, 1)));
+    }
+
+    @Test
+    void classifyWorkoutTag_running_returnsJoggen() {
+        assertEquals("Joggen", service.classifyWorkoutTag("Running", LocalDate.of(2026, 5, 1)));
+    }
+
+    @Test
+    void classifyWorkoutTag_unknown_returnsSonstiges() {
+        assertEquals("Sonstiges", service.classifyWorkoutTag("CoreTraining", LocalDate.of(2026, 5, 1)));
+    }
+
+    @Test
+    void classifyWorkoutTag_strengthWithGymBookPush_returnsKrafttrainingPush() {
+        GymSession gs = new GymSession("2026-05-01");
+        gs.setTag("Push");
+        when(gymRepo.findById("2026-05-01")).thenReturn(Optional.of(gs));
+        assertEquals("Krafttraining (Push)",
+                service.classifyWorkoutTag("TraditionalStrengthTraining", LocalDate.of(2026, 5, 1)));
+    }
+
+    @Test
+    void classifyWorkoutTag_strengthWithGymBookPull_returnsKrafttrainingPull() {
+        GymSession gs = new GymSession("2026-05-02");
+        gs.setTag("Pull");
+        when(gymRepo.findById("2026-05-02")).thenReturn(Optional.of(gs));
+        assertEquals("Krafttraining (Pull)",
+                service.classifyWorkoutTag("FunctionalStrengthTraining", LocalDate.of(2026, 5, 2)));
+    }
+
+    @Test
+    void classifyWorkoutTag_strengthWithGymBookBeine_returnsKrafttrainingBeine() {
+        GymSession gs = new GymSession("2026-05-03");
+        gs.setTag("Beine");
+        when(gymRepo.findById("2026-05-03")).thenReturn(Optional.of(gs));
+        assertEquals("Krafttraining (Beine)",
+                service.classifyWorkoutTag("TraditionalStrengthTraining", LocalDate.of(2026, 5, 3)));
+    }
+
+    @Test
+    void classifyWorkoutTag_strengthWithoutGymBook_returnsKrafttraining() {
+        when(gymRepo.findById("2026-05-04")).thenReturn(Optional.empty());
+        assertEquals("Krafttraining",
+                service.classifyWorkoutTag("TraditionalStrengthTraining", LocalDate.of(2026, 5, 4)));
+    }
+
+    @Test
+    void classifyWorkoutTag_strengthWithGymBookSonstige_returnsKrafttraining() {
+        GymSession gs = new GymSession("2026-05-05");
+        gs.setTag("Sonstige");
+        when(gymRepo.findById("2026-05-05")).thenReturn(Optional.of(gs));
+        assertEquals("Krafttraining",
+                service.classifyWorkoutTag("TraditionalStrengthTraining", LocalDate.of(2026, 5, 5)));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
