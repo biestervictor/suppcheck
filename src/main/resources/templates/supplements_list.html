@@ -396,7 +396,8 @@
                  th:data-name="${supplement.name}"
                  th:data-mhd="${supplement.mhdProdukt}"
                  th:data-flavors="${supplement.flavors != null and !supplement.flavors.isEmpty() ? #strings.listJoin(supplement.flavors, '|') : ''}">
-                <button class="stock-btn minus" type="button" onclick="openConsumeModal(this)">−</button>
+                <button class="stock-btn minus" type="button" onclick="openConsumeModal(this)"
+                        th:style="${supplement.stock == 0 ? 'display:none' : ''}">−</button>
                 <span class="stock-value" th:classappend="${supplement.stock == 0 ? ' empty' : ''}"
                       th:text="${supplement.stock}">0</span>
                 <button class="stock-btn plus" type="button" onclick="openRestockModal(this)">+</button>
