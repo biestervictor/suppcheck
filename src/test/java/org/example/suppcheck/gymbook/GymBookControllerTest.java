@@ -53,33 +53,8 @@ class GymBookControllerTest {
     // ── dashboard ─────────────────────────────────────────────────────────────
 
     @Test
-    void dashboard_returnsCorrectView() {
-        assertEquals("gymbook/gymbook-dashboard", controller.dashboard(new ConcurrentModel()));
-    }
-
-    @Test
-    void dashboard_addsRequiredAttributes() {
-        Model model = new ConcurrentModel();
-        controller.dashboard(model);
-        assertTrue(model.containsAttribute("recentSessions"));
-        assertTrue(model.containsAttribute("totalSessions"));
-        assertTrue(model.containsAttribute("topExLabels"));
-        assertTrue(model.containsAttribute("topExValues"));
-        assertTrue(model.containsAttribute("healthDurationByDate"));
-    }
-
-    @Test
-    void dashboard_topExercisesOrderedCorrectly() {
-        Map<String, Long> top = Map.of("Kniebeugen", 30L, "Bankdrücken", 25L);
-        when(dashboardService.getTopExercises(8)).thenReturn(top);
-
-        Model model = new ConcurrentModel();
-        controller.dashboard(model);
-
-        @SuppressWarnings("unchecked")
-        List<String> labels = (List<String>) model.getAttribute("topExLabels");
-        assertNotNull(labels);
-        assertFalse(labels.isEmpty());
+    void dashboard_redirectsToHealth() {
+        assertEquals("redirect:/health", controller.dashboard());
     }
 
     // ── bodyMap ───────────────────────────────────────────────────────────────

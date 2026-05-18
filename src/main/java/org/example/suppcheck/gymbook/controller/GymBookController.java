@@ -49,17 +49,8 @@ public class GymBookController {
     // ── Dashboard ──────────────────────────────────────────────────────────────
 
     @GetMapping
-    public String dashboard(Model model) {
-        var sessions = dashboardService.getRecentSessions();
-        var topEx    = dashboardService.getTopExercises(8);
-
-        model.addAttribute("recentSessions",      sessions);
-        model.addAttribute("totalSessions",       dashboardService.getTotalSessionCount());
-        model.addAttribute("topExLabels",         List.copyOf(topEx.keySet()));
-        model.addAttribute("topExValues",         List.copyOf(topEx.values()));
-        model.addAttribute("healthDurationByDate", healthDashboardService.getStrengthDurationByDate());
-
-        return "gymbook/gymbook-dashboard";
+    public String dashboard() {
+        return "redirect:/health";
     }
 
     // ── Muskel-Heatmap ─────────────────────────────────────────────────────────

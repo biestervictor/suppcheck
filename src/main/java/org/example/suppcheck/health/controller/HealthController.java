@@ -57,6 +57,7 @@ public class HealthController {
     public String dashboard(Model model) {
         Map<String, HealthMetric> latest = dashboardService.getLatestBodyMetrics();
         List<HealthDailyMetric>   recent = dashboardService.getRecentDailyMetrics(30);
+        var topEx = gymBookDashboardService.getTopExercises(8);
 
         model.addAttribute("latestMetrics",   latest);
         model.addAttribute("recentDays",      recent);
@@ -65,6 +66,8 @@ public class HealthController {
         model.addAttribute("totalWorkouts",   dashboardService.getTotalWorkoutCount());
         model.addAttribute("avgSleep30",      dashboardService.getAvgSleepHours(30));
         model.addAttribute("avgSteps30",      dashboardService.getAvgSteps(30));
+        model.addAttribute("topExLabels",     new ArrayList<>(topEx.keySet()));
+        model.addAttribute("topExValues",     new ArrayList<>(topEx.values()));
 
         // Labels & Values für Schritte-Chart
         model.addAttribute("stepLabels", toDateLabels(recent));
@@ -272,10 +275,10 @@ public class HealthController {
                     distKm, null, false));
         }
 
-        // 4. Nach Datum absteigend sortieren, auf 25 begrenzen
+        // 4. Nach Datum absteigend sortieren, auf 60 begrenzen
         return rows.stream()
                 .sorted(Comparator.comparing(WorkoutRow::getDate).reversed())
-                .limit(25)
+                .limit(60)
                 .collect(Collectors.toList());
     }
 
