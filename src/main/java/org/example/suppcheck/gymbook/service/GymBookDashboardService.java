@@ -33,6 +33,11 @@ public class GymBookDashboardService {
         return sessionRepo.findAllByOrderByDateDesc();
     }
 
+    /** Eine einzelne Session nach Datum. */
+    public Optional<GymSession> getSessionByDate(String date) {
+        return sessionRepo.findById(date);
+    }
+
     public long getTotalSessionCount() {
         return sessionRepo.count();
     }

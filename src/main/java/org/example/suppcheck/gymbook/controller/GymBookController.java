@@ -1,5 +1,8 @@
 package org.example.suppcheck.gymbook.controller;
 
+import org.example.suppcheck.gymbook.model.GymExerciseEntry;
+import org.example.suppcheck.gymbook.model.GymSession;
+import org.example.suppcheck.gymbook.model.GymSetEntry;
 import org.example.suppcheck.gymbook.service.GymBookDashboardService;
 import org.example.suppcheck.gymbook.service.GymBookImportService;
 import org.springframework.http.HttpStatus;
@@ -11,8 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -63,6 +65,73 @@ public class GymBookController {
         model.addAttribute("heatmap", heatmap);
         model.addAttribute("days",    days);
         return "gymbook/gymbook-body-map";
+    }
+
+    // ── Session-Detail (AJAX JSON) ─────────────────────────────────────────────
+
+    /**
+     * Gibt die Muscle-Heatmap und Exercise-Liste für eine einzelne Session als JSON zurück.
+     * Wird vom Dashboard per fetch() aufgerufen wenn ein Training angeklickt wird.
+     */
+    @GetMapping(value = "/session/{date}", produces = "application/json")
+    @ResponseBody
+    public Map<String, Object> sessionDetail(@PathVariable String date) {
+        Optional<GymSession> opt = dashboardService.getSessionByDate(date);
+        if (opt.isEmpty()) return Map.of("error", "Session not found");
+
+        GymSession session = opt.get();
+
+        // Muskel → Liste von Übungen (dedupliziert)
+        Map<String, Set<String>> muscleExercises = new LinkedHashMap<>();
+        // Muskel → Gesamtanzahl Sätze in dieser Session
+        Map<String, Integer> muscleSets = new LinkedHashMap<>();
+
+        for (GymExerciseEntry ex : session.getExercises()) {
+            List<String> muscles = new ArrayList<>();
+            if (ex.getPrimaryMuscles() != null)
+                Arrays.stream(ex.getPrimaryMuscles().split("\\|")).map(String::trim)
+                      .filter(s -> !s.isBlank()).forEach(muscles::add);
+            if (ex.getSecondaryMuscles() != null)
+                Arrays.stream(ex.getSecondaryMuscles().split("\\|")).map(String::trim)
+                      .filter(s -> !s.isBlank()).forEach(muscles::add);
+
+            for (String m : muscles) {
+                muscleExercises.computeIfAbsent(m, k -> new LinkedHashSet<>()).add(ex.getName());
+                muscleSets.merge(m, ex.getTotalSets(), Integer::sum);
+            }
+        }
+
+        // Exercises als serialisierbare Liste
+        List<Map<String, Object>> exercises = session.getExercises().stream()
+                .map(ex -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("name",      ex.getName());
+                    m.put("primary",   ex.getPrimaryMuscles() != null ? ex.getPrimaryMuscles() : "");
+                    m.put("secondary", ex.getSecondaryMuscles() != null ? ex.getSecondaryMuscles() : "");
+                    m.put("region",    ex.getRegion() != null ? ex.getRegion() : "");
+                    m.put("sets",      ex.getTotalSets());
+                    m.put("reps",      ex.getTotalReps());
+                    m.put("maxKg",     ex.getMaxWeightKg());
+                    m.put("setDetails", ex.getSets().stream()
+                            .map(s -> ex.getMaxWeightKg() > 0
+                                    ? s.getWeightKg() + " kg × " + s.getReps()
+                                    : s.getReps() + " Wdh.")
+                            .collect(Collectors.toList()));
+                    return m;
+                }).collect(Collectors.toList());
+
+        // muscleExercises als einfache Map<String,List> für JSON
+        Map<String, List<String>> muscleExMap = new LinkedHashMap<>();
+        muscleExercises.forEach((k, v) -> muscleExMap.put(k, new ArrayList<>(v)));
+
+        return Map.of(
+                "date",           date,
+                "totalSets",      session.getTotalSets(),
+                "totalReps",      session.getTotalReps(),
+                "muscleSets",     muscleSets,
+                "muscleExercises",muscleExMap,
+                "exercises",      exercises
+        );
     }
 
     // ── Gewichtsverlauf ────────────────────────────────────────────────────────

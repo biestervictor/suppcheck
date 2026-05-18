@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <th:block th:replace="~{fragments/head :: common-meta}"></th:block>
+  <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
   <title th:text="${exerciseName != null ? exerciseName + ' – GymBook' : 'Übung wählen – GymBook'}">Übung</title>
-  <link rel="stylesheet" th:href="@{/css/style.css}"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
+    body { font-family: Arial, sans-serif; background: #0f172a; color: #f1f5f9; margin: 0; }
     .exercise-select{width:100%;padding:.6rem 1rem;background:#1e293b;border:1px solid #334155;border-radius:8px;color:#f1f5f9;font-size:1rem;margin-bottom:1.5rem}
     .chart-wrap{background:#1e293b;border-radius:10px;padding:1.5rem;margin-bottom:2rem}
     .log-table{width:100%;border-collapse:collapse;font-size:.9rem}
@@ -18,7 +18,7 @@
   </style>
 </head>
 <body>
-<div th:replace="~{fragments/nav :: main-nav}"></div>
+<th:block th:replace="~{fragments/nav :: main-nav}"></th:block>
 <main class="container" style="max-width:1000px;margin:2rem auto;padding:0 1rem">
 
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">

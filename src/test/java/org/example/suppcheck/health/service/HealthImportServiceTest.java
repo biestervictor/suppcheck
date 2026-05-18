@@ -162,6 +162,10 @@ class HealthImportServiceTest {
                           startDate="2026-05-17 08:00:00 +0200"
                           endDate="2026-05-17 08:05:00 +0200"/>
                   <Record type="HKQuantityTypeIdentifierStepCount"
+                          sourceName="iPhone (7)" unit="count" value="500"
+                          startDate="2026-05-17 08:00:00 +0200"
+                          endDate="2026-05-17 08:05:00 +0200"/>
+                  <Record type="HKQuantityTypeIdentifierStepCount"
                           sourceName="Apple\u00a0Watch von Victor" unit="count" value="1500"
                           startDate="2026-05-17 08:00:00 +0200"
                           endDate="2026-05-17 08:05:00 +0200"/>
@@ -176,7 +180,7 @@ class HealthImportServiceTest {
         assertEquals(1, capturedUpdates.size());
         Object stepsInc = getIncValue(capturedUpdates.get(0), "steps");
         assertEquals(1500.0, ((Number) stepsInc).doubleValue(), 0.01,
-                "QRing steps must be excluded; only Apple Watch steps counted");
+                "Only Apple Watch steps counted – QRing and iPhone excluded");
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

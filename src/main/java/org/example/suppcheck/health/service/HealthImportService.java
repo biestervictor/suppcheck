@@ -391,13 +391,15 @@ public class HealthImportService {
     // ── Quellen-Filter ────────────────────────────────────────────────────────
 
     /**
-     * Nur Apple-Geräte als Schrittquelle: Apple Watch und iPhone.
-     * Drittanbieter wie QRing zählen Schritte parallel und würden doppeln.
+     * Nur Apple Watch als Schrittquelle.
+     * iPhone und QRing überlappen mit Apple Watch zeitlich → Apple Health
+     * dedupliziert intern und bevorzugt die Watch. In der rohen Export.xml
+     * sind beide Quellen vorhanden, daher nur Watch-Records übernehmen.
      */
     private static boolean isAppleStepSource(String source) {
         if (source == null) return false;
-        // non-breaking space \u00a0 in "Apple\u00a0Watch" aus dem Export
-        return source.startsWith("Apple") || source.startsWith("iPhone") || source.startsWith("Victors iPhone");
+        // "Apple\u00a0Watch von Victor" – non-breaking space im Export
+        return source.startsWith("Apple");
     }
 
     /**

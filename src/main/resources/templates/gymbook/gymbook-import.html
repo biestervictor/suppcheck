@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <th:block th:replace="~{fragments/head :: common-meta}"></th:block>
+  <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
   <title>GymBook Import – SuppCheck</title>
-  <link rel="stylesheet" th:href="@{/css/style.css}"/>
   <style>
+    body { font-family: Arial, sans-serif; background: #0f172a; color: #f1f5f9; margin: 0; }
     .drop-zone{border:2px dashed #4a9eff;border-radius:12px;padding:3rem;text-align:center;cursor:pointer;transition:background .2s}
     .drop-zone.dragover{background:rgba(74,158,255,.1)}
     .progress-wrap{background:#1e293b;border-radius:8px;height:12px;overflow:hidden;margin-top:1rem}
@@ -17,7 +17,7 @@
   </style>
 </head>
 <body>
-<div th:replace="~{fragments/nav :: main-nav}"></div>
+<th:block th:replace="~{fragments/nav :: main-nav}"></th:block>
 <main class="container" style="max-width:700px;margin:2rem auto;padding:0 1rem">
   <h1>GymBook Import</h1>
   <p style="color:#94a3b8">GymBook-Backup (.database) hochladen – SQLite-Datei direkt aus der GymBook-App.</p>
