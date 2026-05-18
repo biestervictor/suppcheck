@@ -176,17 +176,34 @@ public class HealthImportService {
         private final List<HealthWorkout> workoutBatch = new ArrayList<>(BATCH);
         private final Map<String, HealthDailyMetric> daily = new LinkedHashMap<>();
 
+        /**
+         * Flag: befinden wir uns gerade innerhalb eines {@code <Correlation>}-Elements?
+         *
+         * <p>Apple Health exportiert jede Mahlzeit als {@code <Correlation type="...Food">}
+         * mit Kind-{@code <Record>}-Elementen UND dieselben Records nochmal als
+         * eigenständige Top-Level-Records (so dokumentiert im DTD-Kommentar der Export.xml).
+         * Ohne dieses Flag würden alle Nutrition-Werte doppelt gezählt.</p>
+         */
+        private boolean insideCorrelation = false;
+
         @Override
         public void startElement(String uri, String local, String qName, Attributes attrs) {
             processedRecords.incrementAndGet();
             switch (qName) {
-                case "Record"  -> handleRecord(attrs);
+                case "Correlation" -> insideCorrelation = true;
+                // Kind-Records einer Correlation überspringen – sie erscheinen auch als Top-Level
+                case "Record"  -> { if (!insideCorrelation) handleRecord(attrs); }
                 case "Workout" -> handleWorkout(attrs);
                 default        -> {}
             }
             if (metricBatch.size()  >= BATCH)   flushMetrics();
             if (workoutBatch.size() >= BATCH)    flushWorkouts();
             if (daily.size()        >= 10_000)   flushDaily();
+        }
+
+        @Override
+        public void endElement(String uri, String local, String qName) {
+            if ("Correlation".equals(qName)) insideCorrelation = false;
         }
 
         @Override
