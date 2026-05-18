@@ -238,6 +238,8 @@ public class HealthImportService {
                 if (valueStr == null) return;
                 double val;
                 try { val = Double.parseDouble(valueStr); } catch (NumberFormatException e) { return; }
+                // HealthKit speichert BodyFatPercentage als Dezimalbruch (0.0–1.0), nicht als Prozentwert
+                if ("HKQuantityTypeIdentifierBodyFatPercentage".equals(type)) val = val * 100.0;
                 String shortType = TYPE_NAMES.getOrDefault(type, type);
                 metricBatch.add(new HealthMetric(shortType, date, val, unit != null ? unit : "", source != null ? source : ""));
                 return;

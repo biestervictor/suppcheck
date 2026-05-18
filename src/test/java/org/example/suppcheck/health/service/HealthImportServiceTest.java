@@ -255,6 +255,50 @@ class HealthImportServiceTest {
                 service.classifyWorkoutTag("TraditionalStrengthTraining", LocalDate.of(2026, 5, 5)));
     }
 
+    // ── BodyFatPercentage Konvertierung ───────────────────────────────────────
+
+    /**
+     * Apple HealthKit speichert BodyFatPercentage als Dezimalbruch (0.0–1.0).
+     * Der Import muss den Wert ×100 multiplizieren, damit 0.20373 → 20.373 % wird.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void bodyFatPercentage_isMultipliedBy100() throws Exception {
+        String xml = """
+                <?xml version="1.0"?>
+                <!DOCTYPE HealthData [<!ELEMENT HealthData ANY>]>
+                <HealthData locale="de_DE">
+                  <ExportDate value="2026-05-18 10:00:00 +0200"/>
+                  <Me HKCharacteristicTypeIdentifierDateOfBirth=""
+                      HKCharacteristicTypeIdentifierBiologicalSex=""
+                      HKCharacteristicTypeIdentifierBloodType=""
+                      HKCharacteristicTypeIdentifierFitzpatrickSkinType=""/>
+                  <Record type="HKQuantityTypeIdentifierBodyFatPercentage"
+                          sourceName="Withings" unit="%"
+                          creationDate="2026-05-01 08:00:00 +0200"
+                          startDate="2026-05-01 08:00:00 +0200"
+                          endDate="2026-05-01 08:00:00 +0200"
+                          value="0.20373"/>
+                </HealthData>
+                """;
+
+        List<Object> inserted = new ArrayList<>();
+        doAnswer(inv -> { inserted.addAll((java.util.Collection<?>) inv.getArgument(0)); return null; })
+                .when(mongo).insertAll(any());
+
+        File f = tempDir.resolve("export.xml").toFile();
+        try (var w = new FileWriter(f)) { w.write(xml); }
+        service.startImportAsync(f, true);
+        waitForImport();
+
+        assertTrue(inserted.stream()
+                .filter(o -> o instanceof HealthMetric)
+                .map(o -> (HealthMetric) o)
+                .filter(m -> "BodyFatPercentage".equals(m.getType()))
+                .anyMatch(m -> Math.abs(m.getValue() - 20.373) < 0.001),
+                "BodyFatPercentage muss als Prozentwert (×100) gespeichert werden");
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private void waitForImport() throws InterruptedException {
