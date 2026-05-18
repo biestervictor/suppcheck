@@ -19,6 +19,12 @@
         .nutrition-table tr:hover td { background: #f5f8ff; }
         .back-link { color: #2d6cdf; text-decoration: none; font-size: 0.9em; }
         .back-link:hover { text-decoration: underline; }
+        /* Range-Bar */
+        .range-bar { display: flex; gap: .4rem; flex-wrap: wrap; }
+        .range-btn { padding: .25rem .7rem; border-radius: 16px; border: 1px solid #e0e0e0; background: #fff; color: #555; cursor: pointer; font-size: .8rem; transition: all .15s; }
+        .range-btn:hover, .range-btn.active { border-color: #2d6cdf; color: #2d6cdf; background: #eaf1fb; font-weight: 600; }
+        .page-range-bar { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; background: #fff; border-radius: 8px; padding: 12px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 24px; }
+        .page-range-bar span { font-size: .85rem; color: #888; }
     </style>
 </head>
 <body>
@@ -26,12 +32,31 @@
 <div class="page-content">
 <h1>Ernährung</h1>
 <p><a class="back-link" th:href="@{/health}">← Zurück zum Dashboard</a></p>
+
+<!-- ── Page-level Range-Bar ─────────────────────────────────────────────── -->
+<div class="page-range-bar">
+    <span>Zeitraum:</span>
+    <div class="range-bar" id="pageRangeBar">
+        <button class="range-btn active" onclick="setRange(7,this)">7T</button>
+        <button class="range-btn" onclick="setRange(30,this)">1M</button>
+        <button class="range-btn" onclick="setRange(90,this)">3M</button>
+        <button class="range-btn" onclick="setRange(365,this)">1J</button>
+        <button class="range-btn" onclick="setRange(0,this)">Alle</button>
+    </div>
+</div>
+
 <div class="chart-grid">
-    <div class="chart-card"><h2>Kalorien (kcal) – letzte 30 Tage</h2><canvas id="kcalChart"></canvas></div>
-    <div class="chart-card"><h2>Makros (g) – letzte 30 Tage</h2><canvas id="macroChart"></canvas></div>
+    <div class="chart-card">
+        <h2 id="kcalTitle">Kalorien (kcal)</h2>
+        <canvas id="kcalChart"></canvas>
+    </div>
+    <div class="chart-card">
+        <h2 id="macroTitle">Makros (g)</h2>
+        <canvas id="macroChart"></canvas>
+    </div>
 </div>
 <div class="chart-card">
-    <h2>Letzte 7 Tage – Details</h2>
+    <h2 id="tableTitle">Details</h2>
     <table class="nutrition-table">
         <thead><tr>
             <th style="text-align:left;">Datum</th>
@@ -39,46 +64,119 @@
             <th>Fett (g)</th><th>Zucker (g)</th><th>Ballaststoffe (g)</th><th>Wasser (ml)</th>
         </tr></thead>
         <tbody>
-        <th:block th:with="last7=${recentDays.size() > 7 ? recentDays.subList(recentDays.size()-7,recentDays.size()) : recentDays}">
-            <tr th:each="d : ${last7}">
-                <td th:text="${d.date}"></td>
-                <td th:text="${d.dietaryKcal > 0 ? #numbers.formatDecimal(d.dietaryKcal,1,0) : '-'}"></td>
-                <td th:text="${d.dietaryProteinG > 0 ? #numbers.formatDecimal(d.dietaryProteinG,1,1) : '-'}"></td>
-                <td th:text="${d.dietaryCarbsG > 0 ? #numbers.formatDecimal(d.dietaryCarbsG,1,1) : '-'}"></td>
-                <td th:text="${d.dietaryFatG > 0 ? #numbers.formatDecimal(d.dietaryFatG,1,1) : '-'}"></td>
-                <td th:text="${d.dietarySugarG > 0 ? #numbers.formatDecimal(d.dietarySugarG,1,1) : '-'}"></td>
-                <td th:text="${d.dietaryFiberG > 0 ? #numbers.formatDecimal(d.dietaryFiberG,1,1) : '-'}"></td>
-                <td th:text="${d.dietaryWaterMl > 0 ? #numbers.formatDecimal(d.dietaryWaterMl,1,0) : '-'}"></td>
-            </tr>
-            <tr th:if="${#lists.isEmpty(last7)}">
-                <td colspan="8" style="color:#aaa;font-style:italic;">Keine Ernährungsdaten gefunden.</td>
-            </tr>
-        </th:block>
+        <tr th:each="d : ${recentDays}"
+            th:attr="data-date=${d.date}">
+            <td th:text="${d.date}"></td>
+            <td th:text="${d.dietaryKcal > 0 ? #numbers.formatDecimal(d.dietaryKcal,1,0) : '-'}"></td>
+            <td th:text="${d.dietaryProteinG > 0 ? #numbers.formatDecimal(d.dietaryProteinG,1,1) : '-'}"></td>
+            <td th:text="${d.dietaryCarbsG > 0 ? #numbers.formatDecimal(d.dietaryCarbsG,1,1) : '-'}"></td>
+            <td th:text="${d.dietaryFatG > 0 ? #numbers.formatDecimal(d.dietaryFatG,1,1) : '-'}"></td>
+            <td th:text="${d.dietarySugarG > 0 ? #numbers.formatDecimal(d.dietarySugarG,1,1) : '-'}"></td>
+            <td th:text="${d.dietaryFiberG > 0 ? #numbers.formatDecimal(d.dietaryFiberG,1,1) : '-'}"></td>
+            <td th:text="${d.dietaryWaterMl > 0 ? #numbers.formatDecimal(d.dietaryWaterMl,1,0) : '-'}"></td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(recentDays)}">
+            <td colspan="8" style="color:#aaa;font-style:italic;">Keine Ernährungsdaten gefunden.</td>
+        </tr>
         </tbody>
     </table>
 </div>
 </div>
 <script th:inline="javascript">
-    const dailyLabels   = /*[[${dailyLabels}]]*/ [];
-    const kcalValues    = /*[[${kcalValues}]]*/ [];
-    const proteinValues = /*[[${proteinValues}]]*/ [];
-    const carbsValues   = /*[[${carbsValues}]]*/ [];
-    const fatValues     = /*[[${fatValues}]]*/ [];
-    new Chart(document.getElementById('kcalChart'), {
+    const allLabels      = /*[[${dailyLabels}]]*/ [];
+    const allKcal        = /*[[${kcalValues}]]*/ [];
+    const allProtein     = /*[[${proteinValues}]]*/ [];
+    const allCarbs       = /*[[${carbsValues}]]*/ [];
+    const allFat         = /*[[${fatValues}]]*/ [];
+
+    function filterRange(labels, values, days) {
+        if (!days) return { labels, values };
+        const d = new Date(); d.setDate(d.getDate() - days);
+        const cutoff = d.toISOString().slice(0, 10);
+        const pairs = labels.map((l, i) => [l, values[i]]).filter(([l]) => l >= cutoff);
+        return { labels: pairs.map(p => p[0]), values: pairs.map(p => p[1]) };
+    }
+
+    function filterMulti(days) {
+        if (!days) return {
+            labels: allLabels, kcal: allKcal,
+            protein: allProtein, carbs: allCarbs, fat: allFat
+        };
+        const d = new Date(); d.setDate(d.getDate() - days);
+        const cutoff = d.toISOString().slice(0, 10);
+        const indices = allLabels.map((l, i) => i).filter(i => allLabels[i] >= cutoff);
+        return {
+            labels:  indices.map(i => allLabels[i]),
+            kcal:    indices.map(i => allKcal[i]),
+            protein: indices.map(i => allProtein[i]),
+            carbs:   indices.map(i => allCarbs[i]),
+            fat:     indices.map(i => allFat[i])
+        };
+    }
+
+    // ── Initiale Charts (7T) ────────────────────────────────────────────────
+    const init = filterMulti(7);
+
+    const kcalChart = new Chart(document.getElementById('kcalChart'), {
         type: 'bar',
-        data: { labels: dailyLabels, datasets: [{ label: 'kcal', data: kcalValues,
+        data: { labels: init.labels, datasets: [{ label: 'kcal', data: init.kcal,
             backgroundColor: 'rgba(230,126,34,0.6)', borderColor: '#e67e22', borderWidth: 1 }] },
         options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
     });
-    new Chart(document.getElementById('macroChart'), {
+
+    const macroChart = new Chart(document.getElementById('macroChart'), {
         type: 'line',
-        data: { labels: dailyLabels, datasets: [
-            { label: 'Protein (g)',        data: proteinValues, borderColor: '#27ae60', backgroundColor: '#27ae6022', borderWidth: 1.5, tension: 0.2, pointRadius: 0, fill: false },
-            { label: 'Kohlenhydrate (g)',  data: carbsValues,   borderColor: '#e74c3c', backgroundColor: '#e74c3c22', borderWidth: 1.5, tension: 0.2, pointRadius: 0, fill: false },
-            { label: 'Fett (g)',           data: fatValues,     borderColor: '#f39c12', backgroundColor: '#f39c1222', borderWidth: 1.5, tension: 0.2, pointRadius: 0, fill: false }
+        data: { labels: init.labels, datasets: [
+            { label: 'Protein (g)',       data: init.protein, borderColor: '#27ae60', backgroundColor: '#27ae6022', borderWidth: 1.5, tension: 0.2, pointRadius: 0, fill: false },
+            { label: 'Kohlenhydrate (g)', data: init.carbs,   borderColor: '#e74c3c', backgroundColor: '#e74c3c22', borderWidth: 1.5, tension: 0.2, pointRadius: 0, fill: false },
+            { label: 'Fett (g)',          data: init.fat,     borderColor: '#f39c12', backgroundColor: '#f39c1222', borderWidth: 1.5, tension: 0.2, pointRadius: 0, fill: false }
         ] },
         options: { responsive: true, plugins: { legend: { display: true, position: 'top' } }, scales: { y: { beginAtZero: true } } }
     });
+
+    // ── Tabellen-Filter ─────────────────────────────────────────────────────
+    function filterTable(days) {
+        const cutoff = days > 0 ? (() => {
+            const d = new Date(); d.setDate(d.getDate() - days);
+            return d.toISOString().slice(0, 10);
+        })() : '';
+        document.querySelectorAll('.nutrition-table tbody tr[data-date]').forEach(row => {
+            const date = row.getAttribute('data-date') || '';
+            row.style.display = (!cutoff || date >= cutoff) ? '' : 'none';
+        });
+    }
+
+    // ── Range-Wechsel ───────────────────────────────────────────────────────
+    const RANGE_LABEL = { 7: 'letzte 7 Tage', 30: 'letzte 30 Tage', 90: 'letzte 3 Monate', 365: 'letztes Jahr', 0: 'alle Daten' };
+
+    function setRange(days, btn) {
+        document.querySelectorAll('#pageRangeBar .range-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const data = filterMulti(days);
+        kcalChart.data.labels = data.labels;
+        kcalChart.data.datasets[0].data = data.kcal;
+        kcalChart.update();
+
+        macroChart.data.labels = data.labels;
+        macroChart.data.datasets[0].data = data.protein;
+        macroChart.data.datasets[1].data = data.carbs;
+        macroChart.data.datasets[2].data = data.fat;
+        macroChart.update();
+
+        filterTable(days);
+
+        const lbl = RANGE_LABEL[days] || (days + ' Tage');
+        document.getElementById('kcalTitle').textContent   = 'Kalorien (kcal) – ' + lbl;
+        document.getElementById('macroTitle').textContent  = 'Makros (g) – ' + lbl;
+        document.getElementById('tableTitle').textContent  = 'Details – ' + lbl;
+    }
+
+    // Initial 7T anwenden
+    filterTable(7);
+    document.getElementById('kcalTitle').textContent  = 'Kalorien (kcal) – letzte 7 Tage';
+    document.getElementById('macroTitle').textContent = 'Makros (g) – letzte 7 Tage';
+    document.getElementById('tableTitle').textContent = 'Details – letzte 7 Tage';
 </script>
 </body>
 </html>

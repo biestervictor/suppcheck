@@ -182,8 +182,8 @@
     <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem">
         <h2 style="margin:0;">Schritte</h2>
         <div id="stepsRangeBar" class="range-bar">
-            <button class="range-btn" onclick="setStepsRange(7,this)">7T</button>
-            <button class="range-btn active" onclick="setStepsRange(30,this)">1M</button>
+            <button class="range-btn active" onclick="setStepsRange(7,this)">7T</button>
+            <button class="range-btn" onclick="setStepsRange(30,this)">1M</button>
             <button class="range-btn" onclick="setStepsRange(90,this)">3M</button>
             <button class="range-btn" onclick="setStepsRange(365,this)">1J</button>
             <button class="range-btn" onclick="setStepsRange(0,this)">Alle</button>
@@ -200,8 +200,8 @@
             <a th:href="@{/gymbook/body-map}" style="font-size:.7em;font-weight:normal;margin-left:12px;color:#888;text-decoration:none;">→ Details</a>
         </h2>
         <div id="heatmapRangeBar" class="range-bar">
-            <button class="range-btn" onclick="setHeatmapRange(7,this)">7T</button>
-            <button class="range-btn active" onclick="setHeatmapRange(30,this)">1M</button>
+            <button class="range-btn active" onclick="setHeatmapRange(7,this)">7T</button>
+            <button class="range-btn" onclick="setHeatmapRange(30,this)">1M</button>
             <button class="range-btn" onclick="setHeatmapRange(90,this)">3M</button>
             <button class="range-btn" onclick="setHeatmapRange(365,this)">1J</button>
             <button class="range-btn" onclick="setHeatmapRange(0,this)">Alle</button>
@@ -237,7 +237,7 @@
         </div>
         <div class="bodymap-legend">
             <div id="dashMuscleList"></div>
-            <div th:if="${gymHeatmap30.isEmpty()}" style="color:#888;font-size:.85em;">
+            <div th:if="${gymHeatmap.isEmpty()}" style="color:#888;font-size:.85em;">
                 Noch keine GymBook-Daten. <a th:href="@{/gymbook/import}" style="color:#2d6cdf;">GymBook importieren</a>
             </div>
         </div>
@@ -258,10 +258,10 @@
     <!-- Zeitraum-Filter -->
     <div id="tableRangeBar" class="filter-bar" style="margin-bottom:.5rem">
         <button class="filter-btn" onclick="setTableRange(7,this)">7T</button>
-        <button class="filter-btn" onclick="setTableRange(30,this)">1M</button>
+        <button class="filter-btn active" onclick="setTableRange(30,this)">1M</button>
         <button class="filter-btn" onclick="setTableRange(90,this)">3M</button>
         <button class="filter-btn" onclick="setTableRange(365,this)">1J</button>
-        <button class="filter-btn active" onclick="setTableRange(0,this)">Alle</button>
+        <button class="filter-btn" onclick="setTableRange(0,this)">Alle</button>
     </div>
 
     <!-- Typ-Filter-Buttons -->
@@ -403,6 +403,7 @@
             </tbody>
         </table>
     </div>
+    <div id="paginationControls" style="display:flex;gap:.4rem;flex-wrap:wrap;justify-content:center;margin:1rem 0;"></div>
 </div>
 
 <!-- ── Top-Übungen Chart ────────────────────────────────────────────────── -->
@@ -410,8 +411,8 @@
     <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem">
         <h2 style="margin:0;">Top-Übungen (Sätze)</h2>
         <div id="topExRangeBar" class="range-bar">
-            <button class="range-btn" onclick="setTopExRange(7,this)">7T</button>
-            <button class="range-btn active" onclick="setTopExRange(30,this)">1M</button>
+            <button class="range-btn active" onclick="setTopExRange(7,this)">7T</button>
+            <button class="range-btn" onclick="setTopExRange(30,this)">1M</button>
             <button class="range-btn" onclick="setTopExRange(90,this)">3M</button>
             <button class="range-btn" onclick="setTopExRange(365,this)">1J</button>
             <button class="range-btn" onclick="setTopExRange(0,this)">Alle</button>
@@ -446,7 +447,7 @@ function setStepsRange(days, btn) {
 }
 
 {
-    const { labels, values } = filterRange(allStepLabels, allStepValues, 30);
+    const { labels, values } = filterRange(allStepLabels, allStepValues, 7);
     stepsChart = new Chart(document.getElementById('stepsChart'), {
         type: 'bar',
         data: {
@@ -496,7 +497,7 @@ if (initTopLabels.length > 0) {
 }
 
 // ── Body-Map Heatmap (kompakt) ─────────────────────────────────────────────
-const gymHeatmap = /*[[${gymHeatmap30}]]*/ {};
+const gymHeatmap = /*[[${gymHeatmap}]]*/ {};
 const MUSCLE_LABELS = {
     '010.shoulders': 'Schultern', '020.pectorals': 'Brust',
     '030.trapezius': 'Trapez', '031.dorsalMuscles': 'Rücken (Lat)',
@@ -550,16 +551,20 @@ function setHeatmapRange(days, btn) {
         .then(data => renderDashHeatmap(data.heatmap));
 }
 
-// ── Workout-Tabelle Filter ─────────────────────────────────────────────────
+// ── Workout-Tabelle Filter + Pagination ────────────────────────────────────
 let currentTypeFilter = 'all';
-let currentDayFilter  = 0;   // 0 = Alle
+let currentDayFilter  = 30;  // default 1M
+let filteredRows = [];
+let currentPage  = 0;
+const PAGE_SIZE  = 30;
 
 function applyFilters() {
     const cutoffStr = currentDayFilter > 0 ? (() => {
         const d = new Date(); d.setDate(d.getDate() - currentDayFilter);
         return d.toISOString().slice(0, 10);
     })() : '';
-    document.querySelectorAll('.session-table tbody tr').forEach(row => {
+    const allRows = Array.from(document.querySelectorAll('.session-table tbody tr'));
+    filteredRows = allRows.filter(row => {
         const tag  = row.getAttribute('data-tag')  || '';
         const date = row.getAttribute('data-date') || '';
         let showType = false;
@@ -570,8 +575,44 @@ function applyFilters() {
         else if (currentTypeFilter === 'Kraft') showType = tag.includes('Kraft') && !tag.includes('Push') && !tag.includes('Pull') && !tag.includes('Beine');
         else showType = (tag === currentTypeFilter);
         const showDate = !cutoffStr || date >= cutoffStr;
-        row.style.display = (showType && showDate) ? '' : 'none';
+        return showType && showDate;
     });
+    currentPage = 0;
+    renderPage();
+    renderPagination();
+}
+
+function renderPage() {
+    const allRows = Array.from(document.querySelectorAll('.session-table tbody tr'));
+    const start = currentPage * PAGE_SIZE;
+    const end   = start + PAGE_SIZE;
+    allRows.forEach(r => r.style.display = 'none');
+    filteredRows.slice(start, end).forEach(r => r.style.display = '');
+}
+
+function renderPagination() {
+    const ctrl = document.getElementById('paginationControls');
+    ctrl.innerHTML = '';
+    const totalPages = Math.ceil(filteredRows.length / PAGE_SIZE);
+    if (totalPages <= 1) return;
+    const info = document.createElement('span');
+    info.style.cssText = 'align-self:center;font-size:.82rem;color:#888;margin-right:.4rem';
+    info.textContent = filteredRows.length + ' Einheiten';
+    ctrl.appendChild(info);
+    for (let p = 0; p < totalPages; p++) {
+        const btn = document.createElement('button');
+        btn.textContent = p + 1;
+        btn.className = 'range-btn' + (p === currentPage ? ' active' : '');
+        btn.onclick = () => changePage(p);
+        ctrl.appendChild(btn);
+    }
+}
+
+function changePage(page) {
+    currentPage = page;
+    renderPage();
+    renderPagination();
+    document.querySelector('.session-table-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function setFilter(type, btn) {
@@ -587,6 +628,9 @@ function setTableRange(days, btn) {
     currentDayFilter = days;
     applyFilters();
 }
+
+// Initial filter anwenden (default 1M)
+applyFilters();
 
 // ── Muscle-Label-Mapping (Detail-Panel) ────────────────────────────────────
 const ML = {

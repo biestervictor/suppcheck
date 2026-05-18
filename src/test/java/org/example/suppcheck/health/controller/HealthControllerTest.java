@@ -78,7 +78,7 @@ class HealthControllerTest {
         assertTrue(model.containsAttribute("latestMetrics"));
         assertTrue(model.containsAttribute("recentDays"));
         assertTrue(model.containsAttribute("workoutRows"));
-        assertTrue(model.containsAttribute("gymHeatmap30"));
+        assertTrue(model.containsAttribute("gymHeatmap"));
         assertTrue(model.containsAttribute("totalWorkouts"));
         assertTrue(model.containsAttribute("avgSleep30"));
         assertTrue(model.containsAttribute("avgSteps30"));
@@ -350,7 +350,7 @@ class HealthControllerTest {
     void nutrition_kcalValuesExtractedFromDailyMetrics() {
         HealthDailyMetric d = new HealthDailyMetric("2025-01-01");
         d.addDietaryKcal(2100.0);
-        when(dashboardService.getRecentDailyMetrics(30)).thenReturn(List.of(d));
+        when(dashboardService.getAllDailyMetrics()).thenReturn(List.of(d));
 
         Model model = new ConcurrentModel();
         controller.nutrition(model);

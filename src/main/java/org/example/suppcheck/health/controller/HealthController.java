@@ -57,12 +57,12 @@ public class HealthController {
     public String dashboard(Model model) {
         Map<String, HealthMetric> latest = dashboardService.getLatestBodyMetrics();
         List<HealthDailyMetric>   recent = dashboardService.getAllDailyMetrics();
-        var topEx = gymBookDashboardService.getTopExercises(8, 30);
+        var topEx = gymBookDashboardService.getTopExercises(8, 7);
 
         model.addAttribute("latestMetrics",   latest);
         model.addAttribute("recentDays",      recent);
         model.addAttribute("workoutRows",     buildWorkoutRows());
-        model.addAttribute("gymHeatmap30",    gymBookDashboardService.getMuscleHeatmap(30));
+        model.addAttribute("gymHeatmap",      gymBookDashboardService.getMuscleHeatmap(7));
         model.addAttribute("totalWorkouts",   dashboardService.getTotalWorkoutCount());
         model.addAttribute("avgSleep30",      dashboardService.getAvgSleepHours(30));
         model.addAttribute("avgSteps30",      dashboardService.getAvgSteps(30));
@@ -178,8 +178,8 @@ public class HealthController {
         addMetricSeries(model, "vo2max",     "VO2Max");
         addMetricSeries(model, "restingHr",  "RestingHeartRate");
 
-        // Tägliche Aggregate für Schlaf und HRV (letzte 90 Tage)
-        List<HealthDailyMetric> recent = dashboardService.getRecentDailyMetrics(90);
+        // Tägliche Aggregate für Schlaf und HRV (alle verfügbaren Daten)
+        List<HealthDailyMetric> recent = dashboardService.getAllDailyMetrics();
         model.addAttribute("dailyLabels",  toDateLabels(recent));
         model.addAttribute("sleepValues",  recent.stream().map(HealthDailyMetric::getSleepHours).collect(Collectors.toList()));
         model.addAttribute("hrvValues",    recent.stream().map(HealthDailyMetric::getAvgHrv).collect(Collectors.toList()));
@@ -192,7 +192,7 @@ public class HealthController {
 
     @GetMapping("/nutrition")
     public String nutrition(Model model) {
-        List<HealthDailyMetric> recent = dashboardService.getRecentDailyMetrics(30);
+        List<HealthDailyMetric> recent = dashboardService.getAllDailyMetrics();
         model.addAttribute("recentDays",    recent);
         model.addAttribute("dailyLabels",   toDateLabels(recent));
         model.addAttribute("kcalValues",    recent.stream().map(HealthDailyMetric::getDietaryKcal).collect(Collectors.toList()));

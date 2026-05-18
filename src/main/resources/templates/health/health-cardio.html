@@ -14,6 +14,12 @@
         .chart-card { background: #fff; border-radius: 8px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
         .back-link { color: #2d6cdf; text-decoration: none; font-size: 0.9em; }
         .back-link:hover { text-decoration: underline; }
+        /* Range-Bar */
+        .range-bar { display: flex; gap: .4rem; flex-wrap: wrap; }
+        .range-btn { padding: .25rem .7rem; border-radius: 16px; border: 1px solid #e0e0e0; background: #fff; color: #555; cursor: pointer; font-size: .8rem; transition: all .15s; }
+        .range-btn:hover, .range-btn.active { border-color: #2d6cdf; color: #2d6cdf; background: #eaf1fb; font-weight: 600; }
+        .page-range-bar { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; background: #fff; border-radius: 8px; padding: 12px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 24px; }
+        .page-range-bar span { font-size: .85rem; color: #888; }
     </style>
 </head>
 <body>
@@ -21,25 +27,63 @@
 <div class="page-content">
 <h1>Kardio &amp; Schlaf</h1>
 <p><a class="back-link" th:href="@{/health}">← Zurück zum Dashboard</a></p>
+
+<!-- ── Page-level Range-Bar ─────────────────────────────────────────────── -->
+<div class="page-range-bar">
+    <span>Zeitraum:</span>
+    <div class="range-bar" id="pageRangeBar">
+        <button class="range-btn active" onclick="setRange(7,this)">7T</button>
+        <button class="range-btn" onclick="setRange(30,this)">1M</button>
+        <button class="range-btn" onclick="setRange(90,this)">3M</button>
+        <button class="range-btn" onclick="setRange(365,this)">1J</button>
+        <button class="range-btn" onclick="setRange(0,this)">Alle</button>
+    </div>
+</div>
+
 <div class="chart-grid">
-    <div class="chart-card"><h2>VO₂Max (alle Messungen)</h2><canvas id="vo2maxChart"></canvas></div>
-    <div class="chart-card"><h2>Ruhepuls (alle Messungen)</h2><canvas id="restingHrChart"></canvas></div>
-    <div class="chart-card"><h2>Schlaf (h) – letzte 90 Tage</h2><canvas id="sleepChart"></canvas></div>
-    <div class="chart-card"><h2>Ø Herzfrequenz – letzte 90 Tage</h2><canvas id="avgHrChart"></canvas></div>
-    <div class="chart-card"><h2>HRV (ms) – letzte 90 Tage</h2><canvas id="hrvChart"></canvas></div>
+    <div class="chart-card"><h2>VO₂Max</h2><canvas id="vo2maxChart"></canvas></div>
+    <div class="chart-card"><h2>Ruhepuls</h2><canvas id="restingHrChart"></canvas></div>
+    <div class="chart-card"><h2>Schlaf (h)</h2><canvas id="sleepChart"></canvas></div>
+    <div class="chart-card"><h2>Ø Herzfrequenz</h2><canvas id="avgHrChart"></canvas></div>
+    <div class="chart-card"><h2>HRV (ms)</h2><canvas id="hrvChart"></canvas></div>
 </div>
 </div>
 <script th:inline="javascript">
-    const vo2maxLabels    = /*[[${vo2maxLabels}]]*/ [];
-    const vo2maxValues    = /*[[${vo2maxValues}]]*/ [];
-    const restingHrLabels = /*[[${restingHrLabels}]]*/ [];
-    const restingHrValues = /*[[${restingHrValues}]]*/ [];
-    const dailyLabels     = /*[[${dailyLabels}]]*/ [];
-    const sleepValues     = /*[[${sleepValues}]]*/ [];
-    const avgHrValues     = /*[[${avgHrValues}]]*/ [];
-    const hrvValues       = /*[[${hrvValues}]]*/ [];
-    function line(id, labels, values, label, color, fill) {
-        new Chart(document.getElementById(id), {
+    // ── Alle Daten vom Server ───────────────────────────────────────────────
+    const allVo2maxLabels    = /*[[${vo2maxLabels}]]*/ [];
+    const allVo2maxValues    = /*[[${vo2maxValues}]]*/ [];
+    const allRestingHrLabels = /*[[${restingHrLabels}]]*/ [];
+    const allRestingHrValues = /*[[${restingHrValues}]]*/ [];
+    const allDailyLabels     = /*[[${dailyLabels}]]*/ [];
+    const allSleepValues     = /*[[${sleepValues}]]*/ [];
+    const allAvgHrValues     = /*[[${avgHrValues}]]*/ [];
+    const allHrvValues       = /*[[${hrvValues}]]*/ [];
+
+    // ── Filter-Hilfsfunktion ────────────────────────────────────────────────
+    function filterPair(labels, values, days) {
+        if (!days) return { labels, values };
+        const d = new Date(); d.setDate(d.getDate() - days);
+        const cutoff = d.toISOString().slice(0, 10);
+        const pairs = labels.map((l, i) => [l, values[i]]).filter(([l]) => l >= cutoff);
+        return { labels: pairs.map(p => p[0]), values: pairs.map(p => p[1]) };
+    }
+
+    function filterDaily(days) {
+        if (!days) return { labels: allDailyLabels, sleep: allSleepValues, avgHr: allAvgHrValues, hrv: allHrvValues };
+        const d = new Date(); d.setDate(d.getDate() - days);
+        const cutoff = d.toISOString().slice(0, 10);
+        const idx = allDailyLabels.map((l, i) => i).filter(i => allDailyLabels[i] >= cutoff);
+        return {
+            labels: idx.map(i => allDailyLabels[i]),
+            sleep:  idx.map(i => allSleepValues[i]),
+            avgHr:  idx.map(i => allAvgHrValues[i]),
+            hrv:    idx.map(i => allHrvValues[i])
+        };
+    }
+
+    // ── Chart-Ersteller ─────────────────────────────────────────────────────
+    function makeLine(id, labels, values, label, color, fill) {
+        return new Chart(document.getElementById(id), {
             type: 'line',
             data: { labels, datasets: [{ label, data: values, borderColor: color,
                 backgroundColor: color + '22', borderWidth: 1.5,
@@ -48,11 +92,40 @@
                        scales: { y: { beginAtZero: false } } }
         });
     }
-    line('vo2maxChart',    vo2maxLabels,    vo2maxValues,    'VO₂Max',         '#27ae60');
-    line('restingHrChart', restingHrLabels, restingHrValues, 'Ruhepuls (bpm)', '#e74c3c');
-    line('sleepChart',     dailyLabels,     sleepValues,     'Schlaf (h)',      '#8e44ad');
-    line('avgHrChart',     dailyLabels,     avgHrValues,     'Ø HF (bpm)',      '#e67e22', false);
-    line('hrvChart',       dailyLabels,     hrvValues,       'HRV (ms)',        '#2980b9');
+
+    // ── Initiale Charts (7T) ────────────────────────────────────────────────
+    const initV   = filterPair(allVo2maxLabels, allVo2maxValues, 7);
+    const initR   = filterPair(allRestingHrLabels, allRestingHrValues, 7);
+    const initD   = filterDaily(7);
+
+    const vo2maxChart    = makeLine('vo2maxChart',    initV.labels, initV.values,    'VO₂Max',         '#27ae60');
+    const restingHrChart = makeLine('restingHrChart', initR.labels, initR.values,    'Ruhepuls (bpm)', '#e74c3c');
+    const sleepChart     = makeLine('sleepChart',     initD.labels, initD.sleep,     'Schlaf (h)',      '#8e44ad');
+    const avgHrChart     = makeLine('avgHrChart',     initD.labels, initD.avgHr,     'Ø HF (bpm)',      '#e67e22', false);
+    const hrvChart       = makeLine('hrvChart',       initD.labels, initD.hrv,       'HRV (ms)',        '#2980b9');
+
+    // ── Range-Wechsel ───────────────────────────────────────────────────────
+    function updateChart(chart, labels, values) {
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = values;
+        chart.data.datasets[0].pointRadius = labels.length > 100 ? 0 : 2;
+        chart.update();
+    }
+
+    function setRange(days, btn) {
+        document.querySelectorAll('#pageRangeBar .range-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const v = filterPair(allVo2maxLabels, allVo2maxValues, days);
+        const r = filterPair(allRestingHrLabels, allRestingHrValues, days);
+        const d = filterDaily(days);
+
+        updateChart(vo2maxChart,    v.labels, v.values);
+        updateChart(restingHrChart, r.labels, r.values);
+        updateChart(sleepChart,     d.labels, d.sleep);
+        updateChart(avgHrChart,     d.labels, d.avgHr);
+        updateChart(hrvChart,       d.labels, d.hrv);
+    }
 </script>
 </body>
 </html>
