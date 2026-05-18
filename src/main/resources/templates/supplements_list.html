@@ -265,6 +265,31 @@
 
         .stock-value.empty { color: #c0392b; }
 
+        /* ---- Ingredient Preview ---- */
+        .ing-list { list-style: none; padding: 0; margin: 0; }
+        .ing-item { padding: 1px 0; }
+        .ing-name {
+            cursor: pointer;
+            color: #2d6cdf;
+            font-size: 0.83em;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            user-select: none;
+        }
+        .ing-name:hover { text-decoration: underline; }
+        .ing-arrow { font-size: 0.7em; color: #aaa; transition: transform .15s; display: inline-block; }
+        .ing-item.open .ing-arrow { transform: rotate(90deg); }
+        .ing-detail {
+            display: none;
+            font-size: 0.82em;
+            color: #555;
+            padding: 2px 0 4px 10px;
+        }
+        .ing-item.open .ing-detail { display: block; }
+        .ing-sub-list { list-style: none; padding-left: 10px; margin: 2px 0 0; }
+        .ing-sub-list li { color: #888; }
+
     </style>
     <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
 </head>
@@ -376,12 +401,19 @@
             </div>
         </td>
         <td>
-            <ul>
-                <li th:each="ing : ${supplement.ingredients}">
-                    <span th:text="${ing.name + ' (' + ing.mg + ' mg)'}"></span>
-                    <ul th:if="${ing.subIngredients != null and !ing.subIngredients.isEmpty()}">
-                        <li th:each="sub : ${ing.subIngredients}" th:text="${'-> ' + sub.name + ' (' + sub.mg + ' mg)'}"></li>
-                    </ul>
+            <ul class="ing-list">
+                <li class="ing-item" th:each="ing : ${supplement.ingredients}">
+                    <span class="ing-name" onclick="toggleIng(this.closest('.ing-item'))">
+                        <span th:text="${ing.name}"></span>
+                        <span class="ing-arrow">&#9654;</span>
+                    </span>
+                    <div class="ing-detail">
+                        <span th:text="'(' + ${ing.mg} + ' mg)'"></span>
+                        <ul class="ing-sub-list" th:if="${ing.subIngredients != null and !ing.subIngredients.isEmpty()}">
+                            <li th:each="sub : ${ing.subIngredients}"
+                                th:text="${'→ ' + sub.name + ' (' + sub.mg + ' mg)'}"></li>
+                        </ul>
+                    </div>
                 </li>
             </ul>
         </td>
@@ -548,6 +580,11 @@
             startCheck();
         });
     })();
+</script>
+<script>
+    function toggleIng(item) {
+        item.classList.toggle('open');
+    }
 </script>
 <script>
     function adjustStock(btn, delta) {
