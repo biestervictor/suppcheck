@@ -5,6 +5,7 @@ import org.example.suppcheck.gymbook.model.GymSession;
 import org.example.suppcheck.gymbook.model.GymSetEntry;
 import org.example.suppcheck.gymbook.service.GymBookDashboardService;
 import org.example.suppcheck.gymbook.service.GymBookImportService;
+import org.example.suppcheck.health.service.HealthDashboardService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -35,11 +36,14 @@ public class GymBookController {
 
     private final GymBookDashboardService dashboardService;
     private final GymBookImportService    importService;
+    private final HealthDashboardService  healthDashboardService;
 
     public GymBookController(GymBookDashboardService dashboardService,
-                             GymBookImportService importService) {
-        this.dashboardService = dashboardService;
-        this.importService    = importService;
+                             GymBookImportService importService,
+                             HealthDashboardService healthDashboardService) {
+        this.dashboardService       = dashboardService;
+        this.importService          = importService;
+        this.healthDashboardService = healthDashboardService;
     }
 
     // ── Dashboard ──────────────────────────────────────────────────────────────
@@ -49,10 +53,11 @@ public class GymBookController {
         var sessions = dashboardService.getRecentSessions();
         var topEx    = dashboardService.getTopExercises(8);
 
-        model.addAttribute("recentSessions",   sessions);
-        model.addAttribute("totalSessions",    dashboardService.getTotalSessionCount());
-        model.addAttribute("topExLabels",      List.copyOf(topEx.keySet()));
-        model.addAttribute("topExValues",      List.copyOf(topEx.values()));
+        model.addAttribute("recentSessions",      sessions);
+        model.addAttribute("totalSessions",       dashboardService.getTotalSessionCount());
+        model.addAttribute("topExLabels",         List.copyOf(topEx.keySet()));
+        model.addAttribute("topExValues",         List.copyOf(topEx.values()));
+        model.addAttribute("healthDurationByDate", healthDashboardService.getStrengthDurationByDate());
 
         return "gymbook/gymbook-dashboard";
     }

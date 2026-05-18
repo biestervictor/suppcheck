@@ -240,6 +240,24 @@ public class HealthController {
 
         // 3. Health-Workouts hinzufügen (Strength wird unterdrückt wenn GymBook vorhanden)
         List<HealthWorkout> healthWorkouts = dashboardService.getAllWorkouts();
+
+        // Dauer-Lookup für GymBook-Zeilen (Krafttraining selben Tags)
+        Map<String, Double> healthDurByDate = new HashMap<>();
+        for (HealthWorkout w : healthWorkouts) {
+            boolean isS = "TraditionalStrengthTraining".equals(w.getActivityType())
+                       || "FunctionalStrengthTraining".equals(w.getActivityType());
+            if (isS && w.getDurationMinutes() > 0) {
+                healthDurByDate.put(w.getDate().toString(), w.getDurationMinutes());
+            }
+        }
+
+        // GymBook-Zeilen mit Dauer aus Apple Health anreichern
+        rows.replaceAll(r -> r.isStrength()
+                ? new WorkoutRow(r.getDate(), r.getTag(),
+                        healthDurByDate.getOrDefault(r.getDate(), 0.0),
+                        r.getKcal(), r.getDistKm(), r.getExercises(), true)
+                : r);
+
         for (HealthWorkout w : healthWorkouts) {
             boolean isStrength = "TraditionalStrengthTraining".equals(w.getActivityType())
                               || "FunctionalStrengthTraining".equals(w.getActivityType());

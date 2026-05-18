@@ -4,6 +4,7 @@ import org.example.suppcheck.gymbook.controller.GymBookController;
 import org.example.suppcheck.gymbook.model.GymSession;
 import org.example.suppcheck.gymbook.service.GymBookDashboardService;
 import org.example.suppcheck.gymbook.service.GymBookImportService;
+import org.example.suppcheck.health.service.HealthDashboardService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -24,13 +25,15 @@ class GymBookControllerTest {
 
     private GymBookDashboardService dashboardService;
     private GymBookImportService    importService;
+    private HealthDashboardService  healthDashboardService;
     private GymBookController       controller;
 
     @BeforeEach
     void setUp() {
-        dashboardService = mock(GymBookDashboardService.class);
-        importService    = mock(GymBookImportService.class);
-        controller       = new GymBookController(dashboardService, importService);
+        dashboardService      = mock(GymBookDashboardService.class);
+        importService         = mock(GymBookImportService.class);
+        healthDashboardService = mock(HealthDashboardService.class);
+        controller            = new GymBookController(dashboardService, importService, healthDashboardService);
 
         lenient().when(dashboardService.getRecentSessions()).thenReturn(List.of());
         lenient().when(dashboardService.getTotalSessionCount()).thenReturn(0L);
@@ -39,6 +42,7 @@ class GymBookControllerTest {
         lenient().when(dashboardService.getMuscleHeatmap(anyInt())).thenReturn(Map.of());
         lenient().when(dashboardService.getMuscleExercises(anyInt())).thenReturn(Map.of());
         lenient().when(dashboardService.getWeightProgression(anyString())).thenReturn(List.of());
+        lenient().when(healthDashboardService.getStrengthDurationByDate()).thenReturn(Map.of());
         lenient().when(importService.getStatus()).thenReturn("idle");
         lenient().when(importService.getImportedSessions()).thenReturn(0L);
         lenient().when(importService.getImportedSets()).thenReturn(0L);
@@ -61,6 +65,7 @@ class GymBookControllerTest {
         assertTrue(model.containsAttribute("totalSessions"));
         assertTrue(model.containsAttribute("topExLabels"));
         assertTrue(model.containsAttribute("topExValues"));
+        assertTrue(model.containsAttribute("healthDurationByDate"));
     }
 
     @Test

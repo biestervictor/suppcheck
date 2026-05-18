@@ -252,6 +252,7 @@
           <tr>
             <th>Datum</th>
             <th>Typ</th>
+            <th>Dauer (min)</th>
             <th>Übungen</th>
             <th>Sätze</th>
             <th>Wdh.</th>
@@ -268,6 +269,9 @@
               <span th:text="${s.tag}"
                     th:classappend="'tag-badge tag-' + ${s.tag}"></span>
             </td>
+            <td th:with="dur=${healthDurationByDate[s.date]}"
+                th:text="${dur != null and dur > 0 ? #numbers.formatDecimal(dur, 1, 0) : '-'}"
+                style="color:#555"></td>
             <td th:text="${s.exercises.size()}"></td>
             <td th:text="${s.totalSets}"></td>
             <td th:text="${s.totalReps}"></td>

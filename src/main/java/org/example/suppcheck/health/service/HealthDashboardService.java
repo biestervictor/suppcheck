@@ -92,6 +92,24 @@ public class HealthDashboardService {
         return workoutRepo.findAllByOrderByDateDesc();
     }
 
+    /**
+     * Liefert eine Map Datum (yyyy-MM-dd) → Dauer in Minuten
+     * für alle Krafttraining-Workouts aus Apple Health.
+     *
+     * <p>Wird vom GymBook-Dashboard verwendet, um Sessions mit Dauer anzureichern.</p>
+     */
+    public Map<String, Double> getStrengthDurationByDate() {
+        Map<String, Double> result = new LinkedHashMap<>();
+        for (HealthWorkout w : workoutRepo.findAllByOrderByDateDesc()) {
+            if (("TraditionalStrengthTraining".equals(w.getActivityType())
+                 || "FunctionalStrengthTraining".equals(w.getActivityType()))
+                    && w.getDurationMinutes() > 0) {
+                result.put(w.getDate().toString(), w.getDurationMinutes());
+            }
+        }
+        return result;
+    }
+
     /** Anzahl Workouts je Aktivitätstyp, sortiert nach Häufigkeit absteigend. */
     public Map<String, Long> getWorkoutCountByType() {
         List<HealthWorkout> all = workoutRepo.findAll();
