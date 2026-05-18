@@ -121,75 +121,82 @@
     <a class="quick-link secondary" th:href="@{/gymbook/import}">GymBook importieren</a>
 </div>
 
-<!-- ── KPI-Cards ────────────────────────────────────────────────────────── -->
-<h2>Aktueller Stand</h2>
-<div class="kpi-grid">
-    <div class="kpi-card" th:if="${latestMetrics.containsKey('BodyMass')}">
-        <div class="kpi-label">Gewicht</div>
-        <div class="kpi-value" th:text="${#numbers.formatDecimal(latestMetrics['BodyMass'].value, 1, 1)}">-</div>
-        <div class="kpi-unit" th:text="${latestMetrics['BodyMass'].unit}">kg</div>
-        <div class="kpi-date" th:text="${latestMetrics['BodyMass'].date}"></div>
-    </div>
-    <div class="kpi-card" th:if="${latestMetrics.containsKey('BodyFatPercentage')}">
-        <div class="kpi-label">Körperfett</div>
-        <div class="kpi-value" th:text="${#numbers.formatDecimal(latestMetrics['BodyFatPercentage'].value, 1, 1)}">-</div>
-        <div class="kpi-unit">%</div>
-        <div class="kpi-date" th:text="${latestMetrics['BodyFatPercentage'].date}"></div>
-    </div>
-    <div class="kpi-card" th:if="${latestMetrics.containsKey('LeanBodyMass')}">
-        <div class="kpi-label">Muskelmasse</div>
-        <div class="kpi-value" th:text="${#numbers.formatDecimal(latestMetrics['LeanBodyMass'].value, 1, 1)}">-</div>
-        <div class="kpi-unit" th:text="${latestMetrics['LeanBodyMass'].unit}">kg</div>
-        <div class="kpi-date" th:text="${latestMetrics['LeanBodyMass'].date}"></div>
-    </div>
-    <div class="kpi-card" th:if="${latestMetrics.containsKey('BMI')}">
-        <div class="kpi-label">BMI</div>
-        <div class="kpi-value" th:text="${#numbers.formatDecimal(latestMetrics['BMI'].value, 1, 1)}">-</div>
-        <div class="kpi-unit">kg/m²</div>
-        <div class="kpi-date" th:text="${latestMetrics['BMI'].date}"></div>
-    </div>
-    <div class="kpi-card" th:if="${latestMetrics.containsKey('VO2Max')}">
-        <div class="kpi-label">VO₂Max</div>
-        <div class="kpi-value" th:text="${#numbers.formatDecimal(latestMetrics['VO2Max'].value, 1, 1)}">-</div>
-        <div class="kpi-unit">mL/min·kg</div>
-        <div class="kpi-date" th:text="${latestMetrics['VO2Max'].date}"></div>
-    </div>
-    <div class="kpi-card" th:if="${latestMetrics.containsKey('RestingHeartRate')}">
-        <div class="kpi-label">RHR</div>
-        <div class="kpi-value" th:text="${#numbers.formatDecimal(latestMetrics['RestingHeartRate'].value, 1, 0)}">-</div>
-        <div class="kpi-unit">bpm</div>
-        <div class="kpi-date" th:text="${latestMetrics['RestingHeartRate'].date}"></div>
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-label">Ø Schlaf (30 T)</div>
-        <div class="kpi-value" th:text="${#numbers.formatDecimal(avgSleep30, 1, 1)}">-</div>
-        <div class="kpi-unit">h</div>
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-label">Ø Schritte (30 T)</div>
-        <div class="kpi-value" th:text="${#numbers.formatDecimal(avgSteps30, 0, 0)}">-</div>
-        <div class="kpi-unit">Schritte/Tag</div>
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-label">Workouts gesamt</div>
-        <div class="kpi-value" th:text="${totalWorkouts}">-</div>
-        <div class="kpi-unit">Einheiten</div>
-    </div>
-</div>
+<!-- ── Aktueller Stand + Schritte nebeneinander ──────────────────────── -->
+<div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;margin-bottom:24px">
 
-<!-- ── Schritte-Chart ───────────────────────────────────────────────────── -->
-<div class="chart-card">
-    <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem">
-        <h2 style="margin:0;">Schritte</h2>
-        <div id="stepsRangeBar" class="range-bar">
-            <button class="range-btn active" onclick="setStepsRange(7,this)">7T</button>
-            <button class="range-btn" onclick="setStepsRange(30,this)">1M</button>
-            <button class="range-btn" onclick="setStepsRange(90,this)">3M</button>
-            <button class="range-btn" onclick="setStepsRange(365,this)">1J</button>
-            <button class="range-btn" onclick="setStepsRange(0,this)">Alle</button>
+    <!-- KPI-Cards -->
+    <div style="flex:1.4;min-width:300px">
+        <h2>Aktueller Stand</h2>
+        <div class="kpi-grid">
+            <div class="kpi-card" th:if="${latestMetrics.containsKey('BodyMass')}">
+                <div class="kpi-label">Gewicht</div>
+                <div class="kpi-value" th:text="${#numbers.formatDecimal(latestMetrics['BodyMass'].value, 1, 1)}">-</div>
+                <div class="kpi-unit" th:text="${latestMetrics['BodyMass'].unit}">kg</div>
+                <div class="kpi-date" th:text="${#temporals.format(latestMetrics['BodyMass'].date, 'dd.MM.yyyy')}"></div>
+            </div>
+            <div class="kpi-card" th:if="${latestMetrics.containsKey('BodyFatPercentage')}">
+                <div class="kpi-label">Körperfett</div>
+                <div class="kpi-value" th:text="${#numbers.formatDecimal(latestMetrics['BodyFatPercentage'].value, 1, 1)}">-</div>
+                <div class="kpi-unit">%</div>
+                <div class="kpi-date" th:text="${#temporals.format(latestMetrics['BodyFatPercentage'].date, 'dd.MM.yyyy')}"></div>
+            </div>
+            <div class="kpi-card" th:if="${latestMetrics.containsKey('LeanBodyMass')}">
+                <div class="kpi-label">Muskelmasse</div>
+                <div class="kpi-value" th:text="${#numbers.formatDecimal(latestMetrics['LeanBodyMass'].value, 1, 1)}">-</div>
+                <div class="kpi-unit" th:text="${latestMetrics['LeanBodyMass'].unit}">kg</div>
+                <div class="kpi-date" th:text="${#temporals.format(latestMetrics['LeanBodyMass'].date, 'dd.MM.yyyy')}"></div>
+            </div>
+            <div class="kpi-card" th:if="${latestMetrics.containsKey('BMI')}">
+                <div class="kpi-label">BMI</div>
+                <div class="kpi-value" th:text="${#numbers.formatDecimal(latestMetrics['BMI'].value, 1, 1)}">-</div>
+                <div class="kpi-unit">kg/m²</div>
+                <div class="kpi-date" th:text="${#temporals.format(latestMetrics['BMI'].date, 'dd.MM.yyyy')}"></div>
+            </div>
+            <div class="kpi-card" th:if="${latestMetrics.containsKey('VO2Max')}">
+                <div class="kpi-label">VO₂Max</div>
+                <div class="kpi-value" th:text="${#numbers.formatDecimal(latestMetrics['VO2Max'].value, 1, 1)}">-</div>
+                <div class="kpi-unit">mL/min·kg</div>
+                <div class="kpi-date" th:text="${#temporals.format(latestMetrics['VO2Max'].date, 'dd.MM.yyyy')}"></div>
+            </div>
+            <div class="kpi-card" th:if="${latestMetrics.containsKey('RestingHeartRate')}">
+                <div class="kpi-label">RHR</div>
+                <div class="kpi-value" th:text="${#numbers.formatDecimal(latestMetrics['RestingHeartRate'].value, 1, 0)}">-</div>
+                <div class="kpi-unit">bpm</div>
+                <div class="kpi-date" th:text="${#temporals.format(latestMetrics['RestingHeartRate'].date, 'dd.MM.yyyy')}"></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Ø Schlaf (30 T)</div>
+                <div class="kpi-value" th:text="${#numbers.formatDecimal(avgSleep30, 1, 1)}">-</div>
+                <div class="kpi-unit">h</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Ø Schritte (30 T)</div>
+                <div class="kpi-value" th:text="${#numbers.formatDecimal(avgSteps30, 0, 0)}">-</div>
+                <div class="kpi-unit">Schritte/Tag</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Workouts gesamt</div>
+                <div class="kpi-value" th:text="${totalWorkouts}">-</div>
+                <div class="kpi-unit">Einheiten</div>
+            </div>
         </div>
     </div>
-    <canvas id="stepsChart" height="80"></canvas>
+
+    <!-- Schritte-Chart -->
+    <div class="chart-card" style="flex:1;min-width:280px;margin-bottom:0;align-self:stretch;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem">
+            <h2 style="margin:0;">Schritte</h2>
+            <div id="stepsRangeBar" class="range-bar">
+                <button class="range-btn active" onclick="setStepsRange(7,this)">7T</button>
+                <button class="range-btn" onclick="setStepsRange(30,this)">1M</button>
+                <button class="range-btn" onclick="setStepsRange(90,this)">3M</button>
+                <button class="range-btn" onclick="setStepsRange(365,this)">1J</button>
+                <button class="range-btn" onclick="setStepsRange(0,this)">Alle</button>
+            </div>
+        </div>
+        <canvas id="stepsChart" style="flex:1"></canvas>
+    </div>
+
 </div>
 
 <!-- ── Muskelgruppen Body-Map (Heatmap, letzte 30 Tage) ─────────────────── -->
@@ -437,11 +444,13 @@ const allStepLabels = /*[[${stepLabels}]]*/ [];
 const allStepValues = /*[[${stepValues}]]*/ [];
 let stepsChart;
 
+function isoToDe(s) { const [y,m,d] = s.split('-'); return d+'.'+m+'.'+y; }
+
 function setStepsRange(days, btn) {
     document.querySelectorAll('#stepsRangeBar .range-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const { labels, values } = filterRange(allStepLabels, allStepValues, days);
-    stepsChart.data.labels = labels;
+    stepsChart.data.labels = labels.map(isoToDe);
     stepsChart.data.datasets[0].data = values;
     stepsChart.update();
 }
@@ -451,11 +460,11 @@ function setStepsRange(days, btn) {
     stepsChart = new Chart(document.getElementById('stepsChart'), {
         type: 'bar',
         data: {
-            labels,
+            labels: labels.map(isoToDe),
             datasets: [{ label: 'Schritte', data: values,
                 backgroundColor: 'rgba(45,108,223,0.5)', borderColor: '#2d6cdf', borderWidth: 1 }]
         },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true }, x: { ticks: { maxRotation: 45, font: { size: 10 } } } } }
     });
 }
 
