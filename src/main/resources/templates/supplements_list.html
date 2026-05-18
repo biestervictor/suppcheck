@@ -346,6 +346,34 @@
     </span>
 </div>
 
+<!-- ======== MHD-Ablauf-Warnungen ======== -->
+<th:block th:with="today=${T(java.time.LocalDate).now()}, soon=${today.plusDays(30)}">
+    <th:block th:each="supp : ${supplements}">
+        <th:block th:if="${supp.stockBatches != null}">
+            <th:block th:each="batch : ${supp.stockBatches}">
+                <th:block th:if="${batch.expiryDate != null and (batch.remaining == null or batch.remaining > 0)}">
+                    <div th:if="${!batch.expiryDate.isAfter(today)}"
+                         style="width:90%;max-width:1400px;margin:6px auto;padding:10px 16px;border-radius:6px;
+                                background:#f8d7da;border:1px solid #f5c6cb;color:#721c24;font-size:0.9em;">
+                        🚨 <b>MHD abgelaufen:</b>
+                        <span th:text="${supp.name}"></span>
+                        <span th:if="${batch.flavor != null}" th:text="'(' + ${batch.flavor} + ')'"></span>
+                        — MHD: <b th:text="${#temporals.format(batch.expiryDate, 'dd.MM.yyyy')}"></b>
+                    </div>
+                    <div th:if="${batch.expiryDate.isAfter(today) and !batch.expiryDate.isAfter(soon)}"
+                         style="width:90%;max-width:1400px;margin:6px auto;padding:10px 16px;border-radius:6px;
+                                background:#fff3cd;border:1px solid #ffc107;color:#856404;font-size:0.9em;">
+                        ⚠️ <b>MHD läuft bald ab:</b>
+                        <span th:text="${supp.name}"></span>
+                        <span th:if="${batch.flavor != null}" th:text="'(' + ${batch.flavor} + ')'"></span>
+                        — MHD: <b th:text="${#temporals.format(batch.expiryDate, 'dd.MM.yyyy')}"></b>
+                    </div>
+                </th:block>
+            </th:block>
+        </th:block>
+    </th:block>
+</th:block>
+
 <table>
     <thead>
     <tr>
@@ -706,10 +734,11 @@
     }
 
     function buildFlavorSelect(batches) {
-        // Eindeutige Flavors aus vorhandenen Batches
+        // Eindeutige Flavors aus vorhandenen Batches — nur mit remaining > 0
         var seen = {}, flavors = [];
         batches.forEach(function(b) {
-            if (b.flavor && !seen[b.flavor]) { seen[b.flavor] = true; flavors.push(b.flavor); }
+            var eff = (b.remaining !== null && b.remaining !== undefined) ? b.remaining : b.quantity;
+            if (b.flavor && !seen[b.flavor] && eff > 0) { seen[b.flavor] = true; flavors.push(b.flavor); }
         });
 
         var sel = document.getElementById('restock-flavor-select');
@@ -751,17 +780,20 @@
         var matching = currentBatches.filter(function(b) { return b.flavor === val; });
         if (matching.length === 0) { hint.style.display = 'none'; return; }
 
-        // Nach MHD gruppieren
+        // Nach MHD gruppieren — nur remaining > 0 zählt
         var groups = {};
         matching.forEach(function(b) {
+            var eff = (b.remaining !== null && b.remaining !== undefined) ? b.remaining : b.quantity;
+            if (eff <= 0) return; // komplett verbraucht → ausblenden
             var key = b.expiryDate || 'Kein MHD';
-            groups[key] = (groups[key] || 0) + b.quantity;
+            groups[key] = (groups[key] || 0) + eff;
         });
+        if (Object.keys(groups).length === 0) { hint.style.display = 'none'; return; }
         var parts = Object.keys(groups).map(function(k) {
             var label = k;
             if (k !== 'Kein MHD' && k.length === 10) {
                 var s = k.split('-');
-                label = s[1] + '.' + s[0]; // MM.YYYY
+                label = s[2] + '.' + s[1] + '.' + s[0]; // DD.MM.YYYY
             }
             return label + '\u00a0(' + groups[k] + '\u00d7)';
         });
@@ -815,6 +847,8 @@
             var valueEl = currentRestockControls.querySelector('.stock-value');
             valueEl.textContent = data.stock;
             valueEl.classList.toggle('empty', data.stock === 0);
+            var minusBtn = currentRestockControls.querySelector('.stock-btn.minus');
+            if (minusBtn) minusBtn.style.display = data.stock === 0 ? 'none' : '';
             closeRestockModal();
         })
         .catch(function(err) {
@@ -878,7 +912,13 @@
     function buildConsumeBatchList(batches) {
         var container = document.getElementById('consume-batch-list');
 
-        if (!batches || batches.length === 0) {
+        // Batches mit remaining=0 ausblenden (komplett verbraucht)
+        var activeBatches = (batches || []).filter(function(b) {
+            var r = (b.remaining !== null && b.remaining !== undefined) ? b.remaining : b.quantity;
+            return r > 0;
+        });
+
+        if (activeBatches.length === 0) {
             container.innerHTML =
                 '<div style="font-size:0.9em;color:#888;padding:8px;background:#f5f5f5;border-radius:4px;">' +
                 'Keine Batches getrackt – Bestand wird generisch reduziert.</div>';
@@ -886,7 +926,7 @@
         }
 
         // FIFO: älteste MHD zuerst; kein MHD → ans Ende
-        var sorted = batches.slice().sort(function(a, b) {
+        var sorted = activeBatches.slice().sort(function(a, b) {
             if (!a.expiryDate && !b.expiryDate) return 0;
             if (!a.expiryDate) return 1;
             if (!b.expiryDate) return -1;
@@ -898,7 +938,7 @@
             var val       = (b.flavor || '') + '||' + (b.expiryDate || '');
             var remaining = (b.remaining !== null && b.remaining !== undefined) ? b.remaining : b.quantity;
             var mhdLabel  = b.expiryDate
-                ? (function(d) { var s = d.split('-'); return s[1] + '.' + s[0]; })(b.expiryDate)
+                ? (function(d) { var s = d.split('-'); return s[2] + '.' + s[1] + '.' + s[0]; })(b.expiryDate)
                 : 'Kein MHD';
             var label = (b.flavor || 'Kein Flavor') + ' | MHD: ' + mhdLabel + ' | Verbleibend: ' + remaining;
             html += '<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid #e0e0e0;' +
@@ -969,6 +1009,8 @@
         var valueEl = currentConsumeControls.querySelector('.stock-value');
         valueEl.textContent = newStock;
         valueEl.classList.toggle('empty', newStock === 0);
+        var minusBtn = currentConsumeControls.querySelector('.stock-btn.minus');
+        if (minusBtn) minusBtn.style.display = newStock === 0 ? 'none' : '';
         closeConsumeModal();
     }
 </script>
