@@ -362,6 +362,21 @@ public class SupplementController {
     }
 
     /**
+     * Gibt alle StockBatches eines Supplements zurück (für das Restock-Modal).
+     *
+     * @param id die Supplement-ID
+     * @return JSON-Liste aller Batches (flavor, expiryDate, addedDate, quantity)
+     */
+    @GetMapping(value = "/{id}/stock/batches", produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<List<StockBatch>> getStockBatches(@PathVariable String id) {
+        return supplementService.getSupplementById(id)
+                .<ResponseEntity<List<StockBatch>>>map(s -> ResponseEntity.ok(
+                        s.getStockBatches() != null ? s.getStockBatches() : List.of()))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+    }
+
+    /**
      * Returns the full ingredient-change history for a supplement, newest last.
      *
      * @param id the supplement id

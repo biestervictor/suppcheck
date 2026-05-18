@@ -1,5 +1,6 @@
 package org.example.suppcheck.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,10 +20,12 @@ public class StockBatch {
     /** Flavor/Geschmacksrichtung – optional, null wenn nicht relevant. */
     private String flavor;
 
-    /** Mindesthaltbarkeitsdatum – nur bei mhdProdukt-Supplements gesetzt. */
+    /** Mindesthaltbarkeitsdatum – optional, als ISO-String "yyyy-MM-dd" serialisiert. */
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDate expiryDate;
 
-    /** Datum, an dem dieser Batch hinzugefügt wurde. */
+    /** Datum, an dem dieser Batch hinzugefügt wurde, als ISO-String "yyyy-MM-dd". */
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDate addedDate;
 
     /** Anzahl Packungen/Portionen in diesem Batch. */

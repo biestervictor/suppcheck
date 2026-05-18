@@ -618,25 +618,39 @@
 <!-- ======== Restock Modal ======== -->
 <div id="restock-modal" class="check-modal-overlay">
     <div class="check-modal-box">
-        <h3>Bestand hinzufügen</h3>
-        <p id="restock-modal-name" style="margin:0 0 16px;font-weight:bold;color:#444;"></p>
+        <h3 style="margin:0 0 4px">Bestand hinzufügen</h3>
+        <p id="restock-modal-name" style="margin:0 0 16px;font-weight:bold;color:#444;font-size:1.05em;"></p>
 
+        <!-- Flavor Dropdown -->
         <div style="margin-bottom:12px">
-            <label for="restock-flavor" style="display:block;margin-bottom:4px;font-weight:bold;color:#444;">Flavor / Geschmack (optional):</label>
-            <input type="text" id="restock-flavor" list="restock-flavor-list"
-                   placeholder="z.B. Chocolate, Vanilla …"
-                   style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #bfc9d1;border-radius:4px;font-size:0.95em;"/>
-            <datalist id="restock-flavor-list"></datalist>
+            <label for="restock-flavor-select" style="display:block;margin-bottom:4px;font-weight:bold;color:#444;">Flavor:</label>
+            <select id="restock-flavor-select" onchange="onFlavorSelectChange()"
+                    style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #bfc9d1;border-radius:4px;font-size:0.95em;background:#fff;">
+                <option value="">— Kein Flavor —</option>
+            </select>
+            <!-- Hint: vorhandene Batches für diesen Flavor -->
+            <div id="restock-flavor-hint"
+                 style="display:none;margin-top:5px;font-size:0.82em;color:#888;background:#f5f5f5;border-radius:4px;padding:4px 8px;"></div>
         </div>
 
-        <div id="restock-mhd-group" style="margin-bottom:12px;display:none">
-            <label for="restock-mhd" style="display:block;margin-bottom:4px;font-weight:bold;color:#444;">MHD:</label>
+        <!-- Neuer Flavor Text-Input (nur bei "Neuer Flavor …") -->
+        <div id="restock-flavor-new-group" style="display:none;margin-bottom:12px">
+            <label for="restock-flavor-new" style="display:block;margin-bottom:4px;font-weight:bold;color:#444;">Flavor-Name:</label>
+            <input type="text" id="restock-flavor-new"
+                   placeholder="z.B. Chocolate, Vanilla …"
+                   style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #bfc9d1;border-radius:4px;font-size:0.95em;"/>
+        </div>
+
+        <!-- MHD – immer sichtbar, pro Batch -->
+        <div style="margin-bottom:12px">
+            <label for="restock-mhd" style="display:block;margin-bottom:4px;font-weight:bold;color:#444;">MHD (optional):</label>
             <input type="date" id="restock-mhd"
                    style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #bfc9d1;border-radius:4px;font-size:0.95em;"/>
         </div>
 
+        <!-- Anzahl -->
         <div style="margin-bottom:18px">
-            <label for="restock-qty" style="display:block;margin-bottom:4px;font-weight:bold;color:#444;">Anzahl (Packungen/Portionen):</label>
+            <label for="restock-qty" style="display:block;margin-bottom:4px;font-weight:bold;color:#444;">Anzahl:</label>
             <input type="number" id="restock-qty" min="1" value="1"
                    style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #bfc9d1;border-radius:4px;font-size:0.95em;"/>
         </div>
@@ -658,40 +672,103 @@
 <script>
     var currentRestockId       = null;
     var currentRestockControls = null;
+    var currentBatches         = [];
 
     function openRestockModal(btn) {
         var controls = btn.closest('.stock-controls');
         currentRestockId       = controls.getAttribute('data-id');
         currentRestockControls = controls;
+        currentBatches         = [];
 
-        var name      = controls.getAttribute('data-name') || '';
-        var isMhd     = controls.getAttribute('data-mhd') === 'true';
-        var flavorsRaw = controls.getAttribute('data-flavors') || '';
-        var flavors   = flavorsRaw ? flavorsRaw.split('|').filter(function(f){ return f.trim(); }) : [];
-
-        document.getElementById('restock-modal-name').textContent = name;
-        document.getElementById('restock-mhd-group').style.display = isMhd ? 'block' : 'none';
-        document.getElementById('restock-mhd').value    = '';
-        document.getElementById('restock-flavor').value = '';
-        document.getElementById('restock-qty').value    = '1';
+        // Reset modal
+        document.getElementById('restock-modal-name').textContent = controls.getAttribute('data-name') || '';
+        document.getElementById('restock-flavor-select').innerHTML = '<option value="">Wird geladen…</option>';
+        document.getElementById('restock-flavor-select').disabled = true;
+        document.getElementById('restock-flavor-new-group').style.display = 'none';
+        document.getElementById('restock-flavor-new').value = '';
+        document.getElementById('restock-flavor-hint').style.display = 'none';
+        document.getElementById('restock-mhd').value = '';
+        document.getElementById('restock-qty').value = '1';
         document.getElementById('restock-status').textContent = '';
-        document.getElementById('restock-status').style.color = '#555';
+        document.getElementById('restock-modal').classList.add('active');
 
-        var dataList = document.getElementById('restock-flavor-list');
-        dataList.innerHTML = '';
-        flavors.forEach(function(f) {
-            var opt = document.createElement('option');
-            opt.value = f.trim();
-            dataList.appendChild(opt);
+        // Bestehende Batches laden → Flavor-Dropdown befüllen
+        fetch('/supplements/' + currentRestockId + '/stock/batches')
+            .then(function(r) { return r.ok ? r.json() : []; })
+            .then(function(batches) {
+                currentBatches = batches;
+                buildFlavorSelect(batches);
+            })
+            .catch(function() { buildFlavorSelect([]); });
+    }
+
+    function buildFlavorSelect(batches) {
+        // Eindeutige Flavors aus vorhandenen Batches
+        var seen = {}, flavors = [];
+        batches.forEach(function(b) {
+            if (b.flavor && !seen[b.flavor]) { seen[b.flavor] = true; flavors.push(b.flavor); }
         });
 
-        document.getElementById('restock-modal').classList.add('active');
+        var sel = document.getElementById('restock-flavor-select');
+        sel.innerHTML = '';
+        sel.disabled  = false;
+
+        var optNone = document.createElement('option');
+        optNone.value = ''; optNone.textContent = '— Kein Flavor —';
+        sel.appendChild(optNone);
+
+        flavors.forEach(function(f) {
+            var opt = document.createElement('option');
+            opt.value = f; opt.textContent = f;
+            sel.appendChild(opt);
+        });
+
+        var optNew = document.createElement('option');
+        optNew.value = '__NEW__'; optNew.textContent = '+ Neuer Flavor …';
+        sel.appendChild(optNew);
+
+        onFlavorSelectChange();
+    }
+
+    function onFlavorSelectChange() {
+        var val     = document.getElementById('restock-flavor-select').value;
+        var newGrp  = document.getElementById('restock-flavor-new-group');
+        var hint    = document.getElementById('restock-flavor-hint');
+
+        if (val === '__NEW__') {
+            newGrp.style.display = 'block';
+            hint.style.display   = 'none';
+            return;
+        }
+        newGrp.style.display = 'none';
+
+        if (!val) { hint.style.display = 'none'; return; }
+
+        // Vorhandene Batches für diesen Flavor anzeigen
+        var matching = currentBatches.filter(function(b) { return b.flavor === val; });
+        if (matching.length === 0) { hint.style.display = 'none'; return; }
+
+        // Nach MHD gruppieren
+        var groups = {};
+        matching.forEach(function(b) {
+            var key = b.expiryDate || 'Kein MHD';
+            groups[key] = (groups[key] || 0) + b.quantity;
+        });
+        var parts = Object.keys(groups).map(function(k) {
+            var label = k;
+            if (k !== 'Kein MHD' && k.length === 10) {
+                var s = k.split('-');
+                label = s[1] + '.' + s[0]; // MM.YYYY
+            }
+            return label + '\u00a0(' + groups[k] + '\u00d7)';
+        });
+        hint.textContent    = 'Vorhanden: ' + parts.join(', ');
+        hint.style.display  = 'block';
     }
 
     function closeRestockModal() {
         document.getElementById('restock-modal').classList.remove('active');
-        currentRestockId       = null;
-        currentRestockControls = null;
+        currentRestockId = null; currentRestockControls = null; currentBatches = [];
     }
 
     document.getElementById('restock-modal').addEventListener('click', function(e) {
@@ -699,15 +776,21 @@
     });
 
     function submitRestock() {
-        var flavor = document.getElementById('restock-flavor').value.trim();
+        var selVal = document.getElementById('restock-flavor-select').value;
+        var flavor = selVal === '__NEW__'
+            ? document.getElementById('restock-flavor-new').value.trim()
+            : selVal;
         var mhd    = document.getElementById('restock-mhd').value;
         var qty    = parseInt(document.getElementById('restock-qty').value, 10);
         var status = document.getElementById('restock-status');
 
+        if (selVal === '__NEW__' && !flavor) {
+            status.textContent = 'Bitte einen Flavor-Namen eingeben.';
+            status.style.color = '#c0392b'; return;
+        }
         if (isNaN(qty) || qty < 1) {
             status.textContent = 'Bitte eine gültige Anzahl eingeben (min. 1).';
-            status.style.color = '#c0392b';
-            return;
+            status.style.color = '#c0392b'; return;
         }
 
         status.textContent = 'Wird gespeichert…';
@@ -719,8 +802,7 @@
         formData.append('quantity', qty);
 
         fetch('/supplements/' + currentRestockId + '/stock/batch', {
-            method: 'POST',
-            body: formData
+            method: 'POST', body: formData
         })
         .then(function(r) {
             if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -729,11 +811,7 @@
         .then(function(data) {
             var valueEl = currentRestockControls.querySelector('.stock-value');
             valueEl.textContent = data.stock;
-            if (data.stock === 0) {
-                valueEl.classList.add('empty');
-            } else {
-                valueEl.classList.remove('empty');
-            }
+            valueEl.classList.toggle('empty', data.stock === 0);
             closeRestockModal();
         })
         .catch(function(err) {

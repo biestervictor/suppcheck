@@ -11,6 +11,7 @@ import java.util.Optional;
 import org.example.suppcheck.dto.IngredientDto;
 import org.example.suppcheck.dto.IngredientWithSources;
 import org.example.suppcheck.dto.OcrResult;
+import org.example.suppcheck.model.StockBatch;
 import org.example.suppcheck.model.Ingredient;
 import org.example.suppcheck.model.PriceEntry;
 import org.example.suppcheck.model.Supplement;
@@ -458,6 +459,47 @@ class SupplementControllerTest {
 
         ResponseEntity<java.util.Map<String, Integer>> resp =
                 controller.addStockBatch("missing", null, null, 1);
+
+        assertEquals(HttpStatus.NOT_FOUND, resp.getStatusCode());
+    }
+
+    // --- getStockBatches ---
+
+    @Test
+    void getStockBatches_returnsBatchesForKnownId() {
+        Supplement supp = new Supplement();
+        supp.setId("id-1");
+        StockBatch batch = new StockBatch("Chocolate", java.time.LocalDate.of(2026, 12, 31),
+                java.time.LocalDate.now(), 2);
+        supp.setStockBatches(new ArrayList<>(List.of(batch)));
+        when(service.getSupplementById("id-1")).thenReturn(Optional.of(supp));
+
+        ResponseEntity<List<StockBatch>> resp = controller.getStockBatches("id-1");
+
+        assertEquals(HttpStatus.OK, resp.getStatusCode());
+        assertNotNull(resp.getBody());
+        assertEquals(1, resp.getBody().size());
+        assertEquals("Chocolate", resp.getBody().get(0).getFlavor());
+    }
+
+    @Test
+    void getStockBatches_returnsEmptyListWhenNoBatches() {
+        Supplement supp = new Supplement();
+        supp.setId("id-2");
+        when(service.getSupplementById("id-2")).thenReturn(Optional.of(supp));
+
+        ResponseEntity<List<StockBatch>> resp = controller.getStockBatches("id-2");
+
+        assertEquals(HttpStatus.OK, resp.getStatusCode());
+        assertNotNull(resp.getBody());
+        assertTrue(resp.getBody().isEmpty());
+    }
+
+    @Test
+    void getStockBatches_returns404ForUnknownId() {
+        when(service.getSupplementById("missing")).thenReturn(Optional.empty());
+
+        ResponseEntity<List<StockBatch>> resp = controller.getStockBatches("missing");
 
         assertEquals(HttpStatus.NOT_FOUND, resp.getStatusCode());
     }
