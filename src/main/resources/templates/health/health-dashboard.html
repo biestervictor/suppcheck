@@ -2,12 +2,13 @@
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
 <head>
     <th:block th:replace="~{fragments/head :: common-meta}"></th:block>
+    <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
     <title>Health Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 0; }
-        h1   { margin: 28px 0 16px; text-align: center; color: #2d6cdf; }
-        h2   { color: #2d6cdf; margin: 24px 0 12px; }
+        body { font-family: Arial, sans-serif; background: #0f172a; color: #f1f5f9; margin: 0; padding: 0; }
+        h1   { margin: 28px 0 16px; text-align: center; color: #3b82f6; }
+        h2   { color: #3b82f6; margin: 24px 0 12px; }
 
         .page-content { max-width: 1300px; margin: 0 auto; padding: 0 20px 40px; }
 
@@ -19,23 +20,21 @@
             margin-bottom: 28px;
         }
         .kpi-card {
-            background: #fff;
+            background: #1e293b;
             border-radius: 8px;
             padding: 16px 18px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
             text-align: center;
         }
-        .kpi-label { font-size: 0.78em; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
-        .kpi-value { font-size: 1.7em; font-weight: bold; color: #2d6cdf; margin: 4px 0 2px; }
-        .kpi-unit  { font-size: 0.78em; color: #aaa; }
-        .kpi-date  { font-size: 0.72em; color: #ccc; margin-top: 4px; }
+        .kpi-label { font-size: 0.78em; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+        .kpi-value { font-size: 1.7em; font-weight: bold; color: #3b82f6; margin: 4px 0 2px; }
+        .kpi-unit  { font-size: 0.78em; color: #64748b; }
+        .kpi-date  { font-size: 0.72em; color: #475569; margin-top: 4px; }
 
         /* ── Charts ── */
         .chart-card {
-            background: #fff;
+            background: #1e293b;
             border-radius: 8px;
             padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
             margin-bottom: 24px;
         }
 
@@ -43,28 +42,29 @@
         .workout-table { width: 100%; border-collapse: collapse; }
         .workout-table th, .workout-table td {
             padding: 8px 12px;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #334155;
             text-align: left;
             font-size: 0.9em;
         }
-        .workout-table th { background: #eaf1fb; }
+        .workout-table th { background: #334155; color: #94a3b8; }
+        .workout-table tr:hover td { background: #334155; }
 
         /* ── Stat-Pill ── */
         .stat-pills { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
         .stat-pill  {
-            background: #eaf1fb;
+            background: #1e293b;
             border-radius: 20px;
             padding: 8px 18px;
             font-size: 0.9em;
-            color: #2d6cdf;
+            color: #3b82f6;
         }
-        .stat-pill b { color: #1a3a5a; }
+        .stat-pill b { color: #f1f5f9; }
 
         /* ── Quick-Links ── */
         .quick-links { display: flex; gap: 12px; flex-wrap: wrap; margin: 20px 0 28px; }
         .quick-link {
             display: inline-block;
-            background: #2d6cdf;
+            background: #1d4ed8;
             color: #fff;
             text-decoration: none;
             border-radius: 6px;
@@ -72,9 +72,8 @@
             font-size: 0.9em;
             font-weight: bold;
         }
-        .quick-link:hover { background: #1a4aa8; }
+        .quick-link:hover { background: #2563eb; }
     </style>
-    <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
 </head>
 <body>
 <th:block th:replace="~{fragments/nav :: main-nav}"></th:block>
@@ -88,7 +87,7 @@
     <a class="quick-link" th:href="@{/health/workouts}">Workouts</a>
     <a class="quick-link" th:href="@{/health/cardio}">Kardio &amp; Schlaf</a>
     <a class="quick-link" th:href="@{/health/nutrition}">Ernährung</a>
-    <a class="quick-link" th:href="@{/health/import}" style="background:#888;">Daten importieren</a>
+    <a class="quick-link" th:href="@{/health/import}" style="background:#334155;">Daten importieren</a>
 </div>
 
 <!-- ── KPI-Karten ── -->
@@ -168,7 +167,7 @@
         <td th:text="${w.distanceKm > 0 ? #numbers.formatDecimal(w.distanceKm, 1, 2) + ' km' : '-'}"></td>
     </tr>
     <tr th:if="${#lists.isEmpty(recentWorkouts)}">
-        <td colspan="5" style="color:#aaa; font-style:italic;">Keine Workouts gefunden – bitte erst Daten importieren.</td>
+        <td colspan="5" style="color:#64748b; font-style:italic;">Keine Workouts gefunden – bitte erst Daten importieren.</td>
     </tr>
     </tbody>
 </table>
@@ -185,15 +184,18 @@
             datasets: [{
                 label: 'Schritte',
                 data: stepValues,
-                backgroundColor: 'rgba(45, 108, 223, 0.5)',
-                borderColor: '#2d6cdf',
+                backgroundColor: 'rgba(59,130,246,0.5)',
+                borderColor: '#3b82f6',
                 borderWidth: 1
             }]
         },
         options: {
             responsive: true,
             plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true } }
+            scales: {
+                x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+                y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+            }
         }
     });
 </script>

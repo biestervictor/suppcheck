@@ -2,12 +2,13 @@
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
 <head>
     <th:block th:replace="~{fragments/head :: common-meta}"></th:block>
+    <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
     <title>Workouts</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 0; }
-        h1   { margin: 28px 0 16px; text-align: center; color: #2d6cdf; }
-        h2   { color: #2d6cdf; margin: 0 0 12px; }
+        body { font-family: Arial, sans-serif; background: #0f172a; color: #f1f5f9; margin: 0; padding: 0; }
+        h1   { margin: 28px 0 16px; text-align: center; color: #3b82f6; }
+        h2   { color: #3b82f6; margin: 0 0 12px; }
 
         .page-content { max-width: 1300px; margin: 0 auto; padding: 0 20px 40px; }
 
@@ -20,19 +21,17 @@
         @media (max-width: 800px) { .top-grid { grid-template-columns: 1fr; } }
 
         .card {
-            background: #fff;
+            background: #1e293b;
             border-radius: 8px;
             padding: 20px 24px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
         }
 
         .kpi-card {
-            background: #2d6cdf;
+            background: #1d4ed8;
             color: #fff;
             border-radius: 8px;
             padding: 20px 24px;
             text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         .kpi-num  { font-size: 3em; font-weight: bold; }
         .kpi-lbl  { font-size: 0.9em; opacity: 0.85; }
@@ -41,25 +40,25 @@
         .workout-table { width: 100%; border-collapse: collapse; }
         .workout-table th, .workout-table td {
             padding: 8px 12px;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #334155;
             text-align: left;
             font-size: 0.88em;
         }
-        .workout-table th  { background: #eaf1fb; font-size: 0.82em; }
-        .workout-table tr:hover td { background: #f5f8ff; }
+        .workout-table th  { background: #334155; color: #94a3b8; font-size: 0.82em; }
+        .workout-table tr:hover td { background: #334155; }
 
         /* Filter bar */
         .filter-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
         .filter-bar select {
-            padding: 6px 10px; border: 1px solid #bfc9d1;
-            border-radius: 4px; font-size: 0.9em; background: #fff;
+            padding: 6px 10px; border: 1px solid #334155;
+            border-radius: 4px; font-size: 0.9em;
+            background: #0f172a; color: #f1f5f9;
         }
-        .filter-bar label { font-weight: bold; font-size: 0.9em; }
+        .filter-bar label { font-weight: bold; font-size: 0.9em; color: #94a3b8; }
 
-        .back-link { color: #2d6cdf; text-decoration: none; font-size: 0.9em; }
+        .back-link { color: #60a5fa; text-decoration: none; font-size: 0.9em; }
         .back-link:hover { text-decoration: underline; }
     </style>
-    <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
 </head>
 <body>
 <th:block th:replace="~{fragments/nav :: main-nav}"></th:block>
@@ -110,7 +109,7 @@
             <td th:text="${w.sourceName}"></td>
         </tr>
         <tr th:if="${#lists.isEmpty(allWorkouts)}">
-            <td colspan="6" style="color:#aaa; font-style:italic;">Keine Workouts gefunden.</td>
+            <td colspan="6" style="color:#64748b; font-style:italic;">Keine Workouts gefunden.</td>
         </tr>
         </tbody>
     </table>
@@ -128,8 +127,8 @@
             datasets: [{
                 label: 'Anzahl',
                 data: typeValues,
-                backgroundColor: 'rgba(45, 108, 223, 0.65)',
-                borderColor: '#2d6cdf',
+                backgroundColor: 'rgba(59,130,246,0.65)',
+                borderColor: '#3b82f6',
                 borderWidth: 1
             }]
         },
@@ -137,7 +136,10 @@
             indexAxis: 'y',
             responsive: true,
             plugins: { legend: { display: false } },
-            scales: { x: { beginAtZero: true } }
+            scales: {
+                x: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+                y: { ticks: { color: '#cbd5e1' }, grid: { color: '#334155' } }
+            }
         }
     });
 

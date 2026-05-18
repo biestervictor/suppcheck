@@ -15,8 +15,9 @@
     .stat-val   { font-size: 2rem; font-weight: 700; color: #60a5fa; }
     .stat-label { font-size: .8rem; color: #94a3b8; margin-top: .25rem; }
 
-    .chart-wrap { background: #1e293b; border-radius: 10px; padding: 1.5rem; margin-bottom: 2rem; }
-    .chart-wrap h3 { margin: 0 0 1rem; color: #f1f5f9; }
+    /* ── Top-Übungen-Chart ───────────────────────────────── */
+    .chart-wrap { background: #1e293b; border-radius: 10px; padding: 1.2rem 1.5rem; margin-bottom: 2rem; }
+    .chart-wrap h3 { margin: 0 0 .75rem; color: #f1f5f9; font-size: 1rem; }
 
     /* ── Session-Tabelle ─────────────────────────────────── */
     .session-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
@@ -44,10 +45,11 @@
     }
     #sessionDetail h3 { margin: 0 0 1rem; color: #f1f5f9; }
 
-    .detail-layout { display: grid; grid-template-columns: 280px 1fr; gap: 2rem; }
-    @media (max-width: 700px) { .detail-layout { grid-template-columns: 1fr; } }
-
-    /* ── Mini Body-Map im Detail ─────────────────────────── */
+    /* ── Heatmap-Bereich (oben) ──────────────────────────── */
+    .heatmap-section {
+      display: flex; gap: 2rem; align-items: flex-start;
+      margin-bottom: 1.5rem; flex-wrap: wrap;
+    }
     .body-maps { display: flex; gap: 1.5rem; justify-content: center; }
     .body-map-label { font-size: .75rem; color: #64748b; text-align: center; margin-bottom: .4rem; }
 
@@ -62,19 +64,20 @@
     .h4 { fill: #60a5fa; }
     .h5 { fill: #93c5fd; }
 
-    /* ── Exercises-Panel rechts vom Körper ───────────────── */
-    .ex-panel { min-height: 200px; }
+    /* ── Muskel-Legende ──────────────────────────────────── */
+    .muscle-legend { min-width: 180px; flex: 1; }
+    .muscle-legend h4 { margin: 0 0 .6rem; color: #94a3b8; font-size: .82rem; text-transform: uppercase; letter-spacing: .05em; }
+    .muscle-legend-row { display: flex; align-items: center; gap: .5rem; padding: .2rem 0; font-size: .82rem; cursor: pointer; }
+    .muscle-legend-row:hover { color: #60a5fa; }
+    .muscle-swatch { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+
+    /* ── Übungs-Tabelle (unten) ──────────────────────────── */
     .ex-panel h4 { margin: 0 0 .75rem; color: #94a3b8; font-size: .85rem; text-transform: uppercase; letter-spacing: .05em; }
 
     .ex-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
     .ex-table th { color: #64748b; padding: .4rem .6rem; border-bottom: 1px solid #334155; font-weight: 500; text-align: left; }
     .ex-table td { padding: .4rem .6rem; border-bottom: 1px solid #0f172a; }
     .ex-table tr.highlight td { background: rgba(96,165,250,.15); }
-
-    .muscle-legend { margin-top: 1rem; }
-    .muscle-legend-row { display: flex; align-items: center; gap: .5rem; padding: .2rem 0; font-size: .82rem; cursor: pointer; }
-    .muscle-legend-row:hover { color: #60a5fa; }
-    .muscle-swatch { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
 
     .page-title-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
     .page-title-bar h1 { margin: 0; font-size: 1.6rem; }
@@ -103,12 +106,6 @@
       <div class="stat-val" th:text="${recentSessions.size()}">0</div>
       <div class="stat-label">Letzte 30 Einheiten</div>
     </div>
-  </div>
-
-  <!-- Top-Übungen Chart -->
-  <div class="chart-wrap" th:if="${!topExLabels.isEmpty()}">
-    <h3>Top-Übungen (Sätze gesamt)</h3>
-    <canvas id="topExChart" height="80"></canvas>
   </div>
 
   <!-- Session-Tabelle -->
@@ -153,87 +150,95 @@
     <!-- Session-Detail-Panel (wird per JS befüllt) -->
     <div id="sessionDetail">
       <h3 id="detailTitle">Training</h3>
-      <div class="detail-layout">
-        <!-- Körper-Maps -->
-        <div>
-          <div class="body-maps">
-            <div>
-              <div class="body-map-label">Vorderseite</div>
-              <svg id="svgFront" viewBox="0 0 200 400" width="120">
-                <ellipse cx="100" cy="28" rx="22" ry="26" fill="#475569"/>
-                <rect x="92" y="50" width="16" height="14" fill="#475569"/>
-                <ellipse data-m="010.shoulders" class="muscle-svg" cx="62"  cy="74" rx="18" ry="12"/>
-                <ellipse data-m="010.shoulders" class="muscle-svg" cx="138" cy="74" rx="18" ry="12"/>
-                <path  data-m="020.pectorals"   class="muscle-svg" d="M78 65 Q100 60 122 65 L125 100 Q100 108 75 100 Z"/>
-                <path  data-m="030.trapezius"   class="muscle-svg" d="M82 64 Q100 58 118 64 L116 72 Q100 66 84 72 Z"/>
-                <rect  data-m="041.armFlexors"  class="muscle-svg" x="42"  y="86" width="14" height="40" rx="7"/>
-                <rect  data-m="041.armFlexors"  class="muscle-svg" x="144" y="86" width="14" height="40" rx="7"/>
-                <rect  data-m="040.armExtensors" class="muscle-svg" x="30" y="86" width="12" height="38" rx="6"/>
-                <rect  data-m="040.armExtensors" class="muscle-svg" x="158" y="86" width="12" height="38" rx="6"/>
-                <rect  data-m="042.wristExtensors" class="muscle-svg" x="34" y="126" width="12" height="32" rx="6"/>
-                <rect  data-m="042.wristExtensors" class="muscle-svg" x="154" y="126" width="12" height="32" rx="6"/>
-                <rect  data-m="050.abdominals"  class="muscle-svg" x="84" y="102" width="32" height="52" rx="6"/>
-                <path  data-m="051.obliques"    class="muscle-svg" d="M78 105 Q84 108 84 154 Q73 140 72 115 Z"/>
-                <path  data-m="051.obliques"    class="muscle-svg" d="M122 105 Q116 108 116 154 Q127 140 128 115 Z"/>
-                <path  data-m="060.glutes"      class="muscle-svg" d="M80 158 Q100 153 120 158 L124 192 Q100 200 76 192 Z"/>
-                <rect  data-m="070.quadriceps"  class="muscle-svg" x="80"  y="195" width="16" height="70" rx="8"/>
-                <rect  data-m="070.quadriceps"  class="muscle-svg" x="104" y="195" width="16" height="70" rx="8"/>
-                <path  data-m="071.adductors"   class="muscle-svg" d="M96 195 Q100 200 100 265 Q96 265 92 260 Q88 225 92 195 Z"/>
-                <rect  data-m="072.thighFlexors" class="muscle-svg" x="80" y="265" width="16" height="40" rx="8" opacity=".5"/>
-                <rect  data-m="072.thighFlexors" class="muscle-svg" x="104" y="265" width="16" height="40" rx="8" opacity=".5"/>
-                <rect  data-m="090.calves"      class="muscle-svg" x="80"  y="305" width="14" height="45" rx="7"/>
-                <rect  data-m="090.calves"      class="muscle-svg" x="106" y="305" width="14" height="45" rx="7"/>
-                <path fill="none" stroke="#475569" stroke-width="1.5"
-                      d="M78 65 Q62 62 45 78 L30 84 L28 158 Q42 168 76 160 L76 195 L80 350 L92 352 L92 270 L100 265 L108 270 L108 352 L120 350 L124 195 L124 160 Q158 168 172 158 L170 84 L155 78 Q138 62 122 65"/>
-              </svg>
-            </div>
-            <div>
-              <div class="body-map-label">Rückseite</div>
-              <svg id="svgBack" viewBox="0 0 200 400" width="120">
-                <ellipse cx="100" cy="28" rx="22" ry="26" fill="#475569"/>
-                <rect x="92" y="50" width="16" height="14" fill="#475569"/>
-                <path  data-m="030.trapezius"   class="muscle-svg" d="M80 64 Q100 56 120 64 L130 100 Q100 110 70 100 Z"/>
-                <ellipse data-m="010.shoulders" class="muscle-svg" cx="62"  cy="74" rx="18" ry="12"/>
-                <ellipse data-m="010.shoulders" class="muscle-svg" cx="138" cy="74" rx="18" ry="12"/>
-                <path  data-m="031.dorsalMuscles" class="muscle-svg" d="M70 100 Q55 115 56 145 L76 155 L76 105 Z"/>
-                <path  data-m="031.dorsalMuscles" class="muscle-svg" d="M130 100 Q145 115 144 145 L124 155 L124 105 Z"/>
-                <rect  data-m="032.lumbarMuscles" class="muscle-svg" x="82" y="138" width="36" height="30" rx="6"/>
-                <rect  data-m="040.armExtensors"  class="muscle-svg" x="42" y="86" width="14" height="42" rx="7"/>
-                <rect  data-m="040.armExtensors"  class="muscle-svg" x="144" y="86" width="14" height="42" rx="7"/>
-                <rect  data-m="041.armFlexors"    class="muscle-svg" x="30" y="90" width="11" height="36" rx="5" opacity=".5"/>
-                <rect  data-m="041.armFlexors"    class="muscle-svg" x="159" y="90" width="11" height="36" rx="5" opacity=".5"/>
-                <path  data-m="060.glutes"        class="muscle-svg" d="M76 158 Q100 150 124 158 L128 195 Q100 204 72 195 Z"/>
-                <rect  data-m="072.thighFlexors"  class="muscle-svg" x="78"  y="198" width="18" height="68" rx="9"/>
-                <rect  data-m="072.thighFlexors"  class="muscle-svg" x="104" y="198" width="18" height="68" rx="9"/>
-                <path  data-m="071.adductors"     class="muscle-svg" d="M96 198 Q100 205 100 266 Q96 266 92 260 Q88 228 92 198 Z"/>
-                <rect  data-m="090.calves"        class="muscle-svg" x="80"  y="268" width="16" height="50" rx="8"/>
-                <rect  data-m="090.calves"        class="muscle-svg" x="104" y="268" width="16" height="50" rx="8"/>
-                <path fill="none" stroke="#475569" stroke-width="1.5"
-                      d="M78 65 Q62 62 45 78 L30 84 L28 158 Q42 168 76 160 L76 195 L80 350 L92 352 L92 270 L100 265 L108 270 L108 352 L120 350 L124 195 L124 160 Q158 168 172 158 L170 84 L155 78 Q138 62 122 65"/>
-              </svg>
-            </div>
-          </div>
-          <!-- Muskel-Legende -->
-          <div class="muscle-legend" id="muscleLegend"></div>
-        </div>
 
-        <!-- Exercise-Panel -->
-        <div class="ex-panel">
-          <h4 id="exPanelTitle">Alle Übungen dieser Einheit</h4>
-          <table class="ex-table" id="exTable">
-            <thead>
-              <tr>
-                <th>Übung</th>
-                <th>Sätze</th>
-                <th>Wdh.</th>
-                <th>Max. kg</th>
-              </tr>
-            </thead>
-            <tbody id="exTableBody"></tbody>
-          </table>
+      <!-- Heatmap-Bereich: Körperkarten + Legende OBEN -->
+      <div class="heatmap-section">
+        <div class="body-maps">
+          <div>
+            <div class="body-map-label">Vorderseite</div>
+            <svg id="svgFront" viewBox="0 0 200 400" width="120">
+              <ellipse cx="100" cy="28" rx="22" ry="26" fill="#475569"/>
+              <rect x="92" y="50" width="16" height="14" fill="#475569"/>
+              <ellipse data-m="010.shoulders" class="muscle-svg" cx="62"  cy="74" rx="18" ry="12"/>
+              <ellipse data-m="010.shoulders" class="muscle-svg" cx="138" cy="74" rx="18" ry="12"/>
+              <path  data-m="020.pectorals"   class="muscle-svg" d="M78 65 Q100 60 122 65 L125 100 Q100 108 75 100 Z"/>
+              <path  data-m="030.trapezius"   class="muscle-svg" d="M82 64 Q100 58 118 64 L116 72 Q100 66 84 72 Z"/>
+              <rect  data-m="041.armFlexors"  class="muscle-svg" x="42"  y="86" width="14" height="40" rx="7"/>
+              <rect  data-m="041.armFlexors"  class="muscle-svg" x="144" y="86" width="14" height="40" rx="7"/>
+              <rect  data-m="040.armExtensors" class="muscle-svg" x="30" y="86" width="12" height="38" rx="6"/>
+              <rect  data-m="040.armExtensors" class="muscle-svg" x="158" y="86" width="12" height="38" rx="6"/>
+              <rect  data-m="042.wristExtensors" class="muscle-svg" x="34" y="126" width="12" height="32" rx="6"/>
+              <rect  data-m="042.wristExtensors" class="muscle-svg" x="154" y="126" width="12" height="32" rx="6"/>
+              <rect  data-m="050.abdominals"  class="muscle-svg" x="84" y="102" width="32" height="52" rx="6"/>
+              <path  data-m="051.obliques"    class="muscle-svg" d="M78 105 Q84 108 84 154 Q73 140 72 115 Z"/>
+              <path  data-m="051.obliques"    class="muscle-svg" d="M122 105 Q116 108 116 154 Q127 140 128 115 Z"/>
+              <path  data-m="060.glutes"      class="muscle-svg" d="M80 158 Q100 153 120 158 L124 192 Q100 200 76 192 Z"/>
+              <rect  data-m="070.quadriceps"  class="muscle-svg" x="80"  y="195" width="16" height="70" rx="8"/>
+              <rect  data-m="070.quadriceps"  class="muscle-svg" x="104" y="195" width="16" height="70" rx="8"/>
+              <path  data-m="071.adductors"   class="muscle-svg" d="M96 195 Q100 200 100 265 Q96 265 92 260 Q88 225 92 195 Z"/>
+              <rect  data-m="072.thighFlexors" class="muscle-svg" x="80" y="265" width="16" height="40" rx="8" opacity=".5"/>
+              <rect  data-m="072.thighFlexors" class="muscle-svg" x="104" y="265" width="16" height="40" rx="8" opacity=".5"/>
+              <rect  data-m="090.calves"      class="muscle-svg" x="80"  y="305" width="14" height="45" rx="7"/>
+              <rect  data-m="090.calves"      class="muscle-svg" x="106" y="305" width="14" height="45" rx="7"/>
+              <path fill="none" stroke="#475569" stroke-width="1.5"
+                    d="M78 65 Q62 62 45 78 L30 84 L28 158 Q42 168 76 160 L76 195 L80 350 L92 352 L92 270 L100 265 L108 270 L108 352 L120 350 L124 195 L124 160 Q158 168 172 158 L170 84 L155 78 Q138 62 122 65"/>
+            </svg>
+          </div>
+          <div>
+            <div class="body-map-label">Rückseite</div>
+            <svg id="svgBack" viewBox="0 0 200 400" width="120">
+              <ellipse cx="100" cy="28" rx="22" ry="26" fill="#475569"/>
+              <rect x="92" y="50" width="16" height="14" fill="#475569"/>
+              <path  data-m="030.trapezius"   class="muscle-svg" d="M80 64 Q100 56 120 64 L130 100 Q100 110 70 100 Z"/>
+              <ellipse data-m="010.shoulders" class="muscle-svg" cx="62"  cy="74" rx="18" ry="12"/>
+              <ellipse data-m="010.shoulders" class="muscle-svg" cx="138" cy="74" rx="18" ry="12"/>
+              <path  data-m="031.dorsalMuscles" class="muscle-svg" d="M70 100 Q55 115 56 145 L76 155 L76 105 Z"/>
+              <path  data-m="031.dorsalMuscles" class="muscle-svg" d="M130 100 Q145 115 144 145 L124 155 L124 105 Z"/>
+              <rect  data-m="032.lumbarMuscles" class="muscle-svg" x="82" y="138" width="36" height="30" rx="6"/>
+              <rect  data-m="040.armExtensors"  class="muscle-svg" x="42" y="86" width="14" height="42" rx="7"/>
+              <rect  data-m="040.armExtensors"  class="muscle-svg" x="144" y="86" width="14" height="42" rx="7"/>
+              <rect  data-m="041.armFlexors"    class="muscle-svg" x="30" y="90" width="11" height="36" rx="5" opacity=".5"/>
+              <rect  data-m="041.armFlexors"    class="muscle-svg" x="159" y="90" width="11" height="36" rx="5" opacity=".5"/>
+              <path  data-m="060.glutes"        class="muscle-svg" d="M76 158 Q100 150 124 158 L128 195 Q100 204 72 195 Z"/>
+              <rect  data-m="072.thighFlexors"  class="muscle-svg" x="78"  y="198" width="18" height="68" rx="9"/>
+              <rect  data-m="072.thighFlexors"  class="muscle-svg" x="104" y="198" width="18" height="68" rx="9"/>
+              <path  data-m="071.adductors"     class="muscle-svg" d="M96 198 Q100 205 100 266 Q96 266 92 260 Q88 228 92 198 Z"/>
+              <rect  data-m="090.calves"        class="muscle-svg" x="80"  y="268" width="16" height="50" rx="8"/>
+              <rect  data-m="090.calves"        class="muscle-svg" x="104" y="268" width="16" height="50" rx="8"/>
+              <path fill="none" stroke="#475569" stroke-width="1.5"
+                    d="M78 65 Q62 62 45 78 L30 84 L28 158 Q42 168 76 160 L76 195 L80 350 L92 352 L92 270 L100 265 L108 270 L108 352 L120 350 L124 195 L124 160 Q158 168 172 158 L170 84 L155 78 Q138 62 122 65"/>
+            </svg>
+          </div>
+        </div>
+        <!-- Muskel-Legende -->
+        <div class="muscle-legend">
+          <h4>Trainierte Muskeln</h4>
+          <div id="muscleLegend"></div>
         </div>
       </div>
+
+      <!-- Übungstabelle UNTER der Heatmap -->
+      <div class="ex-panel">
+        <h4 id="exPanelTitle">Alle Übungen dieser Einheit</h4>
+        <table class="ex-table" id="exTable">
+          <thead>
+            <tr>
+              <th>Übung</th>
+              <th>Sätze</th>
+              <th>Wdh.</th>
+              <th>Max. kg</th>
+            </tr>
+          </thead>
+          <tbody id="exTableBody"></tbody>
+        </table>
+      </div>
     </div>
+  </div>
+
+  <!-- Top-Übungen Chart (weiter unten, kleiner) -->
+  <div class="chart-wrap" th:if="${!topExLabels.isEmpty()}" style="margin-top:2rem">
+    <h3>Top-Übungen (Sätze gesamt)</h3>
+    <canvas id="topExChart" height="55" style="max-height:160px"></canvas>
   </div>
 </div>
 
@@ -257,6 +262,7 @@ if (topLabels.length > 0) {
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: { label: ctx => ctx.parsed.y + ' Sätze' } }
@@ -292,9 +298,7 @@ const MUSCLE_LABELS = {
   '090.cardio':         'Cardio',
 };
 
-const HEAT_CLASSES = ['h5','h4','h3','h2','h1'];
-
-let currentData   = null;
+let currentData    = null;
 let selectedMuscle = null;
 
 function selectSession(row) {
@@ -321,10 +325,10 @@ function renderDetail(data) {
   // reset all muscle shapes
   document.querySelectorAll('[data-m]').forEach(el => {
     el.className.baseVal = 'muscle-svg';
+    el.title = '';
   });
 
   // color each muscle
-  const painted = new Set();
   Object.entries(muscleSets).forEach(([mid, cnt]) => {
     const ratio = cnt / maxSets;
     const cls   = ratio >= 0.8 ? 'h1'
@@ -334,17 +338,12 @@ function renderDetail(data) {
     document.querySelectorAll(`[data-m="${mid}"]`).forEach(el => {
       el.className.baseVal = 'muscle-svg ' + cls;
       el.title = (MUSCLE_LABELS[mid] || mid) + ': ' + cnt + ' Sätze';
-      if (!painted.has(el)) {
-        el.addEventListener('click', () => highlightMuscle(mid), {once: false});
-        painted.add(el);
-      }
     });
   });
 
-  // re-attach click listeners to ALL muscle shapes each render
+  // attach click listeners to ALL muscle shapes (single source of truth)
   document.querySelectorAll('[data-m]').forEach(el => {
-    el._muscleClick = () => highlightMuscle(el.getAttribute('data-m'));
-    el.onclick = el._muscleClick;
+    el.onclick = () => highlightMuscle(el.getAttribute('data-m'));
   });
 
   // ── Muskel-Legende ─────────────────────────────────────
@@ -376,7 +375,6 @@ function renderExTable(exercises) {
   tbody.innerHTML = '';
   (exercises || []).forEach(ex => {
     const tr = document.createElement('tr');
-    const sets = (ex.setDetails || []).join(' | ');
     tr.innerHTML = `
       <td><a href="/gymbook/exercise/${encodeURIComponent(ex.name)}"
              style="color:#60a5fa;text-decoration:none">${ex.name}</a></td>
@@ -397,11 +395,16 @@ function highlightMuscle(mid) {
     if (el.getAttribute('data-m') === mid) el.classList.add('active');
   });
 
-  // filter exercises by muscle
   const exNames = new Set(currentData.muscleExercises[mid] || []);
-  if (exNames.size === 0) return;
-
   const label = MUSCLE_LABELS[mid] || mid;
+
+  if (exNames.size === 0) {
+    // Muscle in SVG but not tracked – reset to full view
+    document.getElementById('exPanelTitle').textContent = label + ' – keine Übungen erfasst';
+    renderExTable(currentData.exercises);
+    return;
+  }
+
   document.getElementById('exPanelTitle').textContent = label + ' – beteiligte Übungen';
 
   // render filtered table with matching exercises highlighted
@@ -410,7 +413,6 @@ function highlightMuscle(mid) {
   (currentData.exercises || []).forEach(ex => {
     const tr = document.createElement('tr');
     if (exNames.has(ex.name)) tr.classList.add('highlight');
-    const sets = (ex.setDetails || []).join(' | ');
     tr.innerHTML = `
       <td><a href="/gymbook/exercise/${encodeURIComponent(ex.name)}"
              style="color:#60a5fa;text-decoration:none">${ex.name}</a></td>
@@ -420,7 +422,6 @@ function highlightMuscle(mid) {
     tbody.appendChild(tr);
   });
 
-  // scroll table into view
   document.getElementById('exTable').scrollIntoView({behavior: 'smooth', block: 'nearest'});
 }
 </script>

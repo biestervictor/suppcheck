@@ -55,7 +55,7 @@ class GymBookDashboardServiceTest {
         GymExerciseEntry ex = new GymExerciseEntry();
         ex.setName("Bankdrücken");
         ex.setPrimaryMuscles("020.pectorals|010.shoulders");
-        ex.setSecondaryMuscles("040.armExtensors");
+        ex.setSecondaryMuscles("040.armExtensors"); // secondary muscles are NOT counted
         ex.setRegion("020.chest");
 
         GymSession s = new GymSession("2026-05-16");
@@ -66,7 +66,8 @@ class GymBookDashboardServiceTest {
         Map<String, Integer> heatmap = service.getMuscleHeatmap(90);
         assertEquals(1, heatmap.get("020.pectorals"));
         assertEquals(1, heatmap.get("010.shoulders"));
-        assertEquals(1, heatmap.get("040.armExtensors"));
+        // secondary muscles are excluded from the heatmap (only primaryMuscles count)
+        assertFalse(heatmap.containsKey("040.armExtensors"));
     }
 
     @Test

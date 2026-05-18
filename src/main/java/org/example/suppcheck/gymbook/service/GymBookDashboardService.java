@@ -60,7 +60,6 @@ public class GymBookDashboardService {
             Set<String> musclesThisSession = new LinkedHashSet<>();
             for (GymExerciseEntry ex : s.getExercises()) {
                 splitMuscles(ex.getPrimaryMuscles()).forEach(musclesThisSession::add);
-                splitMuscles(ex.getSecondaryMuscles()).forEach(musclesThisSession::add);
             }
             for (String m : musclesThisSession) {
                 heatmap.merge(m, 1, Integer::sum);

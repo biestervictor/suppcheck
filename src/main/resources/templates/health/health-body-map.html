@@ -2,11 +2,12 @@
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
 <head>
     <th:block th:replace="~{fragments/head :: common-meta}"></th:block>
+    <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
     <title>Aktuelle Messwerte</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 0; }
-        h1   { margin: 28px 0 16px; text-align: center; color: #2d6cdf; }
-        h2   { color: #2d6cdf; margin: 0 0 12px; }
+        body { font-family: Arial, sans-serif; background: #0f172a; color: #f1f5f9; margin: 0; padding: 0; }
+        h1   { margin: 28px 0 16px; text-align: center; color: #3b82f6; }
+        h2   { color: #3b82f6; margin: 0 0 12px; }
 
         .page-content { max-width: 1100px; margin: 0 auto; padding: 0 20px 40px; }
 
@@ -18,11 +19,10 @@
             gap: 14px;
         }
         .metric-card {
-            background: #fff;
+            background: #1e293b;
             border-radius: 8px;
             padding: 18px 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-            border-left: 4px solid #2d6cdf;
+            border-left: 4px solid #3b82f6;
         }
         .metric-card.red    { border-color: #e74c3c; }
         .metric-card.green  { border-color: #27ae60; }
@@ -30,17 +30,16 @@
         .metric-card.purple { border-color: #8e44ad; }
         .metric-card.teal   { border-color: #16a085; }
 
-        .metric-label { font-size: 0.8em; color: #888; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
-        .metric-value { font-size: 1.9em; font-weight: bold; color: #1a3a5a; }
-        .metric-unit  { font-size: 0.8em; color: #aaa; margin-left: 4px; }
-        .metric-date  { font-size: 0.72em; color: #ccc; margin-top: 6px; }
-        .metric-src   { font-size: 0.72em; color: #bbb; }
+        .metric-label { font-size: 0.8em; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+        .metric-value { font-size: 1.9em; font-weight: bold; color: #f1f5f9; }
+        .metric-unit  { font-size: 0.8em; color: #64748b; margin-left: 4px; }
+        .metric-date  { font-size: 0.72em; color: #475569; margin-top: 6px; }
+        .metric-src   { font-size: 0.72em; color: #64748b; }
 
-        .no-data { color: #aaa; font-style: italic; padding: 20px 0; }
-        .back-link { color: #2d6cdf; text-decoration: none; font-size: 0.9em; }
+        .no-data { color: #64748b; font-style: italic; padding: 20px 0; }
+        .back-link { color: #60a5fa; text-decoration: none; font-size: 0.9em; }
         .back-link:hover { text-decoration: underline; }
     </style>
-    <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
 </head>
 <body>
 <th:block th:replace="~{fragments/nav :: main-nav}"></th:block>
@@ -49,7 +48,7 @@
 <p><a class="back-link" th:href="@{/health}">← Zurück zum Dashboard</a></p>
 
 <div th:if="${latestMetrics.isEmpty()}" class="no-data">
-    Keine Daten gefunden. Bitte zuerst <a th:href="@{/health/import}">Daten importieren</a>.
+    Keine Daten gefunden. Bitte zuerst <a th:href="@{/health/import}" style="color:#60a5fa">Daten importieren</a>.
 </div>
 
 <!-- ── Körperzusammensetzung ── -->

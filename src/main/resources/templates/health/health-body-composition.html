@@ -2,12 +2,13 @@
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
 <head>
     <th:block th:replace="~{fragments/head :: common-meta}"></th:block>
+    <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
     <title>Körperzusammensetzung</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 0; }
-        h1   { margin: 28px 0 16px; text-align: center; color: #2d6cdf; }
-        h2   { color: #2d6cdf; margin: 0 0 10px; }
+        body { font-family: Arial, sans-serif; background: #0f172a; color: #f1f5f9; margin: 0; padding: 0; }
+        h1   { margin: 28px 0 16px; text-align: center; color: #3b82f6; }
+        h2   { color: #3b82f6; margin: 0 0 10px; }
 
         .page-content { max-width: 1300px; margin: 0 auto; padding: 0 20px 40px; }
 
@@ -17,16 +18,14 @@
             gap: 20px;
         }
         .chart-card {
-            background: #fff;
+            background: #1e293b;
             border-radius: 8px;
             padding: 20px 24px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
         }
 
-        .back-link { color: #2d6cdf; text-decoration: none; font-size: 0.9em; }
+        .back-link { color: #60a5fa; text-decoration: none; font-size: 0.9em; }
         .back-link:hover { text-decoration: underline; }
     </style>
-    <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
 </head>
 <body>
 <th:block th:replace="~{fragments/nav :: main-nav}"></th:block>
@@ -83,12 +82,15 @@
             options: {
                 responsive: true,
                 plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: false } }
+                scales: {
+                    x: { ticks: { color: '#94a3b8', maxTicksLimit: 12 }, grid: { color: '#334155' } },
+                    y: { beginAtZero: false, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+                }
             }
         });
     }
 
-    makeLineChart('bodyMassChart', bodyMassLabels, bodyMassValues, 'Gewicht (kg)',      '#2d6cdf');
+    makeLineChart('bodyMassChart', bodyMassLabels, bodyMassValues, 'Gewicht (kg)',      '#3b82f6');
     makeLineChart('bodyFatChart',  bodyFatLabels,  bodyFatValues,  'Körperfett (%)',    '#e74c3c');
     makeLineChart('leanMassChart', leanMassLabels, leanMassValues, 'Muskelmasse (kg)',  '#27ae60');
     makeLineChart('bmiChart',      bmiLabels,      bmiValues,      'BMI',               '#f39c12');

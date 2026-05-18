@@ -2,12 +2,13 @@
 <html lang="de" xmlns:th="http://www.thymeleaf.org">
 <head>
     <th:block th:replace="~{fragments/head :: common-meta}"></th:block>
+    <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
     <title>Ernährung</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 0; }
-        h1   { margin: 28px 0 16px; text-align: center; color: #2d6cdf; }
-        h2   { color: #2d6cdf; margin: 0 0 10px; }
+        body { font-family: Arial, sans-serif; background: #0f172a; color: #f1f5f9; margin: 0; padding: 0; }
+        h1   { margin: 28px 0 16px; text-align: center; color: #3b82f6; }
+        h2   { color: #3b82f6; margin: 0 0 10px; }
 
         .page-content { max-width: 1300px; margin: 0 auto; padding: 0 20px 40px; }
 
@@ -18,26 +19,25 @@
             margin-bottom: 28px;
         }
         .chart-card {
-            background: #fff;
+            background: #1e293b;
             border-radius: 8px;
             padding: 20px 24px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
         }
 
         /* Tabelle letzte 7 Tage */
         .nutrition-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
         .nutrition-table th, .nutrition-table td {
             padding: 8px 14px;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #334155;
             text-align: right;
         }
-        .nutrition-table th { background: #eaf1fb; text-align: center; }
+        .nutrition-table th { background: #334155; color: #94a3b8; text-align: center; }
         .nutrition-table td:first-child { text-align: left; }
+        .nutrition-table tr:hover td { background: #334155; }
 
-        .back-link { color: #2d6cdf; text-decoration: none; font-size: 0.9em; }
+        .back-link { color: #60a5fa; text-decoration: none; font-size: 0.9em; }
         .back-link:hover { text-decoration: underline; }
     </style>
-    <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
 </head>
 <body>
 <th:block th:replace="~{fragments/nav :: main-nav}"></th:block>
@@ -84,7 +84,7 @@
                 <td th:text="${d.dietaryWaterMl > 0 ? #numbers.formatDecimal(d.dietaryWaterMl, 1, 0) : '-'}"></td>
             </tr>
             <tr th:if="${#lists.isEmpty(last7)}">
-                <td colspan="8" style="color:#aaa; font-style:italic;">Keine Ernährungsdaten gefunden.</td>
+                <td colspan="8" style="color:#64748b; font-style:italic;">Keine Ernährungsdaten gefunden.</td>
             </tr>
         </th:block>
         </tbody>
@@ -98,6 +98,11 @@
     const proteinValues = /*[[${proteinValues}]]*/ [];
     const carbsValues   = /*[[${carbsValues}]]*/ [];
     const fatValues     = /*[[${fatValues}]]*/ [];
+
+    const darkScales = {
+        x: { ticks: { color: '#94a3b8', maxTicksLimit: 10 }, grid: { color: '#334155' } },
+        y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+    };
 
     new Chart(document.getElementById('kcalChart'), {
         type: 'bar',
@@ -114,7 +119,7 @@
         options: {
             responsive: true,
             plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true } }
+            scales: darkScales
         }
     });
 
@@ -157,8 +162,10 @@
         },
         options: {
             responsive: true,
-            plugins: { legend: { display: true, position: 'top' } },
-            scales: { y: { beginAtZero: true } }
+            plugins: {
+                legend: { display: true, position: 'top', labels: { color: '#94a3b8' } }
+            },
+            scales: darkScales
         }
     });
 </script>

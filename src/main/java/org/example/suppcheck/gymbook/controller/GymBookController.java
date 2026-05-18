@@ -91,9 +91,6 @@ public class GymBookController {
             if (ex.getPrimaryMuscles() != null)
                 Arrays.stream(ex.getPrimaryMuscles().split("\\|")).map(String::trim)
                       .filter(s -> !s.isBlank()).forEach(muscles::add);
-            if (ex.getSecondaryMuscles() != null)
-                Arrays.stream(ex.getSecondaryMuscles().split("\\|")).map(String::trim)
-                      .filter(s -> !s.isBlank()).forEach(muscles::add);
 
             for (String m : muscles) {
                 muscleExercises.computeIfAbsent(m, k -> new LinkedHashSet<>()).add(ex.getName());
