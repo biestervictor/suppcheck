@@ -46,10 +46,13 @@
         .db-mg.heat-4    { fill: #93c5fd; }
         .db-mg.heat-5    { fill: #bfdbfe; }
 
-        /* ── Filter-Buttons ────────────────────────────────────────────────── */
+        /* ── Filter- & Range-Buttons ────────────────────────────────────────── */
         .filter-bar { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
         .filter-btn { padding: .35rem .9rem; border-radius: 20px; border: 1px solid #e0e0e0; background: #fff; color: #555; cursor: pointer; font-size: .85rem; text-decoration: none; transition: all .15s; }
         .filter-btn:hover, .filter-btn.active { border-color: #2d6cdf; color: #2d6cdf; background: #eaf1fb; }
+        .range-bar { display: flex; gap: .4rem; flex-wrap: wrap; }
+        .range-btn { padding: .25rem .7rem; border-radius: 16px; border: 1px solid #e0e0e0; background: #fff; color: #555; cursor: pointer; font-size: .8rem; transition: all .15s; }
+        .range-btn:hover, .range-btn.active { border-color: #2d6cdf; color: #2d6cdf; background: #eaf1fb; font-weight: 600; }
 
         /* ── Tag-Badges ────────────────────────────────────────────────────── */
         .tag-badge   { display: inline-block; border-radius: 12px; padding: .2rem .65rem; font-size: .75rem; font-weight: 600; }
@@ -176,16 +179,34 @@
 
 <!-- ── Schritte-Chart ───────────────────────────────────────────────────── -->
 <div class="chart-card">
-    <h2 style="margin-top:0;">Schritte – letzte 30 Tage</h2>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem">
+        <h2 style="margin:0;">Schritte</h2>
+        <div id="stepsRangeBar" class="range-bar">
+            <button class="range-btn" onclick="setStepsRange(7,this)">7T</button>
+            <button class="range-btn active" onclick="setStepsRange(30,this)">1M</button>
+            <button class="range-btn" onclick="setStepsRange(90,this)">3M</button>
+            <button class="range-btn" onclick="setStepsRange(365,this)">1J</button>
+            <button class="range-btn" onclick="setStepsRange(0,this)">Alle</button>
+        </div>
+    </div>
     <canvas id="stepsChart" height="80"></canvas>
 </div>
 
 <!-- ── Muskelgruppen Body-Map (Heatmap, letzte 30 Tage) ─────────────────── -->
 <div class="chart-card">
-    <h2 style="margin-top:0;">
-        Muskelgruppen – letzte 30 Tage
-        <a th:href="@{/gymbook/body-map}" style="font-size:.7em;font-weight:normal;margin-left:12px;color:#888;text-decoration:none;">→ Details</a>
-    </h2>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem">
+        <h2 style="margin:0;">
+            Muskelgruppen
+            <a th:href="@{/gymbook/body-map}" style="font-size:.7em;font-weight:normal;margin-left:12px;color:#888;text-decoration:none;">→ Details</a>
+        </h2>
+        <div id="heatmapRangeBar" class="range-bar">
+            <button class="range-btn" onclick="setHeatmapRange(7,this)">7T</button>
+            <button class="range-btn active" onclick="setHeatmapRange(30,this)">1M</button>
+            <button class="range-btn" onclick="setHeatmapRange(90,this)">3M</button>
+            <button class="range-btn" onclick="setHeatmapRange(365,this)">1J</button>
+            <button class="range-btn" onclick="setHeatmapRange(0,this)">Alle</button>
+        </div>
+    </div>
     <div class="bodymap-wrap">
         <div class="bodymap-svg-col">
             <svg id="dashBodyMapSvg" viewBox="0 0 200 400" width="140" style="max-width:140px">
@@ -234,8 +255,17 @@
 
 <div th:unless="${#lists.isEmpty(workoutRows)}">
 
-    <!-- Filter-Buttons -->
-    <div class="filter-bar">
+    <!-- Zeitraum-Filter -->
+    <div id="tableRangeBar" class="filter-bar" style="margin-bottom:.5rem">
+        <button class="filter-btn" onclick="setTableRange(7,this)">7T</button>
+        <button class="filter-btn" onclick="setTableRange(30,this)">1M</button>
+        <button class="filter-btn" onclick="setTableRange(90,this)">3M</button>
+        <button class="filter-btn" onclick="setTableRange(365,this)">1J</button>
+        <button class="filter-btn active" onclick="setTableRange(0,this)">Alle</button>
+    </div>
+
+    <!-- Typ-Filter-Buttons -->
+    <div id="typeFilterBar" class="filter-bar">
         <button class="filter-btn active" onclick="setFilter('all', this)">Alle</button>
         <button class="filter-btn" onclick="setFilter('Push', this)">Push</button>
         <button class="filter-btn" onclick="setFilter('Pull', this)">Pull</button>
@@ -377,34 +407,82 @@
 
 <!-- ── Top-Übungen Chart ────────────────────────────────────────────────── -->
 <div class="chart-card" th:if="${!topExLabels.isEmpty()}" style="margin-top:24px">
-    <h2 style="margin-top:0;">Top-Übungen (Sätze gesamt)</h2>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem">
+        <h2 style="margin:0;">Top-Übungen (Sätze)</h2>
+        <div id="topExRangeBar" class="range-bar">
+            <button class="range-btn" onclick="setTopExRange(7,this)">7T</button>
+            <button class="range-btn active" onclick="setTopExRange(30,this)">1M</button>
+            <button class="range-btn" onclick="setTopExRange(90,this)">3M</button>
+            <button class="range-btn" onclick="setTopExRange(365,this)">1J</button>
+            <button class="range-btn" onclick="setTopExRange(0,this)">Alle</button>
+        </div>
+    </div>
     <canvas id="topExChart" height="55" style="max-height:160px"></canvas>
 </div>
 </div>
 
 <script th:inline="javascript">
-// ── Schritte-Chart ─────────────────────────────────────────────────────────
-const stepLabels = /*[[${stepLabels}]]*/ [];
-const stepValues = /*[[${stepValues}]]*/ [];
-new Chart(document.getElementById('stepsChart'), {
-    type: 'bar',
-    data: {
-        labels: stepLabels,
-        datasets: [{ label: 'Schritte', data: stepValues,
-            backgroundColor: 'rgba(45,108,223,0.5)', borderColor: '#2d6cdf', borderWidth: 1 }]
-    },
-    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
-});
+// ── Gemeinsame Hilfsfunktion ────────────────────────────────────────────────
+function filterRange(allLabels, allValues, days) {
+    if (!days) return { labels: allLabels, values: allValues };
+    const d = new Date(); d.setDate(d.getDate() - days);
+    const cutoff = d.toISOString().slice(0, 10);
+    const pairs = allLabels.map((l, i) => [l, allValues[i]]).filter(([l]) => l >= cutoff);
+    return { labels: pairs.map(p => p[0]), values: pairs.map(p => p[1]) };
+}
 
-// ── Top-Übungen Chart ──────────────────────────────────────────────────────
-const topLabels = /*[[${topExLabels}]]*/ [];
-const topValues = /*[[${topExValues}]]*/ [];
-if (topLabels.length > 0) {
-    new Chart(document.getElementById('topExChart'), {
+// ── Schritte-Chart ─────────────────────────────────────────────────────────
+const allStepLabels = /*[[${stepLabels}]]*/ [];
+const allStepValues = /*[[${stepValues}]]*/ [];
+let stepsChart;
+
+function setStepsRange(days, btn) {
+    document.querySelectorAll('#stepsRangeBar .range-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const { labels, values } = filterRange(allStepLabels, allStepValues, days);
+    stepsChart.data.labels = labels;
+    stepsChart.data.datasets[0].data = values;
+    stepsChart.update();
+}
+
+{
+    const { labels, values } = filterRange(allStepLabels, allStepValues, 30);
+    stepsChart = new Chart(document.getElementById('stepsChart'), {
         type: 'bar',
         data: {
-            labels: topLabels,
-            datasets: [{ label: 'Sätze', data: topValues,
+            labels,
+            datasets: [{ label: 'Schritte', data: values,
+                backgroundColor: 'rgba(45,108,223,0.5)', borderColor: '#2d6cdf', borderWidth: 1 }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+}
+
+// ── Top-Übungen Chart ──────────────────────────────────────────────────────
+const initTopLabels = /*[[${topExLabels}]]*/ [];
+const initTopValues = /*[[${topExValues}]]*/ [];
+let topExChart;
+
+function setTopExRange(days, btn) {
+    document.querySelectorAll('#topExRangeBar .range-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const reqDays = days || 9999;
+    fetch('/health/api/chart-data?days=' + reqDays)
+        .then(r => r.json())
+        .then(data => {
+            if (!topExChart) return;
+            topExChart.data.labels = data.topExLabels;
+            topExChart.data.datasets[0].data = data.topExValues;
+            topExChart.update();
+        });
+}
+
+if (initTopLabels.length > 0) {
+    topExChart = new Chart(document.getElementById('topExChart'), {
+        type: 'bar',
+        data: {
+            labels: initTopLabels,
+            datasets: [{ label: 'Sätze', data: initTopValues,
                 backgroundColor: 'rgba(45,108,223,0.75)', borderColor: '#2d6cdf',
                 borderWidth: 1, borderRadius: 4 }]
         },
@@ -417,7 +495,7 @@ if (topLabels.length > 0) {
     });
 }
 
-// ── Body-Map Heatmap (kompakt, 30 Tage) ────────────────────────────────────
+// ── Body-Map Heatmap (kompakt) ─────────────────────────────────────────────
 const gymHeatmap = /*[[${gymHeatmap30}]]*/ {};
 const MUSCLE_LABELS = {
     '010.shoulders': 'Schultern', '020.pectorals': 'Brust',
@@ -429,48 +507,85 @@ const MUSCLE_LABELS = {
     '071.adductors': 'Adduktoren', '072.thighFlexors': 'Hamstrings',
     '090.calves': 'Waden', '090.cardio': 'Cardio'
 };
-const heatVals = Object.values(gymHeatmap);
-const maxVal = heatVals.length ? Math.max(1, ...heatVals) : 1;
 
-document.querySelectorAll('#dashBodyMapSvg [data-muscle]').forEach(el => {
-    const id = el.getAttribute('data-muscle');
-    const cnt = gymHeatmap[id] || 0;
-    if (cnt === 0) return;
-    const ratio = cnt / maxVal;
-    const cls = ratio >= 0.9 ? 'heat-max' : ratio >= 0.7 ? 'heat-1' : ratio >= 0.5 ? 'heat-2'
-              : ratio >= 0.3 ? 'heat-3'   : ratio >= 0.1 ? 'heat-4' : 'heat-5';
-    el.classList.add(cls);
-    el.setAttribute('title', (MUSCLE_LABELS[id] || id) + ': ' + cnt + '×');
-});
-
-const sorted = Object.entries(gymHeatmap).sort((a,b) => b[1]-a[1]).slice(0, 8);
-const list   = document.getElementById('dashMuscleList');
-sorted.forEach(([id, cnt]) => {
-    const label = MUSCLE_LABELS[id] || id;
-    const pct   = Math.round(cnt / maxVal * 100);
-    const row   = document.createElement('div');
-    row.className = 'bm-muscle-row';
-    row.innerHTML = `<span style="min-width:130px;color:#333">${label}</span>
-        <div class="bm-bar-wrap"><div class="bm-bar" style="width:${pct}%"></div></div>
-        <span class="bm-count">${cnt}×</span>`;
-    list.appendChild(row);
-});
-
-// ── Filter ─────────────────────────────────────────────────────────────────
-function setFilter(type, btn) {
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.querySelectorAll('.session-table tbody tr').forEach(row => {
-        const tag = row.getAttribute('data-tag') || '';
-        let show = false;
-        if (type === 'all')       show = true;
-        else if (type === 'Push') show = tag.includes('Push');
-        else if (type === 'Pull') show = tag.includes('Pull');
-        else if (type === 'Beine') show = tag.includes('Beine');
-        else if (type === 'Kraft') show = tag.includes('Kraft') && !tag.includes('Push') && !tag.includes('Pull') && !tag.includes('Beine');
-        else show = (tag === type);
-        row.style.display = show ? '' : 'none';
+function renderDashHeatmap(heatmap) {
+    const heatVals = Object.values(heatmap);
+    const maxVal = heatVals.length ? Math.max(1, ...heatVals) : 1;
+    document.querySelectorAll('#dashBodyMapSvg [data-muscle]').forEach(el => {
+        el.className.baseVal = 'db-mg';
+        el.removeAttribute('title');
     });
+    Object.entries(heatmap).forEach(([id, cnt]) => {
+        if (cnt === 0) return;
+        const ratio = cnt / maxVal;
+        const cls = ratio >= 0.9 ? 'heat-max' : ratio >= 0.7 ? 'heat-1' : ratio >= 0.5 ? 'heat-2'
+                  : ratio >= 0.3 ? 'heat-3'   : ratio >= 0.1 ? 'heat-4' : 'heat-5';
+        document.querySelectorAll(`#dashBodyMapSvg [data-muscle="${id}"]`).forEach(el => {
+            el.classList.add(cls);
+            el.setAttribute('title', (MUSCLE_LABELS[id] || id) + ': ' + cnt + '×');
+        });
+    });
+    const sorted = Object.entries(heatmap).sort((a,b) => b[1]-a[1]).slice(0, 8);
+    const list   = document.getElementById('dashMuscleList');
+    list.innerHTML = '';
+    sorted.forEach(([id, cnt]) => {
+        const label = MUSCLE_LABELS[id] || id;
+        const pct   = Math.round(cnt / maxVal * 100);
+        const row   = document.createElement('div');
+        row.className = 'bm-muscle-row';
+        row.innerHTML = `<span style="min-width:130px;color:#333">${label}</span>
+            <div class="bm-bar-wrap"><div class="bm-bar" style="width:${pct}%"></div></div>
+            <span class="bm-count">${cnt}×</span>`;
+        list.appendChild(row);
+    });
+}
+renderDashHeatmap(gymHeatmap);
+
+function setHeatmapRange(days, btn) {
+    document.querySelectorAll('#heatmapRangeBar .range-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const reqDays = days || 9999;
+    fetch('/health/api/chart-data?days=' + reqDays)
+        .then(r => r.json())
+        .then(data => renderDashHeatmap(data.heatmap));
+}
+
+// ── Workout-Tabelle Filter ─────────────────────────────────────────────────
+let currentTypeFilter = 'all';
+let currentDayFilter  = 0;   // 0 = Alle
+
+function applyFilters() {
+    const cutoffStr = currentDayFilter > 0 ? (() => {
+        const d = new Date(); d.setDate(d.getDate() - currentDayFilter);
+        return d.toISOString().slice(0, 10);
+    })() : '';
+    document.querySelectorAll('.session-table tbody tr').forEach(row => {
+        const tag  = row.getAttribute('data-tag')  || '';
+        const date = row.getAttribute('data-date') || '';
+        let showType = false;
+        if      (currentTypeFilter === 'all')   showType = true;
+        else if (currentTypeFilter === 'Push')  showType = tag.includes('Push');
+        else if (currentTypeFilter === 'Pull')  showType = tag.includes('Pull');
+        else if (currentTypeFilter === 'Beine') showType = tag.includes('Beine');
+        else if (currentTypeFilter === 'Kraft') showType = tag.includes('Kraft') && !tag.includes('Push') && !tag.includes('Pull') && !tag.includes('Beine');
+        else showType = (tag === currentTypeFilter);
+        const showDate = !cutoffStr || date >= cutoffStr;
+        row.style.display = (showType && showDate) ? '' : 'none';
+    });
+}
+
+function setFilter(type, btn) {
+    document.querySelectorAll('#typeFilterBar .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTypeFilter = type;
+    applyFilters();
+}
+
+function setTableRange(days, btn) {
+    document.querySelectorAll('#tableRangeBar .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentDayFilter = days;
+    applyFilters();
 }
 
 // ── Muscle-Label-Mapping (Detail-Panel) ────────────────────────────────────

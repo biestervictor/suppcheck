@@ -65,6 +65,11 @@ public class HealthDashboardService {
 
     // ── Tägliche Aggregate ────────────────────────────────────────────────────
 
+    /** Alle täglichen Metriken, aufsteigend nach Datum. */
+    public List<HealthDailyMetric> getAllDailyMetrics() {
+        return dailyRepo.findAllByOrderByDateAsc();
+    }
+
     /**
      * Tägliche Metriken der letzten {@code days} Tage (einschließlich heute),
      * aufsteigend sortiert.

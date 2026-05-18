@@ -221,6 +221,26 @@ class GymBookDashboardServiceTest {
         assertEquals(3L, top.get("A"));
     }
 
+    @Test
+    void topExercisesWithDays_filtersToDateWindow() {
+        GymExerciseEntry e1 = new GymExerciseEntry(); e1.setName("Recent");
+        e1.addSet(new GymSetEntry(50, 10, "default"));
+
+        GymExerciseEntry e2 = new GymExerciseEntry(); e2.setName("Old");
+        e2.addSet(new GymSetEntry(50, 10, "default"));
+
+        GymSession recent = new GymSession(LocalDate.now().minusDays(5).toString());
+        recent.addExercise(e1);
+        GymSession old = new GymSession(LocalDate.now().minusDays(200).toString());
+        old.addExercise(e2);
+
+        when(repo.findAllByOrderByDateDesc()).thenReturn(List.of(recent, old));
+
+        Map<String, Long> top = service.getTopExercises(5, 30);
+        assertTrue(top.containsKey("Recent"));
+        assertFalse(top.containsKey("Old"));
+    }
+
     // ── GymSession model ──────────────────────────────────────────────────────
 
     @Test

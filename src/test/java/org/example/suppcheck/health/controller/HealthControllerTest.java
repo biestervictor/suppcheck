@@ -42,6 +42,7 @@ class HealthControllerTest {
         // Sensible defaults
         lenient().when(dashboardService.getLatestBodyMetrics()).thenReturn(Map.of());
         lenient().when(dashboardService.getRecentDailyMetrics(anyInt())).thenReturn(List.of());
+        lenient().when(dashboardService.getAllDailyMetrics()).thenReturn(List.of());
         lenient().when(dashboardService.getRecentWorkouts()).thenReturn(List.of());
         lenient().when(dashboardService.getTotalWorkoutCount()).thenReturn(0L);
         lenient().when(dashboardService.getAvgSleepHours(anyInt())).thenReturn(7.5);
@@ -51,6 +52,8 @@ class HealthControllerTest {
         lenient().when(dashboardService.getWorkoutCountByType()).thenReturn(Map.of());
         lenient().when(gymBookDashboardService.getRecentSessions()).thenReturn(List.of());
         lenient().when(gymBookDashboardService.getMuscleHeatmap(anyInt())).thenReturn(Map.of());
+        lenient().when(gymBookDashboardService.getTopExercises(anyInt())).thenReturn(Map.of());
+        lenient().when(gymBookDashboardService.getTopExercises(anyInt(), anyInt())).thenReturn(Map.of());
         lenient().when(importService.getStatus()).thenReturn("idle");
         lenient().when(importService.getProcessedRecords()).thenReturn(0L);
         lenient().when(importService.getImportedMetrics()).thenReturn(0L);
@@ -87,7 +90,7 @@ class HealthControllerTest {
     void dashboard_stepLabelsAndValuesComputedFromDailyMetrics() {
         HealthDailyMetric d = new HealthDailyMetric("2025-06-01");
         d.addSteps(10000);
-        when(dashboardService.getRecentDailyMetrics(30)).thenReturn(List.of(d));
+        when(dashboardService.getAllDailyMetrics()).thenReturn(List.of(d));
 
         Model model = new ConcurrentModel();
         controller.dashboard(model);
@@ -274,6 +277,27 @@ class HealthControllerTest {
         assertTrue(model.containsAttribute("totalWorkouts"));
         assertTrue(model.containsAttribute("typeLabels"));
         assertTrue(model.containsAttribute("typeValues"));
+    }
+
+    // ── chartData API ─────────────────────────────────────────────────────────
+
+    @Test
+    void chartData_returnsTopExLabelsAndHeatmap() {
+        when(gymBookDashboardService.getTopExercises(8, 30)).thenReturn(Map.of("Bankdrücken", 10L));
+        when(gymBookDashboardService.getMuscleHeatmap(30)).thenReturn(Map.of("020.pectorals", 3));
+
+        Map<String, Object> result = controller.chartData(30);
+
+        assertTrue(result.containsKey("topExLabels"));
+        assertTrue(result.containsKey("topExValues"));
+        assertTrue(result.containsKey("heatmap"));
+    }
+
+    @Test
+    void chartData_defaultsToAllTime() {
+        Map<String, Object> result = controller.chartData(9999);
+        assertTrue(result.containsKey("topExLabels"));
+        assertTrue(result.containsKey("heatmap"));
     }
 
     // ── cardio ───────────────────────────────────────────────────────────────

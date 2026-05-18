@@ -145,6 +145,30 @@ public class GymBookDashboardService {
                 ));
     }
 
+    /**
+     * Häufigste Übungen (Top-N nach Anzahl Sätze) innerhalb der letzten {@code days} Tage.
+     * Verwende {@code days=9999} für All-Time.
+     */
+    public Map<String, Long> getTopExercises(int topN, int days) {
+        String cutoff = cutoffDate(days);
+        return getAllSessions().stream()
+                .filter(s -> s.getDate().compareTo(cutoff) >= 0)
+                .flatMap(s -> s.getExercises().stream())
+                .collect(Collectors.groupingBy(
+                        GymExerciseEntry::getName,
+                        Collectors.summingLong(GymExerciseEntry::getTotalSets)
+                ))
+                .entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(topN)
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (a, b) -> a,
+                        LinkedHashMap::new
+                ));
+    }
+
     // ── Hilfstypen ────────────────────────────────────────────────────────────
 
     public record ExerciseProgress(

@@ -8,4 +8,6 @@ import java.util.List;
 public interface HealthDailyMetricRepository extends MongoRepository<HealthDailyMetric, String> {
 
     List<HealthDailyMetric> findByDateBetweenOrderByDateAsc(String from, String to);
+
+    List<HealthDailyMetric> findAllByOrderByDateAsc();
 }

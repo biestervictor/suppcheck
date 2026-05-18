@@ -56,8 +56,8 @@ public class HealthController {
     @GetMapping
     public String dashboard(Model model) {
         Map<String, HealthMetric> latest = dashboardService.getLatestBodyMetrics();
-        List<HealthDailyMetric>   recent = dashboardService.getRecentDailyMetrics(30);
-        var topEx = gymBookDashboardService.getTopExercises(8);
+        List<HealthDailyMetric>   recent = dashboardService.getAllDailyMetrics();
+        var topEx = gymBookDashboardService.getTopExercises(8, 30);
 
         model.addAttribute("latestMetrics",   latest);
         model.addAttribute("recentDays",      recent);
@@ -202,6 +202,26 @@ public class HealthController {
         return "health/health-nutrition";
     }
 
+    // ── Chart-Daten AJAX (Zeitraum-gefiltert) ─────────────────────────────────
+
+    /**
+     * Liefert Top-Übungen und Muskel-Heatmap für einen wählbaren Zeitraum als JSON.
+     * Wird vom Dashboard per fetch() aufgerufen wenn der User die Zeitspanne wechselt.
+     *
+     * @param days Anzahl Tage zurück; verwende 9999 für All-Time
+     */
+    @GetMapping(value = "/api/chart-data", produces = "application/json")
+    @ResponseBody
+    public Map<String, Object> chartData(@RequestParam(defaultValue = "9999") int days) {
+        var topEx   = gymBookDashboardService.getTopExercises(8, days);
+        var heatmap = gymBookDashboardService.getMuscleHeatmap(days);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("topExLabels", new ArrayList<>(topEx.keySet()));
+        result.put("topExValues", new ArrayList<>(topEx.values()));
+        result.put("heatmap",     heatmap);
+        return result;
+    }
+
     // ── Gemischte Workout-Zeilen (GymBook + Health) ────────────────────────────
 
     /**
@@ -266,8 +286,19 @@ public class HealthController {
                               || "FunctionalStrengthTraining".equals(w.getActivityType());
             if (isStrength && gymDates.contains(w.getDate().toString())) continue;
 
-            String tag = (w.getWorkoutTag() != null && !w.getWorkoutTag().isBlank())
-                    ? w.getWorkoutTag() : w.getActivityLabel();
+            // Fallback-Klassifikation für Einträge ohne workoutTag (vor Migrations-Import)
+            String tag;
+            if (w.getWorkoutTag() != null && !w.getWorkoutTag().isBlank()) {
+                tag = w.getWorkoutTag();
+            } else {
+                tag = switch (w.getActivityType() != null ? w.getActivityType() : "") {
+                    case "Running"                                        -> "Joggen";
+                    case "Walking", "Hiking"                              -> "Gehen";
+                    case "TraditionalStrengthTraining",
+                         "FunctionalStrengthTraining"                     -> "Krafttraining";
+                    default                                               -> w.getActivityLabel();
+                };
+            }
             double distKm = isStrength ? 0 : w.getDistanceKm();
             rows.add(new WorkoutRow(
                     w.getDate().toString(), tag,
@@ -275,10 +306,10 @@ public class HealthController {
                     distKm, null, false));
         }
 
-        // 4. Nach Datum absteigend sortieren, auf 60 begrenzen
+        // 4. Nach Datum absteigend sortieren, auf 500 begrenzen
         return rows.stream()
                 .sorted(Comparator.comparing(WorkoutRow::getDate).reversed())
-                .limit(60)
+                .limit(500)
                 .collect(Collectors.toList());
     }
 
