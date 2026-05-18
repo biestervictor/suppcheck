@@ -1,7 +1,6 @@
 package org.example.suppcheck.model;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -14,7 +13,6 @@ import java.time.LocalDate;
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 public class StockBatch {
 
     /** Flavor/Geschmacksrichtung – optional, null wenn nicht relevant. */
@@ -28,6 +26,23 @@ public class StockBatch {
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDate addedDate;
 
-    /** Anzahl Packungen/Portionen in diesem Batch. */
+    /** Anzahl Packungen/Portionen in diesem Batch (unveränderter Original-Wert). */
     private int quantity;
+
+    /**
+     * Verbleibende Menge in diesem Batch.
+     * {@code null} = Legacy-Batch (kein Tracking) → treat as {@code quantity}.
+     */
+    private Integer remaining;
+
+    /**
+     * Erstellt einen neuen Batch; {@code remaining} wird auf {@code quantity} gesetzt.
+     */
+    public StockBatch(String flavor, LocalDate expiryDate, LocalDate addedDate, int quantity) {
+        this.flavor = flavor;
+        this.expiryDate = expiryDate;
+        this.addedDate = addedDate;
+        this.quantity = quantity;
+        this.remaining = quantity;
+    }
 }

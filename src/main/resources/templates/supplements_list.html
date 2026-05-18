@@ -202,6 +202,8 @@
             width: 90%;
             margin-top: 10vh;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            max-height: 85vh;
+            overflow-y: auto;
         }
 
         .check-modal-box h3 {
@@ -394,7 +396,7 @@
                  th:data-name="${supplement.name}"
                  th:data-mhd="${supplement.mhdProdukt}"
                  th:data-flavors="${supplement.flavors != null and !supplement.flavors.isEmpty() ? #strings.listJoin(supplement.flavors, '|') : ''}">
-                <button class="stock-btn minus" type="button" onclick="adjustStock(this, -1)">−</button>
+                <button class="stock-btn minus" type="button" onclick="openConsumeModal(this)">−</button>
                 <span class="stock-value" th:classappend="${supplement.stock == 0 ? ' empty' : ''}"
                       th:text="${supplement.stock}">0</span>
                 <button class="stock-btn plus" type="button" onclick="openRestockModal(this)">+</button>
@@ -818,6 +820,155 @@
             status.textContent = 'Fehler: ' + err.message;
             status.style.color = '#c0392b';
         });
+    }
+</script>
+<!-- ======== Consume Modal ======== -->
+<div id="consume-modal" class="check-modal-overlay">
+    <div class="check-modal-box">
+        <h3 style="margin:0 0 4px">Bestand entnehmen</h3>
+        <p id="consume-modal-name" style="margin:0 0 16px;font-weight:bold;color:#444;font-size:1.05em;"></p>
+
+        <!-- Batch-Auswahl (Radio-Buttons, FIFO-sortiert) -->
+        <div id="consume-batch-list" style="margin-bottom:14px;"></div>
+
+        <!-- Anzahl -->
+        <div style="margin-bottom:18px">
+            <label for="consume-qty" style="display:block;margin-bottom:4px;font-weight:bold;color:#444;">Anzahl:</label>
+            <input type="number" id="consume-qty" min="1" value="1"
+                   style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #bfc9d1;border-radius:4px;font-size:0.95em;"/>
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button onclick="submitConsume()"
+                    style="background:#e8a0a0;color:#5a1a1a;border:none;padding:8px 18px;border-radius:4px;cursor:pointer;font-size:0.95em;font-weight:bold;">
+                − Entnehmen
+            </button>
+            <button onclick="closeConsumeModal()"
+                    style="background:#aaa;color:#fff;border:none;padding:8px 18px;border-radius:4px;cursor:pointer;font-size:0.95em;">
+                Abbrechen
+            </button>
+        </div>
+        <span id="consume-status" style="display:block;margin-top:12px;font-style:italic;min-height:1.4em;"></span>
+    </div>
+</div>
+
+<script>
+    var currentConsumeId       = null;
+    var currentConsumeControls = null;
+
+    function openConsumeModal(btn) {
+        var controls = btn.closest('.stock-controls');
+        currentConsumeId       = controls.getAttribute('data-id');
+        currentConsumeControls = controls;
+
+        document.getElementById('consume-modal-name').textContent = controls.getAttribute('data-name') || '';
+        document.getElementById('consume-qty').value = '1';
+        document.getElementById('consume-status').textContent = '';
+        document.getElementById('consume-batch-list').innerHTML =
+            '<div style="color:#888;font-size:0.9em;">Lade Batches…</div>';
+        document.getElementById('consume-modal').classList.add('active');
+
+        fetch('/supplements/' + currentConsumeId + '/stock/batches')
+            .then(function(r) { return r.ok ? r.json() : []; })
+            .then(function(batches) { buildConsumeBatchList(batches); })
+            .catch(function() { buildConsumeBatchList([]); });
+    }
+
+    function buildConsumeBatchList(batches) {
+        var container = document.getElementById('consume-batch-list');
+
+        if (!batches || batches.length === 0) {
+            container.innerHTML =
+                '<div style="font-size:0.9em;color:#888;padding:8px;background:#f5f5f5;border-radius:4px;">' +
+                'Keine Batches getrackt – Bestand wird generisch reduziert.</div>';
+            return;
+        }
+
+        // FIFO: älteste MHD zuerst; kein MHD → ans Ende
+        var sorted = batches.slice().sort(function(a, b) {
+            if (!a.expiryDate && !b.expiryDate) return 0;
+            if (!a.expiryDate) return 1;
+            if (!b.expiryDate) return -1;
+            return a.expiryDate.localeCompare(b.expiryDate);
+        });
+
+        var html = '<div style="font-weight:bold;margin-bottom:8px;font-size:0.9em;color:#444;">Batch auswählen:</div>';
+        sorted.forEach(function(b, idx) {
+            var val       = (b.flavor || '') + '||' + (b.expiryDate || '');
+            var remaining = (b.remaining !== null && b.remaining !== undefined) ? b.remaining : b.quantity;
+            var mhdLabel  = b.expiryDate
+                ? (function(d) { var s = d.split('-'); return s[1] + '.' + s[0]; })(b.expiryDate)
+                : 'Kein MHD';
+            var label = (b.flavor || 'Kein Flavor') + ' | MHD: ' + mhdLabel + ' | Verbleibend: ' + remaining;
+            html += '<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid #e0e0e0;' +
+                    'border-radius:4px;margin-bottom:6px;cursor:pointer;font-size:0.88em;">' +
+                    '<input type="radio" name="consume-batch" value="' + val + '"' +
+                    (idx === 0 ? ' checked' : '') + ' style="cursor:pointer;">' +
+                    '<span>' + label + '</span></label>';
+        });
+
+        // Generisch-Fallback immer am Ende
+        html += '<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid #e0e0e0;' +
+                'border-radius:4px;margin-bottom:6px;cursor:pointer;font-size:0.88em;">' +
+                '<input type="radio" name="consume-batch" value="__GENERIC__" style="cursor:pointer;">' +
+                '<span style="color:#888;">Generisch (kein Batch getrackt)</span></label>';
+
+        container.innerHTML = html;
+    }
+
+    function closeConsumeModal() {
+        document.getElementById('consume-modal').classList.remove('active');
+        currentConsumeId = null;
+        currentConsumeControls = null;
+    }
+
+    document.getElementById('consume-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeConsumeModal();
+    });
+
+    function submitConsume() {
+        var qty    = parseInt(document.getElementById('consume-qty').value, 10);
+        var status = document.getElementById('consume-status');
+
+        if (isNaN(qty) || qty < 1) {
+            status.textContent = 'Bitte eine gültige Anzahl eingeben (min. 1).';
+            status.style.color = '#c0392b';
+            return;
+        }
+
+        var selectedRadio = document.querySelector('input[name="consume-batch"]:checked');
+        var isGeneric     = !selectedRadio || selectedRadio.value === '__GENERIC__';
+
+        status.textContent = 'Wird gespeichert…';
+        status.style.color = '#555';
+
+        if (isGeneric) {
+            var fd = new FormData();
+            fd.append('delta', -qty);
+            fetch('/supplements/' + currentConsumeId + '/stock', { method: 'POST', body: fd })
+                .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+                .then(function(data) { onConsumeSuccess(data.stock); })
+                .catch(function(err) { status.textContent = 'Fehler: ' + err.message; status.style.color = '#c0392b'; });
+        } else {
+            var parts      = selectedRadio.value.split('||');
+            var flavor     = parts[0] || null;
+            var expiryDate = parts[1] || null;
+            var fd2 = new FormData();
+            if (flavor)     fd2.append('flavor',     flavor);
+            if (expiryDate) fd2.append('expiryDate', expiryDate);
+            fd2.append('quantity', qty);
+            fetch('/supplements/' + currentConsumeId + '/stock/consume', { method: 'POST', body: fd2 })
+                .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+                .then(function(data) { onConsumeSuccess(data.stock); })
+                .catch(function(err) { status.textContent = 'Fehler: ' + err.message; status.style.color = '#c0392b'; });
+        }
+    }
+
+    function onConsumeSuccess(newStock) {
+        var valueEl = currentConsumeControls.querySelector('.stock-value');
+        valueEl.textContent = newStock;
+        valueEl.classList.toggle('empty', newStock === 0);
+        closeConsumeModal();
     }
 </script>
 </body>

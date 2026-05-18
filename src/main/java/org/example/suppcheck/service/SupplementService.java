@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
 import org.example.suppcheck.dto.IngredientDto;
@@ -337,6 +338,46 @@ public class SupplementService {
     supp.setStock(supp.getStock() + batch.getQuantity());
     supplementRepository.save(supp);
     return supp.getStock();
+  }
+
+  /**
+   * Entnimmt eine Menge aus einem bestimmten Batch (Flavor + MHD) und reduziert
+   * sowohl {@code remaining} des Batches als auch den Gesamt-Lagerbestand.
+   *
+   * <p>Wird kein passender Batch gefunden (z. B. Legacy-Daten ohne Tracking),
+   * wird der Lagerbestand trotzdem reduziert.</p>
+   *
+   * @param id            die Supplement-ID
+   * @param flavor        Flavor/Geschmacksrichtung (null oder leer = kein Flavor)
+   * @param expiryDateStr MHD als ISO-String "yyyy-MM-dd" (null oder leer = kein MHD)
+   * @param qty           zu entnehmende Menge (min. 1)
+   * @return neuer Gesamtbestand
+   * @throws IllegalArgumentException wenn kein Supplement mit der ID gefunden wurde
+   */
+  public int consumeFromBatch(String id, String flavor, String expiryDateStr, int qty) {
+    Supplement supp = supplementRepository.findById(id)
+        .orElseThrow(() -> new IllegalArgumentException("Supplement mit ID " + id + " nicht gefunden"));
+
+    LocalDate expiryDate = (expiryDateStr != null && !expiryDateStr.isBlank())
+        ? LocalDate.parse(expiryDateStr) : null;
+    String normalizedFlavor = (flavor != null && !flavor.isBlank()) ? flavor : null;
+
+    if (supp.getStockBatches() != null) {
+      for (StockBatch batch : supp.getStockBatches()) {
+        boolean flavorMatch = Objects.equals(batch.getFlavor(), normalizedFlavor);
+        boolean expiryMatch = Objects.equals(batch.getExpiryDate(), expiryDate);
+        if (flavorMatch && expiryMatch) {
+          int effective = batch.getRemaining() != null ? batch.getRemaining() : batch.getQuantity();
+          batch.setRemaining(Math.max(0, effective - qty));
+          break;
+        }
+      }
+    }
+
+    int newStock = Math.max(0, supp.getStock() - qty);
+    supp.setStock(newStock);
+    supplementRepository.save(supp);
+    return newStock;
   }
 
   /**

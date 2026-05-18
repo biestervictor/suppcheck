@@ -377,6 +377,31 @@ public class SupplementController {
     }
 
     /**
+     * Entnimmt eine Menge aus einem bestimmten Batch (Flavor + MHD) und reduziert
+     * sowohl den Batch-Restbestand als auch den Gesamt-Lagerbestand.
+     *
+     * @param id         die Supplement-ID
+     * @param flavor     Flavor/Geschmacksrichtung (optional)
+     * @param expiryDate MHD als ISO-String yyyy-MM-dd (optional)
+     * @param quantity   Anzahl zu entnehmender Packungen/Portionen (min. 1)
+     * @return JSON mit neuem Bestand, z.B. {"stock": 2}
+     */
+    @PostMapping(value = "/{id}/stock/consume", produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<Map<String, Integer>> consumeFromBatch(
+            @PathVariable String id,
+            @RequestParam(required = false) String flavor,
+            @RequestParam(required = false) String expiryDate,
+            @RequestParam(defaultValue = "1") int quantity) {
+        try {
+            int newStock = supplementService.consumeFromBatch(id, flavor, expiryDate, quantity);
+            return ResponseEntity.ok(Map.of("stock", newStock));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    /**
      * Returns the full ingredient-change history for a supplement, newest last.
      *
      * @param id the supplement id

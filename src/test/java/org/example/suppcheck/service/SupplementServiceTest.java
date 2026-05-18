@@ -3,6 +3,7 @@ package org.example.suppcheck.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -10,6 +11,7 @@ import java.util.Optional;
 import org.example.suppcheck.dto.IngredientWithSources;
 import org.example.suppcheck.model.Ingredient;
 import org.example.suppcheck.model.PriceEntry;
+import org.example.suppcheck.model.StockBatch;
 import org.example.suppcheck.model.Supplement;
 import org.example.suppcheck.repository.SupplementRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -577,6 +579,115 @@ class SupplementServiceTest {
         supp.setInactive(false);
         supp.setIngredients(new ArrayList<>());
         return supp;
+    }
+
+    // --- consumeFromBatch ---
+
+    @Test
+    void consumeFromBatch_reducesStockAndBatchRemaining() {
+        StockBatch batch = new StockBatch("Chocolate", LocalDate.of(2026, 12, 31), LocalDate.now(), 5);
+        Supplement supp = new Supplement();
+        supp.setId("id-1");
+        supp.setStock(5);
+        supp.setStockBatches(new ArrayList<>(List.of(batch)));
+        when(repository.findById("id-1")).thenReturn(Optional.of(supp));
+
+        int result = service.consumeFromBatch("id-1", "Chocolate", "2026-12-31", 2);
+
+        assertEquals(3, result);
+        assertEquals(3, supp.getStock());
+        assertEquals(3, batch.getRemaining());
+        verify(repository).save(supp);
+    }
+
+    @Test
+    void consumeFromBatch_noMatchingBatch_stillReducesStock() {
+        StockBatch batch = new StockBatch("Vanilla", null, LocalDate.now(), 3);
+        Supplement supp = new Supplement();
+        supp.setId("id-1");
+        supp.setStock(3);
+        supp.setStockBatches(new ArrayList<>(List.of(batch)));
+        when(repository.findById("id-1")).thenReturn(Optional.of(supp));
+
+        // Consume for "Chocolate" – no matching batch; stock still decremented
+        int result = service.consumeFromBatch("id-1", "Chocolate", null, 1);
+
+        assertEquals(2, result);
+        assertEquals(2, supp.getStock());
+        // Vanilla batch untouched
+        assertEquals(3, batch.getRemaining());
+        verify(repository).save(supp);
+    }
+
+    @Test
+    void consumeFromBatch_noBatches_reducesStock() {
+        Supplement supp = new Supplement();
+        supp.setId("id-2");
+        supp.setStock(4);
+        when(repository.findById("id-2")).thenReturn(Optional.of(supp));
+
+        int result = service.consumeFromBatch("id-2", null, null, 2);
+
+        assertEquals(2, result);
+        verify(repository).save(supp);
+    }
+
+    @Test
+    void consumeFromBatch_stockFlooredAtZero() {
+        Supplement supp = new Supplement();
+        supp.setId("id-3");
+        supp.setStock(1);
+        when(repository.findById("id-3")).thenReturn(Optional.of(supp));
+
+        int result = service.consumeFromBatch("id-3", null, null, 5);
+
+        assertEquals(0, result);
+        verify(repository).save(supp);
+    }
+
+    @Test
+    void consumeFromBatch_batchRemainingFlooredAtZero() {
+        StockBatch batch = new StockBatch(null, null, LocalDate.now(), 2);
+        Supplement supp = new Supplement();
+        supp.setId("id-4");
+        supp.setStock(2);
+        supp.setStockBatches(new ArrayList<>(List.of(batch)));
+        when(repository.findById("id-4")).thenReturn(Optional.of(supp));
+
+        service.consumeFromBatch("id-4", null, null, 10);
+
+        assertEquals(0, batch.getRemaining());
+    }
+
+    @Test
+    void consumeFromBatch_legacyBatchNullRemaining_usesQuantity() {
+        StockBatch legacy = new StockBatch();
+        legacy.setFlavor("Vanilla");
+        legacy.setExpiryDate(null);
+        legacy.setAddedDate(LocalDate.now());
+        legacy.setQuantity(3);
+        // remaining stays null (legacy)
+        assertNull(legacy.getRemaining());
+
+        Supplement supp = new Supplement();
+        supp.setId("id-5");
+        supp.setStock(3);
+        supp.setStockBatches(new ArrayList<>(List.of(legacy)));
+        when(repository.findById("id-5")).thenReturn(Optional.of(supp));
+
+        service.consumeFromBatch("id-5", "Vanilla", null, 1);
+
+        // effective was 3, now should be 2
+        assertEquals(2, legacy.getRemaining());
+    }
+
+    @Test
+    void consumeFromBatch_notFound_throwsIllegalArgumentException() {
+        when(repository.findById("missing")).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.consumeFromBatch("missing", null, null, 1));
+        verify(repository, never()).save(any());
     }
 
     // --- adjustStock ---

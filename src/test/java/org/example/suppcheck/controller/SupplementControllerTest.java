@@ -503,5 +503,42 @@ class SupplementControllerTest {
 
         assertEquals(HttpStatus.NOT_FOUND, resp.getStatusCode());
     }
+
+    // --- consumeFromBatch ---
+
+    @Test
+    void consumeFromBatch_success_returnsNewStock() {
+        when(service.consumeFromBatch(eq("id-1"), eq("Chocolate"), eq("2026-12-31"), eq(2))).thenReturn(3);
+
+        ResponseEntity<java.util.Map<String, Integer>> resp =
+                controller.consumeFromBatch("id-1", "Chocolate", "2026-12-31", 2);
+
+        assertEquals(HttpStatus.OK, resp.getStatusCode());
+        assertNotNull(resp.getBody());
+        assertEquals(3, resp.getBody().get("stock"));
+    }
+
+    @Test
+    void consumeFromBatch_noFlavorNoMhd_success() {
+        when(service.consumeFromBatch(eq("id-2"), isNull(), isNull(), eq(1))).thenReturn(0);
+
+        ResponseEntity<java.util.Map<String, Integer>> resp =
+                controller.consumeFromBatch("id-2", null, null, 1);
+
+        assertEquals(HttpStatus.OK, resp.getStatusCode());
+        assertNotNull(resp.getBody());
+        assertEquals(0, resp.getBody().get("stock"));
+    }
+
+    @Test
+    void consumeFromBatch_notFound_returns404() {
+        when(service.consumeFromBatch(eq("missing"), any(), any(), anyInt()))
+                .thenThrow(new IllegalArgumentException("not found"));
+
+        ResponseEntity<java.util.Map<String, Integer>> resp =
+                controller.consumeFromBatch("missing", null, null, 1);
+
+        assertEquals(HttpStatus.NOT_FOUND, resp.getStatusCode());
+    }
 }
 
