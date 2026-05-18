@@ -18,7 +18,7 @@ spec:
       containers:
         - name: {{ .Values.suppcheck.name}}
           image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
-          command: [ "java", "-jar", "app.jar" ]
+          command: [ "java", "-Xmx512m", "-jar", "app.jar" ]
           args: [ "--spring.profiles.active=kubitos" ]
           env:
             - name: TZ
