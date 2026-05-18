@@ -84,6 +84,7 @@ public class GymBookController {
         Map<String, Integer> muscleSets = new LinkedHashMap<>();
 
         for (GymExerciseEntry ex : session.getExercises()) {
+            if (ex.getTotalSets() == 0) continue; // übersprungen → nicht in Heatmap/Filterung
             List<String> muscles = new ArrayList<>();
             if (ex.getPrimaryMuscles() != null)
                 Arrays.stream(ex.getPrimaryMuscles().split("\\|")).map(String::trim)
@@ -106,6 +107,13 @@ public class GymBookController {
                     m.put("sets",      ex.getTotalSets());
                     m.put("reps",      ex.getTotalReps());
                     m.put("maxKg",     ex.getMaxWeightKg());
+                    m.put("skipped",   ex.getTotalSets() == 0);
+                    double avgKgRaw = ex.getSets().stream()
+                            .mapToDouble(GymSetEntry::getWeightKg)
+                            .filter(w -> w > 0)
+                            .average()
+                            .orElse(0.0);
+                    m.put("avgKg", Math.round(avgKgRaw * 10.0) / 10.0);
                     m.put("setDetails", ex.getSets().stream()
                             .map(s -> ex.getMaxWeightKg() > 0
                                     ? s.getWeightKg() + " kg × " + s.getReps()

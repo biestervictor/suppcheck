@@ -1,7 +1,9 @@
 package org.example.suppcheck.gymbook;
 
 import org.example.suppcheck.gymbook.controller.GymBookController;
+import org.example.suppcheck.gymbook.model.GymExerciseEntry;
 import org.example.suppcheck.gymbook.model.GymSession;
+import org.example.suppcheck.gymbook.model.GymSetEntry;
 import org.example.suppcheck.gymbook.service.GymBookDashboardService;
 import org.example.suppcheck.gymbook.service.GymBookImportService;
 import org.example.suppcheck.health.service.HealthDashboardService;
@@ -16,6 +18,7 @@ import org.springframework.ui.Model;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -42,6 +45,7 @@ class GymBookControllerTest {
         lenient().when(dashboardService.getMuscleHeatmap(anyInt())).thenReturn(Map.of());
         lenient().when(dashboardService.getMuscleExercises(anyInt())).thenReturn(Map.of());
         lenient().when(dashboardService.getWeightProgression(anyString())).thenReturn(List.of());
+        lenient().when(dashboardService.getSessionByDate(anyString())).thenReturn(Optional.empty());
         lenient().when(healthDashboardService.getStrengthDurationByDate()).thenReturn(Map.of());
         lenient().when(importService.getStatus()).thenReturn("idle");
         lenient().when(importService.getImportedSessions()).thenReturn(0L);
@@ -179,5 +183,110 @@ class GymBookControllerTest {
     void importStatus_nullErrorBecomesEmptyString() {
         when(importService.getImportError()).thenReturn(null);
         assertEquals("", controller.importStatus().get("error"));
+    }
+
+    // ── sessionDetail ─────────────────────────────────────────────────────────
+
+    @Test
+    void sessionDetail_returnsErrorWhenNotFound() {
+        when(dashboardService.getSessionByDate("2026-01-01")).thenReturn(Optional.empty());
+        Map<String, Object> result = controller.sessionDetail("2026-01-01");
+        assertTrue(result.containsKey("error"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void sessionDetail_skippedFlagTrueForZeroSets() {
+        GymSession session = new GymSession("2026-05-01");
+        GymExerciseEntry skipped = new GymExerciseEntry();
+        skipped.setName("Bankdrücken");
+        skipped.setPrimaryMuscles("020.pectorals");
+        // no sets added → totalSets == 0
+
+        session.addExercise(skipped);
+        when(dashboardService.getSessionByDate("2026-05-01")).thenReturn(Optional.of(session));
+
+        Map<String, Object> result = controller.sessionDetail("2026-05-01");
+
+        List<Map<String, Object>> exercises = (List<Map<String, Object>>) result.get("exercises");
+        assertNotNull(exercises);
+        assertEquals(1, exercises.size());
+        assertEquals(true, exercises.get(0).get("skipped"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void sessionDetail_skippedFlagFalseWhenSetsPresent() {
+        GymSession session = new GymSession("2026-05-02");
+        GymExerciseEntry ex = new GymExerciseEntry();
+        ex.setName("Kniebeugen");
+        ex.setPrimaryMuscles("070.quadriceps");
+        ex.addSet(new GymSetEntry(100.0, 5, "default"));
+
+        session.addExercise(ex);
+        when(dashboardService.getSessionByDate("2026-05-02")).thenReturn(Optional.of(session));
+
+        Map<String, Object> result = controller.sessionDetail("2026-05-02");
+
+        List<Map<String, Object>> exercises = (List<Map<String, Object>>) result.get("exercises");
+        assertEquals(false, exercises.get(0).get("skipped"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void sessionDetail_skippedExerciseExcludedFromMuscleExercises() {
+        GymSession session = new GymSession("2026-05-03");
+        GymExerciseEntry skipped = new GymExerciseEntry();
+        skipped.setName("Bankdrücken");
+        skipped.setPrimaryMuscles("020.pectorals");
+        // no sets → totalSets == 0
+
+        session.addExercise(skipped);
+        when(dashboardService.getSessionByDate("2026-05-03")).thenReturn(Optional.of(session));
+
+        Map<String, Object> result = controller.sessionDetail("2026-05-03");
+
+        Map<String, List<String>> muscleExercises = (Map<String, List<String>>) result.get("muscleExercises");
+        assertNotNull(muscleExercises);
+        assertFalse(muscleExercises.containsKey("020.pectorals"),
+                "Skipped exercise must not appear in muscleExercises");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void sessionDetail_avgKgComputedFromSets() {
+        GymSession session = new GymSession("2026-05-04");
+        GymExerciseEntry ex = new GymExerciseEntry();
+        ex.setName("Bankdrücken");
+        ex.setPrimaryMuscles("020.pectorals");
+        ex.addSet(new GymSetEntry(80.0, 8, "default"));
+        ex.addSet(new GymSetEntry(90.0, 6, "default"));
+        // avg = (80 + 90) / 2 = 85.0
+
+        session.addExercise(ex);
+        when(dashboardService.getSessionByDate("2026-05-04")).thenReturn(Optional.of(session));
+
+        Map<String, Object> result = controller.sessionDetail("2026-05-04");
+
+        List<Map<String, Object>> exercises = (List<Map<String, Object>>) result.get("exercises");
+        assertEquals(85.0, exercises.get(0).get("avgKg"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void sessionDetail_avgKgIsZeroWhenNoWeightSets() {
+        GymSession session = new GymSession("2026-05-05");
+        GymExerciseEntry ex = new GymExerciseEntry();
+        ex.setName("Klimmzüge");
+        ex.setPrimaryMuscles("031.dorsalMuscles");
+        ex.addSet(new GymSetEntry(0.0, 10, "default")); // bodyweight
+
+        session.addExercise(ex);
+        when(dashboardService.getSessionByDate("2026-05-05")).thenReturn(Optional.of(session));
+
+        Map<String, Object> result = controller.sessionDetail("2026-05-05");
+
+        List<Map<String, Object>> exercises = (List<Map<String, Object>>) result.get("exercises");
+        assertEquals(0.0, exercises.get(0).get("avgKg"));
     }
 }

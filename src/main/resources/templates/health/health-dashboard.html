@@ -104,6 +104,8 @@
         .ex-table th { color: #444; padding: .4rem .6rem; background: #eaf1fb; border-bottom: 1px solid #e0e0e0; font-weight: 500; text-align: left; }
         .ex-table td { padding: .4rem .6rem; border-bottom: 1px solid #f0f0f0; }
         .ex-table tr.highlight td { background: #fef9c3; }
+        .ex-table tr.skipped td { background: #fff0ec; color: #c0796a; }
+        .skipped-badge { display: inline-block; background: #ffd6c8; color: #a04030; border-radius: 4px; padding: .1rem .45rem; font-size: .72rem; font-weight: 600; margin-left: .4rem; }
     </style>
 </head>
 <body>
@@ -356,7 +358,7 @@
         <div class="ex-panel">
             <h4 id="exPanelTitle">Alle Übungen dieser Einheit</h4>
             <table class="ex-table" id="exTable">
-                <thead><tr><th>Übung</th><th>Sätze</th><th>Wdh.</th><th>Max. kg</th></tr></thead>
+                <thead><tr><th>Übung</th><th>Sätze</th><th>Wdh.</th><th>Ø kg</th><th>Max. kg</th></tr></thead>
                 <tbody id="exTableBody"></tbody>
             </table>
         </div>
@@ -727,11 +729,15 @@ function renderExTable(exercises) {
     tbody.innerHTML = '';
     (exercises || []).forEach(ex => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><a href="/gymbook/exercise/${encodeURIComponent(ex.name)}"
-                   style="color:#2d6cdf;text-decoration:none">${ex.name}</a></td>
-            <td>${ex.sets}</td><td>${ex.reps}</td>
-            <td>${ex.maxKg > 0 ? ex.maxKg + ' kg' : '–'}</td>`;
+        if (ex.skipped) tr.classList.add('skipped');
+        const nameCell = ex.skipped
+            ? `<td>${ex.name} <span class="skipped-badge">Übersprungen</span></td>`
+            : `<td><a href="/gymbook/exercise/${encodeURIComponent(ex.name)}"
+                   style="color:#2d6cdf;text-decoration:none">${ex.name}</a></td>`;
+        tr.innerHTML = nameCell +
+            `<td>${ex.sets}</td><td>${ex.reps}</td>` +
+            `<td>${ex.avgKg > 0 ? ex.avgKg + ' kg' : '–'}</td>` +
+            `<td>${ex.maxKg > 0 ? ex.maxKg + ' kg' : '–'}</td>`;
         tbody.appendChild(tr);
     });
 }
@@ -755,12 +761,16 @@ function highlightMuscle(mid) {
     tbody.innerHTML = '';
     (currentData.exercises || []).forEach(ex => {
         const tr = document.createElement('tr');
-        if (exNames.has(ex.name)) tr.classList.add('highlight');
-        tr.innerHTML = `
-            <td><a href="/gymbook/exercise/${encodeURIComponent(ex.name)}"
-                   style="color:#2d6cdf;text-decoration:none">${ex.name}</a></td>
-            <td>${ex.sets}</td><td>${ex.reps}</td>
-            <td>${ex.maxKg > 0 ? ex.maxKg + ' kg' : '–'}</td>`;
+        if (ex.skipped) tr.classList.add('skipped');
+        else if (exNames.has(ex.name)) tr.classList.add('highlight');
+        const nameCell = ex.skipped
+            ? `<td>${ex.name} <span class="skipped-badge">Übersprungen</span></td>`
+            : `<td><a href="/gymbook/exercise/${encodeURIComponent(ex.name)}"
+                   style="color:#2d6cdf;text-decoration:none">${ex.name}</a></td>`;
+        tr.innerHTML = nameCell +
+            `<td>${ex.sets}</td><td>${ex.reps}</td>` +
+            `<td>${ex.avgKg > 0 ? ex.avgKg + ' kg' : '–'}</td>` +
+            `<td>${ex.maxKg > 0 ? ex.maxKg + ' kg' : '–'}</td>`;
         tbody.appendChild(tr);
     });
     document.getElementById('exTable').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
