@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.sql.*;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -31,7 +33,7 @@ public class GymBookImportService {
 
     private static final String SQL = """
             SELECT
-              date(el.ZDATE + %d, 'unixepoch') AS workout_date,
+              CAST(el.ZDATE + %d AS INTEGER)    AS workout_ts,
               e.ZNAME                           AS exercise_name,
               e.ZTARGETMUSCLESPRIMARY           AS primary_muscles,
               e.ZTARGETMUSCLESSECONDARY         AS secondary_muscles,
@@ -106,7 +108,10 @@ public class GymBookImportService {
              ResultSet  rs   = stmt.executeQuery(SQL)) {
 
             while (rs.next()) {
-                String date         = rs.getString("workout_date");
+                long   ts           = rs.getLong("workout_ts");
+                String date         = Instant.ofEpochSecond(ts)
+                                             .atZone(ZoneId.of("Europe/Berlin"))
+                                             .toLocalDate().toString();
                 String exerciseName = rs.getString("exercise_name");
                 String primary      = rs.getString("primary_muscles");
                 String secondary    = rs.getString("secondary_muscles");
@@ -140,8 +145,50 @@ public class GymBookImportService {
             }
         }
 
+        // Remove exercises that have no recorded sets (e.g. skipped/logged but no reps)
+        sessionMap.values().forEach(s -> s.getExercises().removeIf(ex -> ex.getTotalSets() == 0));
+
+        // Classify each session as Push / Pull / Beine / Sonstige
+        sessionMap.values().forEach(this::classifySession);
+
         sessionRepo.saveAll(sessionMap.values());
         importedSessions.set(sessionMap.size());
         log.info("GymBook Import abgeschlossen. Sessions={}, Sets={}", importedSessions.get(), importedSets.get());
+    }
+
+    // ── Klassifikation Push/Pull/Beine ────────────────────────────────────────
+
+    private static final Set<String> PUSH_MUSCLES  = Set.of(
+            "020.pectorals", "020.chest", "010.shoulders", "040.armExtensors");
+    private static final Set<String> PULL_MUSCLES  = Set.of(
+            "031.dorsalMuscles", "030.trapezius", "041.armFlexors", "032.lumbarMuscles");
+    private static final Set<String> BEINE_MUSCLES = Set.of(
+            "060.glutes", "060.buttocks", "070.quadriceps", "070.legs",
+            "071.adductors", "072.thighFlexors", "090.calves", "090.cardio");
+
+    /** Bestimmt Push/Pull/Beine/Sonstige anhand der primaryMuscles aller Übungen. */
+    public void classifySession(GymSession session) {
+        Set<String> muscles = new LinkedHashSet<>();
+        for (GymExerciseEntry ex : session.getExercises()) {
+            if (ex.getPrimaryMuscles() != null && !ex.getPrimaryMuscles().isBlank()) {
+                for (String m : ex.getPrimaryMuscles().split("\\|")) {
+                    String t = m.trim();
+                    if (!t.isBlank()) muscles.add(t);
+                }
+            }
+        }
+        long pushCount  = muscles.stream().filter(PUSH_MUSCLES::contains).count();
+        long pullCount  = muscles.stream().filter(PULL_MUSCLES::contains).count();
+        long beineCount = muscles.stream().filter(BEINE_MUSCLES::contains).count();
+
+        if (beineCount > 0 && beineCount >= pushCount && beineCount >= pullCount) {
+            session.setTag("Beine");
+        } else if (pullCount > 0 && pullCount >= pushCount) {
+            session.setTag("Pull");
+        } else if (pushCount > 0) {
+            session.setTag("Push");
+        } else {
+            session.setTag("Sonstige");
+        }
     }
 }

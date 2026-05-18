@@ -6,82 +6,110 @@
   <title>Training Dashboard – SuppCheck</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; background: #0f172a; color: #f1f5f9; margin: 0; }
+    body { font-family: Arial, sans-serif; background: #f7f7f7; color: #333; margin: 0; }
 
     .page-content { max-width: 1200px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
 
+    .page-title-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+    .page-title-bar h1 { margin: 0; font-size: 1.6rem; color: #2d6cdf; }
+    .btn-row { display: flex; gap: .6rem; }
+    .btn-outline {
+      padding: .45rem 1rem; background: #fff; border: 1px solid #e0e0e0;
+      border-radius: 6px; color: #333; text-decoration: none; font-size: .9rem;
+    }
+    .btn-outline:hover { border-color: #2d6cdf; color: #2d6cdf; }
+    .btn-primary {
+      padding: .45rem 1rem; background: #2d6cdf; border-radius: 6px;
+      color: #fff; text-decoration: none; font-size: .9rem;
+    }
+    .btn-primary:hover { background: #1a4aa8; }
+
+    /* ── Stat-Cards ──────────────────────────────────────────────────────── */
     .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-    .stat-card  { background: #1e293b; border-radius: 10px; padding: 1.2rem; text-align: center; }
-    .stat-val   { font-size: 2rem; font-weight: 700; color: #60a5fa; }
-    .stat-label { font-size: .8rem; color: #94a3b8; margin-top: .25rem; }
+    .stat-card  { background: #fff; border-radius: 8px; padding: 1.2rem; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+    .stat-val   { font-size: 2rem; font-weight: 700; color: #2d6cdf; }
+    .stat-label { font-size: .8rem; color: #888; margin-top: .25rem; }
 
-    /* ── Top-Übungen-Chart ───────────────────────────────── */
-    .chart-wrap { background: #1e293b; border-radius: 10px; padding: 1.2rem 1.5rem; margin-bottom: 2rem; }
-    .chart-wrap h3 { margin: 0 0 .75rem; color: #f1f5f9; font-size: 1rem; }
+    /* ── Chart ───────────────────────────────────────────────────────────── */
+    .chart-card { background: #fff; border-radius: 8px; padding: 1.2rem 1.5rem; margin-bottom: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+    .chart-card h3 { margin: 0 0 .75rem; color: #2d6cdf; font-size: 1rem; }
 
-    /* ── Session-Tabelle ─────────────────────────────────── */
+    /* ── Filter-Buttons ──────────────────────────────────────────────────── */
+    .filter-bar { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .filter-btn {
+      padding: .35rem .9rem; border-radius: 20px; border: 1px solid #e0e0e0;
+      background: #fff; color: #555; cursor: pointer; font-size: .85rem;
+      text-decoration: none; transition: all .15s;
+    }
+    .filter-btn:hover, .filter-btn.active { border-color: #2d6cdf; color: #2d6cdf; background: #eaf1fb; }
+
+    /* ── Session-Tabelle ─────────────────────────────────────────────────── */
+    .session-table-wrap { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); overflow: hidden; }
     .session-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
     .session-table th {
-      text-align: left; padding: .6rem .8rem; color: #94a3b8;
-      border-bottom: 1px solid #334155; font-weight: 500;
+      text-align: left; padding: .6rem .8rem; background: #eaf1fb;
+      color: #444; border-bottom: 1px solid #e0e0e0; font-weight: 500;
     }
-    .session-table td { padding: .6rem .8rem; border-bottom: 1px solid #1e293b; vertical-align: top; }
-    .session-table tbody tr { cursor: pointer; transition: background .15s; }
-    .session-table tbody tr:hover td { background: #334155; }
-    .session-table tbody tr.selected td { background: #1d4ed8 !important; }
+    .session-table td { padding: .6rem .8rem; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+    .session-table tbody tr { cursor: pointer; transition: background .12s; }
+    .session-table tbody tr:hover td { background: #f5f8ff; }
+    .session-table tbody tr.selected td { background: #dbeafe !important; }
 
     .exercise-pill {
-      display: inline-block; background: #0f172a; border: 1px solid #334155;
+      display: inline-block; background: #f0f4ff; border: 1px solid #ccd9f5;
       border-radius: 4px; padding: .15rem .5rem; margin: .1rem;
-      font-size: .78rem; cursor: pointer; text-decoration: none; color: #cbd5e1;
+      font-size: .78rem; cursor: pointer; text-decoration: none; color: #2d6cdf;
     }
-    .exercise-pill:hover { border-color: #60a5fa; color: #60a5fa; }
+    .exercise-pill:hover { background: #dbeafe; border-color: #2d6cdf; }
 
-    /* ── Session-Detail-Panel ────────────────────────────── */
+    .tag-badge {
+      display: inline-block; border-radius: 12px; padding: .2rem .65rem;
+      font-size: .75rem; font-weight: 600; margin-left: .3rem;
+    }
+    .tag-Push  { background: #dbeafe; color: #1e40af; }
+    .tag-Pull  { background: #dcfce7; color: #166534; }
+    .tag-Beine { background: #fef9c3; color: #854d0e; }
+    .tag-Sonstige { background: #f3f4f6; color: #6b7280; }
+
+    /* ── Session-Detail-Panel ────────────────────────────────────────────── */
     #sessionDetail {
       display: none;
-      background: #1e293b; border-radius: 12px; padding: 1.5rem;
-      margin-top: 1rem; border: 1px solid #334155;
+      background: #fff; border-radius: 8px; padding: 1.5rem;
+      margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      border-left: 4px solid #2d6cdf;
     }
-    #sessionDetail h3 { margin: 0 0 1rem; color: #f1f5f9; }
+    #sessionDetail h3 { margin: 0 0 1rem; color: #2d6cdf; }
 
-    /* ── Heatmap-Bereich (oben) ──────────────────────────── */
+    /* ── Heatmap-Bereich ─────────────────────────────────────────────────── */
     .heatmap-section {
       display: flex; gap: 2rem; align-items: flex-start;
       margin-bottom: 1.5rem; flex-wrap: wrap;
     }
     .body-maps { display: flex; gap: 1.5rem; justify-content: center; }
-    .body-map-label { font-size: .75rem; color: #64748b; text-align: center; margin-bottom: .4rem; }
+    .body-map-label { font-size: .75rem; color: #888; text-align: center; margin-bottom: .4rem; }
 
-    .muscle-svg { fill: #334155; transition: fill .2s; cursor: pointer; }
-    .muscle-svg:hover { stroke: #f1f5f9; stroke-width: 1.5px; }
+    .muscle-svg { fill: #d0dff5; transition: fill .2s; cursor: pointer; }
+    .muscle-svg:hover { stroke: #2d6cdf; stroke-width: 1.5px; }
     .muscle-svg.active { stroke: #f97316; stroke-width: 2px; }
-
-    /* heat levels 1-5 */
     .h1 { fill: #1e3a8a; }
     .h2 { fill: #1d4ed8; }
     .h3 { fill: #3b82f6; }
     .h4 { fill: #60a5fa; }
-    .h5 { fill: #93c5fd; }
+    .h5 { fill: #bfdbfe; }
 
-    /* ── Muskel-Legende ──────────────────────────────────── */
+    /* ── Muskel-Legende ──────────────────────────────────────────────────── */
     .muscle-legend { min-width: 180px; flex: 1; }
-    .muscle-legend h4 { margin: 0 0 .6rem; color: #94a3b8; font-size: .82rem; text-transform: uppercase; letter-spacing: .05em; }
-    .muscle-legend-row { display: flex; align-items: center; gap: .5rem; padding: .2rem 0; font-size: .82rem; cursor: pointer; }
-    .muscle-legend-row:hover { color: #60a5fa; }
+    .muscle-legend h4 { margin: 0 0 .6rem; color: #888; font-size: .82rem; text-transform: uppercase; letter-spacing: .05em; }
+    .muscle-legend-row { display: flex; align-items: center; gap: .5rem; padding: .2rem 0; font-size: .82rem; cursor: pointer; color: #333; }
+    .muscle-legend-row:hover { color: #2d6cdf; }
     .muscle-swatch { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
 
-    /* ── Übungs-Tabelle (unten) ──────────────────────────── */
-    .ex-panel h4 { margin: 0 0 .75rem; color: #94a3b8; font-size: .85rem; text-transform: uppercase; letter-spacing: .05em; }
-
+    /* ── Übungs-Tabelle ──────────────────────────────────────────────────── */
+    .ex-panel h4 { margin: 0 0 .75rem; color: #888; font-size: .85rem; text-transform: uppercase; letter-spacing: .05em; }
     .ex-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
-    .ex-table th { color: #64748b; padding: .4rem .6rem; border-bottom: 1px solid #334155; font-weight: 500; text-align: left; }
-    .ex-table td { padding: .4rem .6rem; border-bottom: 1px solid #0f172a; }
-    .ex-table tr.highlight td { background: rgba(96,165,250,.15); }
-
-    .page-title-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
-    .page-title-bar h1 { margin: 0; font-size: 1.6rem; }
-    .btn-row { display: flex; gap: .6rem; }
+    .ex-table th { color: #444; padding: .4rem .6rem; background: #eaf1fb; border-bottom: 1px solid #e0e0e0; font-weight: 500; text-align: left; }
+    .ex-table td { padding: .4rem .6rem; border-bottom: 1px solid #f0f0f0; }
+    .ex-table tr.highlight td { background: #fef9c3; }
   </style>
 </head>
 <body>
@@ -91,12 +119,12 @@
   <div class="page-title-bar">
     <h1>Training Dashboard</h1>
     <div class="btn-row">
-      <a th:href="@{/gymbook/body-map}" style="padding:.5rem 1rem;background:#1e293b;border:1px solid #334155;border-radius:6px;color:#f1f5f9;text-decoration:none;font-size:.9rem;">Körper-Map</a>
-      <a th:href="@{/gymbook/import}"   style="padding:.5rem 1rem;background:#1d4ed8;border-radius:6px;color:#fff;text-decoration:none;font-size:.9rem;">Import</a>
+      <a th:href="@{/gymbook/body-map}" class="btn-outline">Körper-Map</a>
+      <a th:href="@{/gymbook/import}"   class="btn-primary">Import</a>
     </div>
   </div>
 
-  <!-- Stats -->
+  <!-- Stat-Cards -->
   <div class="stat-grid">
     <div class="stat-card">
       <div class="stat-val" th:text="${totalSessions}">0</div>
@@ -108,57 +136,40 @@
     </div>
   </div>
 
-  <!-- Session-Tabelle -->
-  <h2 style="color:#f1f5f9;margin:0 0 .75rem">Trainingseinheiten</h2>
-  <div th:if="${recentSessions.isEmpty()}" style="color:#64748b;padding:2rem;text-align:center">
+  <!-- Session-Liste -->
+  <h2 style="color:#2d6cdf;margin:0 0 .75rem">Trainingseinheiten</h2>
+
+  <div th:if="${recentSessions.isEmpty()}" style="color:#888;padding:2rem;text-align:center">
     Noch keine Daten –
-    <a th:href="@{/gymbook/import}" style="color:#60a5fa">GymBook-Backup importieren</a>
+    <a th:href="@{/gymbook/import}" style="color:#2d6cdf">GymBook-Backup importieren</a>
   </div>
 
   <div th:unless="${recentSessions.isEmpty()}">
-    <p style="color:#64748b;font-size:.85rem;margin:0 0 .75rem">
+
+    <!-- Filter-Buttons (Push / Pull / Beine) -->
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="setFilter('all', this)">Alle</button>
+      <button class="filter-btn" onclick="setFilter('Push', this)">Push</button>
+      <button class="filter-btn" onclick="setFilter('Pull', this)">Pull</button>
+      <button class="filter-btn" onclick="setFilter('Beine', this)">Beine</button>
+      <button class="filter-btn" onclick="setFilter('Sonstige', this)">Sonstige</button>
+    </div>
+
+    <p style="color:#888;font-size:.85rem;margin:0 0 .75rem">
       Training anklicken um Muskel-Übersicht zu sehen.
     </p>
-    <table class="session-table">
-      <thead>
-        <tr>
-          <th>Datum</th>
-          <th>Übungen</th>
-          <th>Sätze</th>
-          <th>Wdh.</th>
-          <th>Ausgeführte Übungen</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr th:each="s : ${recentSessions}" th:data-date="${s.date}" onclick="selectSession(this)">
-          <td th:text="${s.date}" style="white-space:nowrap;font-weight:600"></td>
-          <td th:text="${s.exercises.size()}"></td>
-          <td th:text="${s.totalSets}"></td>
-          <td th:text="${s.totalReps}"></td>
-          <td>
-            <span th:each="ex : ${s.exercises}">
-              <a th:href="@{/gymbook/exercise/{n}(n=${ex.name})}"
-                 th:text="${ex.name}"
-                 class="exercise-pill"
-                 onclick="event.stopPropagation()"></a>
-            </span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
 
-    <!-- Session-Detail-Panel (wird per JS befüllt) -->
+    <!-- Session-Detail-Panel ÜBER der Tabelle -->
     <div id="sessionDetail">
       <h3 id="detailTitle">Training</h3>
 
-      <!-- Heatmap-Bereich: Körperkarten + Legende OBEN -->
       <div class="heatmap-section">
         <div class="body-maps">
           <div>
             <div class="body-map-label">Vorderseite</div>
             <svg id="svgFront" viewBox="0 0 200 400" width="120">
-              <ellipse cx="100" cy="28" rx="22" ry="26" fill="#475569"/>
-              <rect x="92" y="50" width="16" height="14" fill="#475569"/>
+              <ellipse cx="100" cy="28" rx="22" ry="26" fill="#c8d8e8"/>
+              <rect x="92" y="50" width="16" height="14" fill="#c8d8e8"/>
               <ellipse data-m="010.shoulders" class="muscle-svg" cx="62"  cy="74" rx="18" ry="12"/>
               <ellipse data-m="010.shoulders" class="muscle-svg" cx="138" cy="74" rx="18" ry="12"/>
               <path  data-m="020.pectorals"   class="muscle-svg" d="M78 65 Q100 60 122 65 L125 100 Q100 108 75 100 Z"/>
@@ -180,15 +191,15 @@
               <rect  data-m="072.thighFlexors" class="muscle-svg" x="104" y="265" width="16" height="40" rx="8" opacity=".5"/>
               <rect  data-m="090.calves"      class="muscle-svg" x="80"  y="305" width="14" height="45" rx="7"/>
               <rect  data-m="090.calves"      class="muscle-svg" x="106" y="305" width="14" height="45" rx="7"/>
-              <path fill="none" stroke="#475569" stroke-width="1.5"
+              <path fill="none" stroke="#c8d8e8" stroke-width="1.5"
                     d="M78 65 Q62 62 45 78 L30 84 L28 158 Q42 168 76 160 L76 195 L80 350 L92 352 L92 270 L100 265 L108 270 L108 352 L120 350 L124 195 L124 160 Q158 168 172 158 L170 84 L155 78 Q138 62 122 65"/>
             </svg>
           </div>
           <div>
             <div class="body-map-label">Rückseite</div>
             <svg id="svgBack" viewBox="0 0 200 400" width="120">
-              <ellipse cx="100" cy="28" rx="22" ry="26" fill="#475569"/>
-              <rect x="92" y="50" width="16" height="14" fill="#475569"/>
+              <ellipse cx="100" cy="28" rx="22" ry="26" fill="#c8d8e8"/>
+              <rect x="92" y="50" width="16" height="14" fill="#c8d8e8"/>
               <path  data-m="030.trapezius"   class="muscle-svg" d="M80 64 Q100 56 120 64 L130 100 Q100 110 70 100 Z"/>
               <ellipse data-m="010.shoulders" class="muscle-svg" cx="62"  cy="74" rx="18" ry="12"/>
               <ellipse data-m="010.shoulders" class="muscle-svg" cx="138" cy="74" rx="18" ry="12"/>
@@ -205,7 +216,7 @@
               <path  data-m="071.adductors"     class="muscle-svg" d="M96 198 Q100 205 100 266 Q96 266 92 260 Q88 228 92 198 Z"/>
               <rect  data-m="090.calves"        class="muscle-svg" x="80"  y="268" width="16" height="50" rx="8"/>
               <rect  data-m="090.calves"        class="muscle-svg" x="104" y="268" width="16" height="50" rx="8"/>
-              <path fill="none" stroke="#475569" stroke-width="1.5"
+              <path fill="none" stroke="#c8d8e8" stroke-width="1.5"
                     d="M78 65 Q62 62 45 78 L30 84 L28 158 Q42 168 76 160 L76 195 L80 350 L92 352 L92 270 L100 265 L108 270 L108 352 L120 350 L124 195 L124 160 Q158 168 172 158 L170 84 L155 78 Q138 62 122 65"/>
             </svg>
           </div>
@@ -217,7 +228,7 @@
         </div>
       </div>
 
-      <!-- Übungstabelle UNTER der Heatmap -->
+      <!-- Übungstabelle -->
       <div class="ex-panel">
         <h4 id="exPanelTitle">Alle Übungen dieser Einheit</h4>
         <table class="ex-table" id="exTable">
@@ -233,17 +244,56 @@
         </table>
       </div>
     </div>
+
+    <!-- Session-Tabelle -->
+    <div class="session-table-wrap">
+      <table class="session-table">
+        <thead>
+          <tr>
+            <th>Datum</th>
+            <th>Typ</th>
+            <th>Übungen</th>
+            <th>Sätze</th>
+            <th>Wdh.</th>
+            <th>Ausgeführte Übungen</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:each="s : ${recentSessions}"
+              th:data-date="${s.date}"
+              th:data-tag="${s.tag}"
+              onclick="selectSession(this)">
+            <td th:text="${s.date}" style="white-space:nowrap;font-weight:600"></td>
+            <td>
+              <span th:text="${s.tag}"
+                    th:classappend="'tag-badge tag-' + ${s.tag}"></span>
+            </td>
+            <td th:text="${s.exercises.size()}"></td>
+            <td th:text="${s.totalSets}"></td>
+            <td th:text="${s.totalReps}"></td>
+            <td>
+              <span th:each="ex : ${s.exercises}">
+                <a th:href="@{/gymbook/exercise/{n}(n=${ex.name})}"
+                   th:text="${ex.name}"
+                   class="exercise-pill"
+                   onclick="event.stopPropagation()"></a>
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
-  <!-- Top-Übungen Chart (weiter unten, kleiner) -->
-  <div class="chart-wrap" th:if="${!topExLabels.isEmpty()}" style="margin-top:2rem">
+  <!-- Top-Übungen Chart -->
+  <div class="chart-card" th:if="${!topExLabels.isEmpty()}" style="margin-top:2rem">
     <h3>Top-Übungen (Sätze gesamt)</h3>
     <canvas id="topExChart" height="55" style="max-height:160px"></canvas>
   </div>
 </div>
 
 <script th:inline="javascript">
-// ── Chart ──────────────────────────────────────────────────────────────────
+// ── Top-Übungen Chart ──────────────────────────────────────────────────────
 const topLabels = /*[[${topExLabels}]]*/ [];
 const topValues = /*[[${topExValues}]]*/ [];
 if (topLabels.length > 0) {
@@ -254,8 +304,8 @@ if (topLabels.length > 0) {
       datasets: [{
         label: 'Sätze',
         data: topValues,
-        backgroundColor: 'rgba(96,165,250,0.8)',
-        borderColor: '#60a5fa',
+        backgroundColor: 'rgba(45,108,223,0.75)',
+        borderColor: '#2d6cdf',
         borderWidth: 1,
         borderRadius: 4
       }]
@@ -268,14 +318,24 @@ if (topLabels.length > 0) {
         tooltip: { callbacks: { label: ctx => ctx.parsed.y + ' Sätze' } }
       },
       scales: {
-        x: { ticks: { color: '#cbd5e1' }, grid: { color: '#334155' } },
-        y: { ticks: { color: '#cbd5e1' }, grid: { color: '#334155' } }
+        x: { ticks: { color: '#888' }, grid: { color: '#e0e0e0' } },
+        y: { ticks: { color: '#888' }, grid: { color: '#e0e0e0' } }
       }
     }
   });
 }
 
-// ── Session-Detail ─────────────────────────────────────────────────────────
+// ── Filter ─────────────────────────────────────────────────────────────────
+function setFilter(tag, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.session-table tbody tr').forEach(row => {
+    const rowTag = row.getAttribute('data-tag') || '';
+    row.style.display = (tag === 'all' || rowTag === tag) ? '' : 'none';
+  });
+}
+
+// ── Muscle-Label-Mapping ───────────────────────────────────────────────────
 const MUSCLE_LABELS = {
   '010.shoulders':      'Schultern',
   '020.pectorals':      'Brust',
@@ -314,21 +374,23 @@ function renderDetail(data) {
   currentData = data;
   selectedMuscle = null;
 
-  document.getElementById('sessionDetail').style.display = 'block';
+  const panel = document.getElementById('sessionDetail');
+  panel.style.display = 'block';
   document.getElementById('detailTitle').textContent =
     'Training vom ' + data.date + '  ·  ' + data.totalSets + ' Sätze  ·  ' + data.totalReps + ' Wdh.';
 
-  // ── Muskel-Heatmap auf SVG ─────────────────────────────
-  const muscleSets = data.muscleSets || {};
-  const maxSets = Math.max(1, ...Object.values(muscleSets));
+  // Scroll to panel (which is ABOVE the table)
+  panel.scrollIntoView({behavior: 'smooth', block: 'start'});
 
-  // reset all muscle shapes
+  // ── Muskel-Heatmap ─────────────────────────────────────────────────────
+  const muscleSets = data.muscleSets || {};
+  const maxSets    = Math.max(1, ...Object.values(muscleSets));
+
   document.querySelectorAll('[data-m]').forEach(el => {
     el.className.baseVal = 'muscle-svg';
     el.title = '';
   });
 
-  // color each muscle
   Object.entries(muscleSets).forEach(([mid, cnt]) => {
     const ratio = cnt / maxSets;
     const cls   = ratio >= 0.8 ? 'h1'
@@ -341,33 +403,32 @@ function renderDetail(data) {
     });
   });
 
-  // attach click listeners to ALL muscle shapes (single source of truth)
   document.querySelectorAll('[data-m]').forEach(el => {
     el.onclick = () => highlightMuscle(el.getAttribute('data-m'));
   });
 
-  // ── Muskel-Legende ─────────────────────────────────────
+  // ── Muskel-Legende ─────────────────────────────────────────────────────
   const legend = document.getElementById('muscleLegend');
   legend.innerHTML = '';
+  const heatColors = { h1:'#1e3a8a', h2:'#1d4ed8', h3:'#3b82f6', h4:'#60a5fa', h5:'#bfdbfe' };
   Object.entries(muscleSets)
     .sort((a, b) => b[1] - a[1])
     .forEach(([mid, cnt]) => {
       const ratio = cnt / maxSets;
       const cls   = ratio >= 0.8 ? 'h1' : ratio >= 0.6 ? 'h2' : ratio >= 0.4 ? 'h3' : ratio >= 0.2 ? 'h4' : 'h5';
-      const color = { h1:'#1e3a8a', h2:'#1d4ed8', h3:'#3b82f6', h4:'#60a5fa', h5:'#93c5fd' }[cls];
+      const color = heatColors[cls];
       const row = document.createElement('div');
       row.className = 'muscle-legend-row';
       row.innerHTML = `<div class="muscle-swatch" style="background:${color}"></div>
                        <span>${MUSCLE_LABELS[mid] || mid}</span>
-                       <span style="color:#64748b;margin-left:auto">${cnt}×</span>`;
+                       <span style="color:#888;margin-left:auto">${cnt}×</span>`;
       row.onclick = () => highlightMuscle(mid);
       legend.appendChild(row);
     });
 
-  // ── Übungstabelle ──────────────────────────────────────
+  // ── Übungstabelle ──────────────────────────────────────────────────────
   renderExTable(data.exercises);
   document.getElementById('exPanelTitle').textContent = 'Alle Übungen dieser Einheit';
-  document.getElementById('sessionDetail').scrollIntoView({behavior: 'smooth', block: 'start'});
 }
 
 function renderExTable(exercises) {
@@ -377,7 +438,7 @@ function renderExTable(exercises) {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><a href="/gymbook/exercise/${encodeURIComponent(ex.name)}"
-             style="color:#60a5fa;text-decoration:none">${ex.name}</a></td>
+             style="color:#2d6cdf;text-decoration:none">${ex.name}</a></td>
       <td>${ex.sets}</td>
       <td>${ex.reps}</td>
       <td>${ex.maxKg > 0 ? ex.maxKg + ' kg' : '–'}</td>`;
@@ -389,25 +450,21 @@ function highlightMuscle(mid) {
   if (!currentData) return;
   selectedMuscle = mid;
 
-  // highlight SVG shapes for this muscle
   document.querySelectorAll('[data-m]').forEach(el => {
     el.classList.remove('active');
     if (el.getAttribute('data-m') === mid) el.classList.add('active');
   });
 
   const exNames = new Set(currentData.muscleExercises[mid] || []);
-  const label = MUSCLE_LABELS[mid] || mid;
+  const label   = MUSCLE_LABELS[mid] || mid;
 
   if (exNames.size === 0) {
-    // Muscle in SVG but not tracked – reset to full view
     document.getElementById('exPanelTitle').textContent = label + ' – keine Übungen erfasst';
     renderExTable(currentData.exercises);
     return;
   }
 
   document.getElementById('exPanelTitle').textContent = label + ' – beteiligte Übungen';
-
-  // render filtered table with matching exercises highlighted
   const tbody = document.getElementById('exTableBody');
   tbody.innerHTML = '';
   (currentData.exercises || []).forEach(ex => {
@@ -415,13 +472,12 @@ function highlightMuscle(mid) {
     if (exNames.has(ex.name)) tr.classList.add('highlight');
     tr.innerHTML = `
       <td><a href="/gymbook/exercise/${encodeURIComponent(ex.name)}"
-             style="color:#60a5fa;text-decoration:none">${ex.name}</a></td>
+             style="color:#2d6cdf;text-decoration:none">${ex.name}</a></td>
       <td>${ex.sets}</td>
       <td>${ex.reps}</td>
       <td>${ex.maxKg > 0 ? ex.maxKg + ' kg' : '–'}</td>`;
     tbody.appendChild(tr);
   });
-
   document.getElementById('exTable').scrollIntoView({behavior: 'smooth', block: 'nearest'});
 }
 </script>

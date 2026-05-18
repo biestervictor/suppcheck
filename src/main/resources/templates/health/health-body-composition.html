@@ -6,24 +6,13 @@
     <title>Körperzusammensetzung</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background: #0f172a; color: #f1f5f9; margin: 0; padding: 0; }
-        h1   { margin: 28px 0 16px; text-align: center; color: #3b82f6; }
-        h2   { color: #3b82f6; margin: 0 0 10px; }
-
+        body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 0; }
+        h1   { margin: 28px 0 16px; text-align: center; color: #2d6cdf; }
+        h2   { color: #2d6cdf; margin: 0 0 10px; }
         .page-content { max-width: 1300px; margin: 0 auto; padding: 0 20px 40px; }
-
-        .chart-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(580px, 1fr));
-            gap: 20px;
-        }
-        .chart-card {
-            background: #1e293b;
-            border-radius: 8px;
-            padding: 20px 24px;
-        }
-
-        .back-link { color: #60a5fa; text-decoration: none; font-size: 0.9em; }
+        .chart-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(580px, 1fr)); gap: 20px; }
+        .chart-card { background: #fff; border-radius: 8px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+        .back-link { color: #2d6cdf; text-decoration: none; font-size: 0.9em; }
         .back-link:hover { text-decoration: underline; }
     </style>
 </head>
@@ -32,27 +21,13 @@
 <div class="page-content">
 <h1>Körperzusammensetzung</h1>
 <p><a class="back-link" th:href="@{/health}">← Zurück zum Dashboard</a></p>
-
 <div class="chart-grid">
-    <div class="chart-card">
-        <h2>Körpergewicht (kg)</h2>
-        <canvas id="bodyMassChart"></canvas>
-    </div>
-    <div class="chart-card">
-        <h2>Körperfett (%)</h2>
-        <canvas id="bodyFatChart"></canvas>
-    </div>
-    <div class="chart-card">
-        <h2>Muskelmasse / Lean Body Mass (kg)</h2>
-        <canvas id="leanMassChart"></canvas>
-    </div>
-    <div class="chart-card">
-        <h2>BMI (kg/m²)</h2>
-        <canvas id="bmiChart"></canvas>
-    </div>
+    <div class="chart-card"><h2>Körpergewicht (kg)</h2><canvas id="bodyMassChart"></canvas></div>
+    <div class="chart-card"><h2>Körperfett (%)</h2><canvas id="bodyFatChart"></canvas></div>
+    <div class="chart-card"><h2>Muskelmasse / Lean Body Mass (kg)</h2><canvas id="leanMassChart"></canvas></div>
+    <div class="chart-card"><h2>BMI (kg/m²)</h2><canvas id="bmiChart"></canvas></div>
 </div>
 </div>
-
 <script th:inline="javascript">
     const bodyMassLabels = /*[[${bodyMassLabels}]]*/ [];
     const bodyMassValues = /*[[${bodyMassValues}]]*/ [];
@@ -62,38 +37,20 @@
     const leanMassValues = /*[[${leanMassValues}]]*/ [];
     const bmiLabels      = /*[[${bmiLabels}]]*/ [];
     const bmiValues      = /*[[${bmiValues}]]*/ [];
-
     function makeLineChart(id, labels, values, label, color) {
         new Chart(document.getElementById(id), {
             type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: label,
-                    data: values,
-                    borderColor: color,
-                    backgroundColor: color + '22',
-                    borderWidth: 1.5,
-                    pointRadius: labels.length > 200 ? 0 : 2,
-                    tension: 0.2,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { ticks: { color: '#94a3b8', maxTicksLimit: 12 }, grid: { color: '#334155' } },
-                    y: { beginAtZero: false, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
-                }
-            }
+            data: { labels, datasets: [{ label, data: values, borderColor: color,
+                backgroundColor: color + '22', borderWidth: 1.5,
+                pointRadius: labels.length > 200 ? 0 : 2, tension: 0.2, fill: true }] },
+            options: { responsive: true, plugins: { legend: { display: false } },
+                       scales: { y: { beginAtZero: false } } }
         });
     }
-
-    makeLineChart('bodyMassChart', bodyMassLabels, bodyMassValues, 'Gewicht (kg)',      '#3b82f6');
-    makeLineChart('bodyFatChart',  bodyFatLabels,  bodyFatValues,  'Körperfett (%)',    '#e74c3c');
-    makeLineChart('leanMassChart', leanMassLabels, leanMassValues, 'Muskelmasse (kg)',  '#27ae60');
-    makeLineChart('bmiChart',      bmiLabels,      bmiValues,      'BMI',               '#f39c12');
+    makeLineChart('bodyMassChart', bodyMassLabels, bodyMassValues, 'Gewicht (kg)',     '#2d6cdf');
+    makeLineChart('bodyFatChart',  bodyFatLabels,  bodyFatValues,  'Körperfett (%)',   '#e74c3c');
+    makeLineChart('leanMassChart', leanMassLabels, leanMassValues, 'Muskelmasse (kg)', '#27ae60');
+    makeLineChart('bmiChart',      bmiLabels,      bmiValues,      'BMI',              '#f39c12');
 </script>
 </body>
 </html>

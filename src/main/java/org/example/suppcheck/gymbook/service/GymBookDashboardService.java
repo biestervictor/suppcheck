@@ -68,6 +68,28 @@ public class GymBookDashboardService {
         return heatmap;
     }
 
+    /**
+     * Gibt pro Muskel-ID die zugehörigen Übungsnamen aus den letzten {@code days} Tagen zurück.
+     *
+     * @return Map: muscleId → sortierte Liste von Übungsnamen
+     */
+    public Map<String, List<String>> getMuscleExercises(int days) {
+        List<GymSession> recent = getAllSessions();
+        String cutoff = cutoffDate(days);
+
+        Map<String, Set<String>> muscleEx = new LinkedHashMap<>();
+        for (GymSession s : recent) {
+            if (s.getDate().compareTo(cutoff) < 0) continue;
+            for (GymExerciseEntry ex : s.getExercises()) {
+                splitMuscles(ex.getPrimaryMuscles()).forEach(m ->
+                        muscleEx.computeIfAbsent(m, k -> new LinkedHashSet<>()).add(ex.getName()));
+            }
+        }
+        Map<String, List<String>> result = new LinkedHashMap<>();
+        muscleEx.forEach((k, v) -> result.put(k, new ArrayList<>(v)));
+        return result;
+    }
+
     // ── Gewichtsverlauf ───────────────────────────────────────────────────────
 
     /**

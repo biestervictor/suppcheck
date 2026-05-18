@@ -5,95 +5,42 @@
     <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
     <title>Health Import</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #0f172a; color: #f1f5f9; margin: 0; padding: 0; }
-        h1   { margin: 28px 0 16px; text-align: center; color: #3b82f6; }
-
+        body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 0; }
+        h1   { margin: 28px 0 16px; text-align: center; color: #2d6cdf; }
         .page-content { max-width: 700px; margin: 0 auto; padding: 0 20px 40px; }
-
-        .card {
-            background: #1e293b;
-            border-radius: 8px;
-            padding: 28px 32px;
-            margin-bottom: 20px;
-        }
-
-        /* ── Drag & Drop Zone ── */
+        .card { background: #fff; border-radius: 8px; padding: 28px 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 20px; }
         .drop-zone {
-            border: 2px dashed #3b82f6;
-            border-radius: 8px;
-            padding: 48px 24px;
-            text-align: center;
-            cursor: pointer;
-            transition: background 0.2s, border-color 0.2s;
-            background: #0f172a;
+            border: 2px dashed #2d6cdf; border-radius: 8px; padding: 48px 24px;
+            text-align: center; cursor: pointer; transition: background 0.2s, border-color 0.2s;
+            background: #f0f6ff;
         }
-        .drop-zone:hover, .drop-zone.drag-over {
-            background: #1e293b;
-            border-color: #60a5fa;
-        }
-        .drop-zone.disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            pointer-events: none;
-        }
-        .drop-icon   { font-size: 3em; margin-bottom: 10px; color: #3b82f6; }
-        .drop-text   { font-size: 1.05em; color: #f1f5f9; margin-bottom: 8px; }
-        .drop-hint   { font-size: 0.82em; color: #94a3b8; }
-        .drop-filename { font-size: 0.9em; color: #60a5fa; font-weight: bold; margin-top: 10px; }
-
+        .drop-zone:hover, .drop-zone.drag-over { background: #daeaff; border-color: #1a4aa8; }
+        .drop-zone.disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+        .drop-icon    { font-size: 3em; margin-bottom: 10px; color: #2d6cdf; }
+        .drop-text    { font-size: 1.05em; color: #1a3a5a; margin-bottom: 8px; }
+        .drop-hint    { font-size: 0.82em; color: #888; }
+        .drop-filename { font-size: 0.9em; color: #2d6cdf; font-weight: bold; margin-top: 10px; }
         input[type=file] { display: none; }
-
-        /* ── Progress Bars ── */
         .phase-box { margin-top: 20px; }
-        .phase-label {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.88em;
-            color: #94a3b8;
-            margin-bottom: 4px;
-        }
-        .progress-bar-track {
-            background: #334155;
-            border-radius: 6px;
-            height: 14px;
-            overflow: hidden;
-            margin-bottom: 14px;
-        }
-        .progress-bar-fill {
-            height: 100%;
-            border-radius: 6px;
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-        .bar-upload { background: #3b82f6; }
-        .bar-import { background: #22c55e; }
-
-        /* ── Status Boxes ── */
-        .status-box {
-            padding: 14px 18px;
-            border-radius: 6px;
-            font-size: 0.95em;
-            margin-top: 16px;
-        }
-        .status-idle      { background: #1e293b; color: #94a3b8; }
-        .status-uploading { background: #1e3a5a; color: #93c5fd; }
-        .status-running   { background: #422006; color: #fbbf24; }
-        .status-done      { background: #052e16; color: #86efac; }
-        .status-error     { background: #450a0a; color: #fca5a5; }
-
+        .phase-label { display: flex; justify-content: space-between; font-size: 0.88em; color: #555; margin-bottom: 4px; }
+        .progress-bar-track { background: #e0e7f5; border-radius: 6px; height: 14px; overflow: hidden; margin-bottom: 14px; }
+        .progress-bar-fill  { height: 100%; border-radius: 6px; width: 0%; transition: width 0.3s ease; }
+        .bar-upload { background: #2d6cdf; }
+        .bar-import { background: #27ae60; }
+        .status-box { padding: 14px 18px; border-radius: 6px; font-size: 0.95em; margin-top: 16px; }
+        .status-idle      { background: #f0f0f0; color: #555; }
+        .status-uploading { background: #e8f0fe; color: #1a3a5a; }
+        .status-running   { background: #fff3cd; color: #856404; }
+        .status-done      { background: #d1e7dd; color: #0f5132; }
+        .status-error     { background: #f8d7da; color: #842029; }
         .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 14px; }
         .stat-item { text-align: center; }
-        .stat-num  { font-size: 1.4em; font-weight: bold; color: #3b82f6; }
-        .stat-lbl  { font-size: 0.72em; color: #94a3b8; }
-
-        .warning-box {
-            background: #422006; border: 1px solid #92400e;
-            border-radius: 6px; padding: 12px 16px;
-            margin-bottom: 18px; font-size: 0.87em; color: #fbbf24;
-        }
-        .back-link { color: #60a5fa; text-decoration: none; font-size: 0.9em; }
+        .stat-num  { font-size: 1.4em; font-weight: bold; color: #2d6cdf; }
+        .stat-lbl  { font-size: 0.72em; color: #888; }
+        .warning-box { background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px 16px; margin-bottom: 18px; font-size: 0.87em; }
+        .back-link { color: #2d6cdf; text-decoration: none; font-size: 0.9em; }
         .back-link:hover { text-decoration: underline; }
-        .success-link { color: #86efac; font-weight: bold; }
+        .success-link { color: #0f5132; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -101,13 +48,10 @@
 <div class="page-content">
 <h1>Apple Health Import</h1>
 <p><a class="back-link" th:href="@{/health}">← Zurück zum Dashboard</a></p>
-
 <div class="warning-box">
     <b>Hinweis:</b> Der Import löscht alle vorhandenen Health-Daten und reimportiert sie vollständig.
     Die Datei <code>Export.xml</code> (ca. 2–3 GB) wird direkt hochgeladen.
 </div>
-
-<!-- ── Upload-Karte ── -->
 <div class="card" id="upload-card">
     <div class="drop-zone" id="dropZone">
         <div class="drop-icon">&#8659;</div>
@@ -116,49 +60,30 @@
         <div class="drop-filename" id="selectedFileName"></div>
     </div>
     <input type="file" id="fileInput" accept=".xml,application/xml,text/xml"/>
-
-    <!-- Upload-Fortschritt -->
     <div class="phase-box" id="uploadPhase" style="display:none;">
-        <div class="phase-label">
-            <span>Upload</span>
-            <span id="uploadPct">0%</span>
-        </div>
-        <div class="progress-bar-track">
-            <div class="progress-bar-fill bar-upload" id="uploadBar"></div>
-        </div>
+        <div class="phase-label"><span>Upload</span><span id="uploadPct">0%</span></div>
+        <div class="progress-bar-track"><div class="progress-bar-fill bar-upload" id="uploadBar"></div></div>
     </div>
-
-    <!-- Import-Fortschritt -->
     <div class="phase-box" id="importPhase" style="display:none;">
-        <div class="phase-label">
-            <span>Import</span>
-            <span id="importPct">…</span>
-        </div>
-        <div class="progress-bar-track">
-            <div class="progress-bar-fill bar-import" id="importBar" style="width:0%"></div>
-        </div>
+        <div class="phase-label"><span>Import</span><span id="importPct">…</span></div>
+        <div class="progress-bar-track"><div class="progress-bar-fill bar-import" id="importBar" style="width:0%"></div></div>
     </div>
 </div>
-
-<!-- ── Status-Box ── -->
 <div id="statusBox" class="status-box"
      th:classappend="${status == 'idle'} ? 'status-idle' :
                       (${status == 'running'} ? 'status-running' :
                       (${status == 'done'} ? 'status-done' : 'status-error'))">
-
-    <div th:if="${status == 'idle'}" id="statusIdle">
-        <b>Bereit.</b> Export.xml per Drag &amp; Drop hochladen.
-    </div>
-    <div th:if="${status == 'running'}" id="statusRunning">
+    <div th:if="${status == 'idle'}"><b>Bereit.</b> Export.xml per Drag &amp; Drop hochladen.</div>
+    <div th:if="${status == 'running'}">
         <b>Import läuft…</b>
         <div class="stat-grid">
-            <div class="stat-item"><div class="stat-num" id="sRecords" th:text="${processedRecords}">0</div><div class="stat-lbl">Records</div></div>
+            <div class="stat-item"><div class="stat-num" id="sRecords"  th:text="${processedRecords}">0</div><div class="stat-lbl">Records</div></div>
             <div class="stat-item"><div class="stat-num" id="sMetrics"  th:text="${importedMetrics}">0</div><div class="stat-lbl">Metriken</div></div>
             <div class="stat-item"><div class="stat-num" id="sWorkouts" th:text="${importedWorkouts}">0</div><div class="stat-lbl">Workouts</div></div>
             <div class="stat-item"><div class="stat-num" id="sDays"     th:text="${importedDays}">0</div><div class="stat-lbl">Tage</div></div>
         </div>
     </div>
-    <div th:if="${status == 'done'}" id="statusDone">
+    <div th:if="${status == 'done'}">
         <b>Import abgeschlossen!</b>
         <div class="stat-grid">
             <div class="stat-item"><div class="stat-num" th:text="${processedRecords}">0</div><div class="stat-lbl">Records</div></div>
@@ -166,183 +91,77 @@
             <div class="stat-item"><div class="stat-num" th:text="${importedWorkouts}">0</div><div class="stat-lbl">Workouts</div></div>
             <div class="stat-item"><div class="stat-num" th:text="${importedDays}">0</div><div class="stat-lbl">Tage</div></div>
         </div>
-        <div style="margin-top:12px;">
-            <a class="success-link" th:href="@{/health}">→ Zum Dashboard</a>
-        </div>
+        <div style="margin-top:12px;"><a class="success-link" th:href="@{/health}">→ Zum Dashboard</a></div>
     </div>
-    <div th:if="${status == 'error'}" id="statusError">
-        <b>Fehler:</b> <span th:text="${importError}">Unbekannter Fehler</span>
-    </div>
+    <div th:if="${status == 'error'}"><b>Fehler:</b> <span th:text="${importError}">Unbekannter Fehler</span></div>
 </div>
-
-</div><!-- page-content -->
-
+</div>
 <script th:inline="javascript">
     var currentStatus = /*[[${status}]]*/ 'idle';
-    var pollInterval = null;
-
+    var pollInterval  = null;
     var dropZone    = document.getElementById('dropZone');
     var fileInput   = document.getElementById('fileInput');
     var statusBox   = document.getElementById('statusBox');
     var uploadPhase = document.getElementById('uploadPhase');
     var importPhase = document.getElementById('importPhase');
-
-    // ── Klick auf Drop-Zone öffnet Datei-Dialog ─────────────────────────────
-    dropZone.addEventListener('click', function() {
-        if (!dropZone.classList.contains('disabled')) fileInput.click();
-    });
-    fileInput.addEventListener('change', function() {
-        if (fileInput.files.length > 0) startUpload(fileInput.files[0]);
-    });
-
-    // ── Drag & Drop Events ───────────────────────────────────────────────────
-    ['dragenter', 'dragover'].forEach(function(evt) {
-        dropZone.addEventListener(evt, function(e) {
-            e.preventDefault();
-            dropZone.classList.add('drag-over');
-        });
-    });
-    ['dragleave', 'drop'].forEach(function(evt) {
-        dropZone.addEventListener(evt, function(e) {
-            e.preventDefault();
-            dropZone.classList.remove('drag-over');
-        });
-    });
-    dropZone.addEventListener('drop', function(e) {
-        var files = e.dataTransfer.files;
-        if (files.length > 0) startUpload(files[0]);
-    });
-
-    // ── Upload starten ───────────────────────────────────────────────────────
+    dropZone.addEventListener('click', function() { if (!dropZone.classList.contains('disabled')) fileInput.click(); });
+    fileInput.addEventListener('change', function() { if (fileInput.files.length > 0) startUpload(fileInput.files[0]); });
+    ['dragenter','dragover'].forEach(function(evt) { dropZone.addEventListener(evt, function(e) { e.preventDefault(); dropZone.classList.add('drag-over'); }); });
+    ['dragleave','drop'].forEach(function(evt) { dropZone.addEventListener(evt, function(e) { e.preventDefault(); dropZone.classList.remove('drag-over'); }); });
+    dropZone.addEventListener('drop', function(e) { var f = e.dataTransfer.files; if (f.length > 0) startUpload(f[0]); });
     function startUpload(file) {
         document.getElementById('selectedFileName').textContent = file.name + ' (' + formatBytes(file.size) + ')';
-        dropZone.classList.add('disabled');
-        uploadPhase.style.display = 'block';
-
-        setStatus('uploading', 'Wird hochgeladen…');
-
-        var formData = new FormData();
-        formData.append('file', file);
-
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', '/health/import/upload', true);
-
+        dropZone.classList.add('disabled'); uploadPhase.style.display = 'block';
+        setStatus('uploading', ''); var formData = new FormData(); formData.append('file', file);
+        var xhr = new XMLHttpRequest(); xhr.open('POST', '/health/import/upload', true);
         xhr.upload.addEventListener('progress', function(e) {
-            if (e.lengthComputable) {
-                var pct = Math.round(e.loaded / e.total * 100);
-                document.getElementById('uploadBar').style.width = pct + '%';
-                document.getElementById('uploadPct').textContent = pct + '%';
-            }
+            if (e.lengthComputable) { var pct = Math.round(e.loaded/e.total*100);
+                document.getElementById('uploadBar').style.width = pct+'%';
+                document.getElementById('uploadPct').textContent = pct+'%'; }
         });
-
         xhr.addEventListener('load', function() {
             if (xhr.status === 200) {
                 document.getElementById('uploadBar').style.width = '100%';
                 document.getElementById('uploadPct').textContent = '100%';
-                // Import läuft nun serverseitig – Polling starten
-                importPhase.style.display = 'block';
-                setStatus('running', 'Import läuft…');
-                startPolling();
+                importPhase.style.display = 'block'; setStatus('running',''); startPolling();
             } else {
-                var msg = 'Upload-Fehler (HTTP ' + xhr.status + ')';
+                var msg = 'Upload-Fehler (HTTP '+xhr.status+')';
                 try { msg = JSON.parse(xhr.responseText).error || msg; } catch(e2) {}
-                setStatus('error', msg);
-                dropZone.classList.remove('disabled');
+                setStatus('error', msg); dropZone.classList.remove('disabled');
             }
         });
-
-        xhr.addEventListener('error', function() {
-            setStatus('error', 'Netzwerkfehler beim Upload.');
-            dropZone.classList.remove('disabled');
-        });
-
+        xhr.addEventListener('error', function() { setStatus('error','Netzwerkfehler beim Upload.'); dropZone.classList.remove('disabled'); });
         xhr.send(formData);
     }
-
-    // ── Import-Status pollen ─────────────────────────────────────────────────
     function startPolling() {
         if (pollInterval) clearInterval(pollInterval);
         pollInterval = setInterval(function() {
-            fetch('/health/import/status')
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    updateStats(data);
-                    if (data.status === 'done') {
-                        clearInterval(pollInterval);
-                        setStatus('done', null);
-                        showFinalStats(data);
-                    } else if (data.status === 'error') {
-                        clearInterval(pollInterval);
-                        setStatus('error', data.error || 'Unbekannter Fehler');
-                    } else {
-                        // Animiere Import-Fortschrittsbalken (indeterminate)
-                        animateImportBar();
-                    }
-                })
-                .catch(function() { /* ignore transient errors */ });
+            fetch('/health/import/status').then(function(r) { return r.json(); }).then(function(data) {
+                updateStats(data);
+                if (data.status === 'done') { clearInterval(pollInterval); setStatus('done',null); showFinalStats(data); }
+                else if (data.status === 'error') { clearInterval(pollInterval); setStatus('error', data.error||'Unbekannter Fehler'); }
+                else animateImportBar();
+            }).catch(function(){});
         }, 2000);
     }
-
     var importBarAnim = 0;
     function animateImportBar() {
-        importBarAnim = Math.min(importBarAnim + 2, 90);
-        document.getElementById('importBar').style.width = importBarAnim + '%';
+        importBarAnim = Math.min(importBarAnim+2, 90);
+        document.getElementById('importBar').style.width = importBarAnim+'%';
         document.getElementById('importPct').textContent = 'läuft…';
     }
-
-    function updateStats(data) {
-        setText('sRecords',  data.processedRecords);
-        setText('sMetrics',  data.importedMetrics);
-        setText('sWorkouts', data.importedWorkouts);
-        setText('sDays',     data.importedDays);
-    }
-
-    function showFinalStats(data) {
-        document.getElementById('importBar').style.width = '100%';
-        document.getElementById('importPct').textContent = '100%';
-        setTimeout(function() { window.location.reload(); }, 1500);
-    }
-
-    // ── Hilfsfunktionen ──────────────────────────────────────────────────────
+    function updateStats(data) { setText('sRecords',data.processedRecords); setText('sMetrics',data.importedMetrics); setText('sWorkouts',data.importedWorkouts); setText('sDays',data.importedDays); }
+    function showFinalStats(data) { document.getElementById('importBar').style.width='100%'; document.getElementById('importPct').textContent='100%'; setTimeout(function(){window.location.reload();},1500); }
     function setStatus(type, msg) {
-        statusBox.className = 'status-box status-' + type;
-        if (type === 'uploading') {
-            statusBox.innerHTML = '<b>Upload läuft…</b> ' + (msg || '');
-        } else if (type === 'running') {
-            statusBox.innerHTML =
-                '<b>Import läuft…</b>' +
-                '<div class="stat-grid">' +
-                  '<div class="stat-item"><div class="stat-num" id="sRecords">0</div><div class="stat-lbl">Records</div></div>' +
-                  '<div class="stat-item"><div class="stat-num" id="sMetrics">0</div><div class="stat-lbl">Metriken</div></div>' +
-                  '<div class="stat-item"><div class="stat-num" id="sWorkouts">0</div><div class="stat-lbl">Workouts</div></div>' +
-                  '<div class="stat-item"><div class="stat-num" id="sDays">0</div><div class="stat-lbl">Tage</div></div>' +
-                '</div>';
-        } else if (type === 'error') {
-            statusBox.innerHTML = '<b>Fehler:</b> ' + escapeHtml(msg || 'Unbekannter Fehler');
-        }
+        statusBox.className = 'status-box status-'+type;
+        if (type==='uploading') statusBox.innerHTML = '<b>Upload läuft…</b>';
+        else if (type==='running') statusBox.innerHTML = '<b>Import läuft…</b><div class="stat-grid"><div class="stat-item"><div class="stat-num" id="sRecords">0</div><div class="stat-lbl">Records</div></div><div class="stat-item"><div class="stat-num" id="sMetrics">0</div><div class="stat-lbl">Metriken</div></div><div class="stat-item"><div class="stat-num" id="sWorkouts">0</div><div class="stat-lbl">Workouts</div></div><div class="stat-item"><div class="stat-num" id="sDays">0</div><div class="stat-lbl">Tage</div></div></div>';
+        else if (type==='error') statusBox.innerHTML = '<b>Fehler:</b> '+escapeHtml(msg||'Unbekannter Fehler');
     }
-
-    function setText(id, val) {
-        var el = document.getElementById(id);
-        if (el) el.textContent = val;
-    }
-
-    function formatBytes(bytes) {
-        if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(1) + ' GB';
-        if (bytes >= 1048576)    return (bytes / 1048576).toFixed(0) + ' MB';
-        return (bytes / 1024).toFixed(0) + ' KB';
-    }
-
-    function escapeHtml(s) {
-        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    }
-
-    // ── Beim Laden: falls Import noch läuft → sofort pollen ─────────────────
-    if (currentStatus === 'running') {
-        importPhase.style.display = 'block';
-        dropZone.classList.add('disabled');
-        startPolling();
-    }
+    function setText(id,val){var el=document.getElementById(id);if(el)el.textContent=val;}
+    function formatBytes(b){if(b>=1073741824)return(b/1073741824).toFixed(1)+' GB';if(b>=1048576)return(b/1048576).toFixed(0)+' MB';return(b/1024).toFixed(0)+' KB';}
+    function escapeHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+    if (currentStatus === 'running') { importPhase.style.display='block'; dropZone.classList.add('disabled'); startPolling(); }
 </script>
 </body>
 </html>

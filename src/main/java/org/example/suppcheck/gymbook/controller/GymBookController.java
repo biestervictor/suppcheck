@@ -62,8 +62,9 @@ public class GymBookController {
     @GetMapping("/body-map")
     public String bodyMap(@RequestParam(defaultValue = "90") int days, Model model) {
         Map<String, Integer> heatmap = dashboardService.getMuscleHeatmap(days);
-        model.addAttribute("heatmap", heatmap);
-        model.addAttribute("days",    days);
+        model.addAttribute("heatmap",          heatmap);
+        model.addAttribute("days",             days);
+        model.addAttribute("muscleExercises",  dashboardService.getMuscleExercises(days));
         return "gymbook/gymbook-body-map";
     }
 

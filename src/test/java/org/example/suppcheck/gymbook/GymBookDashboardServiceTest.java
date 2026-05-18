@@ -158,6 +158,45 @@ class GymBookDashboardServiceTest {
         assertEquals("Kniebeugen", names.get(1));
     }
 
+    // ── getMuscleExercises ────────────────────────────────────────────────────
+
+    @Test
+    void muscleExercises_returnsExercisesPerMuscle() {
+        GymExerciseEntry ex = new GymExerciseEntry();
+        ex.setName("Bankdrücken");
+        ex.setPrimaryMuscles("020.pectorals|010.shoulders");
+        ex.setSecondaryMuscles("040.armExtensors");
+        ex.addSet(new GymSetEntry(80.0, 10, "default"));
+
+        GymSession s = new GymSession(java.time.LocalDate.now().toString());
+        s.addExercise(ex);
+
+        when(repo.findAllByOrderByDateDesc()).thenReturn(List.of(s));
+
+        Map<String, List<String>> result = service.getMuscleExercises(90);
+        assertTrue(result.get("020.pectorals").contains("Bankdrücken"));
+        assertTrue(result.get("010.shoulders").contains("Bankdrücken"));
+        // secondary muscles not included
+        assertFalse(result.containsKey("040.armExtensors"));
+    }
+
+    @Test
+    void muscleExercises_excludesSessionsOutsideDateWindow() {
+        GymExerciseEntry ex = new GymExerciseEntry();
+        ex.setName("Kniebeugen");
+        ex.setPrimaryMuscles("070.quadriceps");
+        ex.addSet(new GymSetEntry(60.0, 10, "default"));
+
+        String oldDate = java.time.LocalDate.now().minusDays(200).toString();
+        GymSession old = new GymSession(oldDate);
+        old.addExercise(ex);
+
+        when(repo.findAllByOrderByDateDesc()).thenReturn(List.of(old));
+
+        Map<String, List<String>> result = service.getMuscleExercises(30);
+        assertFalse(result.containsKey("070.quadriceps"));
+    }
+
     // ── getTopExercises ───────────────────────────────────────────────────────
 
     @Test

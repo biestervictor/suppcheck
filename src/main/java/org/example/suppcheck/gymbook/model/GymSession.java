@@ -22,6 +22,8 @@ public class GymSession {
     @Id
     private String date; // "yyyy-MM-dd"
 
+    private String tag = "Sonstige"; // "Push", "Pull", "Beine", "Sonstige"
+
     private List<GymExerciseEntry> exercises = new ArrayList<>();
 
     public GymSession(String date) {

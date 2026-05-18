@@ -6,36 +6,18 @@
     <title>Ernährung</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background: #0f172a; color: #f1f5f9; margin: 0; padding: 0; }
-        h1   { margin: 28px 0 16px; text-align: center; color: #3b82f6; }
-        h2   { color: #3b82f6; margin: 0 0 10px; }
-
+        body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 0; }
+        h1   { margin: 28px 0 16px; text-align: center; color: #2d6cdf; }
+        h2   { color: #2d6cdf; margin: 0 0 10px; }
         .page-content { max-width: 1300px; margin: 0 auto; padding: 0 20px 40px; }
-
-        .chart-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(580px, 1fr));
-            gap: 20px;
-            margin-bottom: 28px;
-        }
-        .chart-card {
-            background: #1e293b;
-            border-radius: 8px;
-            padding: 20px 24px;
-        }
-
-        /* Tabelle letzte 7 Tage */
+        .chart-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(580px, 1fr)); gap: 20px; margin-bottom: 28px; }
+        .chart-card { background: #fff; border-radius: 8px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
         .nutrition-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
-        .nutrition-table th, .nutrition-table td {
-            padding: 8px 14px;
-            border-bottom: 1px solid #334155;
-            text-align: right;
-        }
-        .nutrition-table th { background: #334155; color: #94a3b8; text-align: center; }
+        .nutrition-table th, .nutrition-table td { padding: 8px 14px; border-bottom: 1px solid #e0e0e0; text-align: right; }
+        .nutrition-table th { background: #eaf1fb; text-align: center; }
         .nutrition-table td:first-child { text-align: left; }
-        .nutrition-table tr:hover td { background: #334155; }
-
-        .back-link { color: #60a5fa; text-decoration: none; font-size: 0.9em; }
+        .nutrition-table tr:hover td { background: #f5f8ff; }
+        .back-link { color: #2d6cdf; text-decoration: none; font-size: 0.9em; }
         .back-link:hover { text-decoration: underline; }
     </style>
 </head>
@@ -44,129 +26,58 @@
 <div class="page-content">
 <h1>Ernährung</h1>
 <p><a class="back-link" th:href="@{/health}">← Zurück zum Dashboard</a></p>
-
 <div class="chart-grid">
-    <div class="chart-card">
-        <h2>Kalorien (kcal) – letzte 30 Tage</h2>
-        <canvas id="kcalChart"></canvas>
-    </div>
-    <div class="chart-card">
-        <h2>Makros (g) – letzte 30 Tage</h2>
-        <canvas id="macroChart"></canvas>
-    </div>
+    <div class="chart-card"><h2>Kalorien (kcal) – letzte 30 Tage</h2><canvas id="kcalChart"></canvas></div>
+    <div class="chart-card"><h2>Makros (g) – letzte 30 Tage</h2><canvas id="macroChart"></canvas></div>
 </div>
-
-<!-- Tabelle: letzte 7 Tage -->
 <div class="chart-card">
     <h2>Letzte 7 Tage – Details</h2>
     <table class="nutrition-table">
         <thead><tr>
             <th style="text-align:left;">Datum</th>
-            <th>Kalorien</th>
-            <th>Protein (g)</th>
-            <th>Kohlenhydrate (g)</th>
-            <th>Fett (g)</th>
-            <th>Zucker (g)</th>
-            <th>Ballaststoffe (g)</th>
-            <th>Wasser (ml)</th>
+            <th>Kalorien</th><th>Protein (g)</th><th>Kohlenhydrate (g)</th>
+            <th>Fett (g)</th><th>Zucker (g)</th><th>Ballaststoffe (g)</th><th>Wasser (ml)</th>
         </tr></thead>
         <tbody>
-        <!-- Show last 7 rows (list is sorted ascending, so take last 7 via subList logic in template) -->
-        <th:block th:with="last7=${recentDays.size() > 7 ? recentDays.subList(recentDays.size() - 7, recentDays.size()) : recentDays}">
+        <th:block th:with="last7=${recentDays.size() > 7 ? recentDays.subList(recentDays.size()-7,recentDays.size()) : recentDays}">
             <tr th:each="d : ${last7}">
                 <td th:text="${d.date}"></td>
-                <td th:text="${d.dietaryKcal > 0 ? #numbers.formatDecimal(d.dietaryKcal, 1, 0) : '-'}"></td>
-                <td th:text="${d.dietaryProteinG > 0 ? #numbers.formatDecimal(d.dietaryProteinG, 1, 1) : '-'}"></td>
-                <td th:text="${d.dietaryCarbsG > 0 ? #numbers.formatDecimal(d.dietaryCarbsG, 1, 1) : '-'}"></td>
-                <td th:text="${d.dietaryFatG > 0 ? #numbers.formatDecimal(d.dietaryFatG, 1, 1) : '-'}"></td>
-                <td th:text="${d.dietarySugarG > 0 ? #numbers.formatDecimal(d.dietarySugarG, 1, 1) : '-'}"></td>
-                <td th:text="${d.dietaryFiberG > 0 ? #numbers.formatDecimal(d.dietaryFiberG, 1, 1) : '-'}"></td>
-                <td th:text="${d.dietaryWaterMl > 0 ? #numbers.formatDecimal(d.dietaryWaterMl, 1, 0) : '-'}"></td>
+                <td th:text="${d.dietaryKcal > 0 ? #numbers.formatDecimal(d.dietaryKcal,1,0) : '-'}"></td>
+                <td th:text="${d.dietaryProteinG > 0 ? #numbers.formatDecimal(d.dietaryProteinG,1,1) : '-'}"></td>
+                <td th:text="${d.dietaryCarbsG > 0 ? #numbers.formatDecimal(d.dietaryCarbsG,1,1) : '-'}"></td>
+                <td th:text="${d.dietaryFatG > 0 ? #numbers.formatDecimal(d.dietaryFatG,1,1) : '-'}"></td>
+                <td th:text="${d.dietarySugarG > 0 ? #numbers.formatDecimal(d.dietarySugarG,1,1) : '-'}"></td>
+                <td th:text="${d.dietaryFiberG > 0 ? #numbers.formatDecimal(d.dietaryFiberG,1,1) : '-'}"></td>
+                <td th:text="${d.dietaryWaterMl > 0 ? #numbers.formatDecimal(d.dietaryWaterMl,1,0) : '-'}"></td>
             </tr>
             <tr th:if="${#lists.isEmpty(last7)}">
-                <td colspan="8" style="color:#64748b; font-style:italic;">Keine Ernährungsdaten gefunden.</td>
+                <td colspan="8" style="color:#aaa;font-style:italic;">Keine Ernährungsdaten gefunden.</td>
             </tr>
         </th:block>
         </tbody>
     </table>
 </div>
-</div><!-- page-content -->
-
+</div>
 <script th:inline="javascript">
     const dailyLabels   = /*[[${dailyLabels}]]*/ [];
     const kcalValues    = /*[[${kcalValues}]]*/ [];
     const proteinValues = /*[[${proteinValues}]]*/ [];
     const carbsValues   = /*[[${carbsValues}]]*/ [];
     const fatValues     = /*[[${fatValues}]]*/ [];
-
-    const darkScales = {
-        x: { ticks: { color: '#94a3b8', maxTicksLimit: 10 }, grid: { color: '#334155' } },
-        y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
-    };
-
     new Chart(document.getElementById('kcalChart'), {
         type: 'bar',
-        data: {
-            labels: dailyLabels,
-            datasets: [{
-                label: 'kcal',
-                data: kcalValues,
-                backgroundColor: 'rgba(230, 126, 34, 0.6)',
-                borderColor: '#e67e22',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: { legend: { display: false } },
-            scales: darkScales
-        }
+        data: { labels: dailyLabels, datasets: [{ label: 'kcal', data: kcalValues,
+            backgroundColor: 'rgba(230,126,34,0.6)', borderColor: '#e67e22', borderWidth: 1 }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
     });
-
     new Chart(document.getElementById('macroChart'), {
         type: 'line',
-        data: {
-            labels: dailyLabels,
-            datasets: [
-                {
-                    label: 'Protein (g)',
-                    data: proteinValues,
-                    borderColor: '#27ae60',
-                    backgroundColor: '#27ae6022',
-                    borderWidth: 1.5,
-                    tension: 0.2,
-                    pointRadius: 0,
-                    fill: false
-                },
-                {
-                    label: 'Kohlenhydrate (g)',
-                    data: carbsValues,
-                    borderColor: '#e74c3c',
-                    backgroundColor: '#e74c3c22',
-                    borderWidth: 1.5,
-                    tension: 0.2,
-                    pointRadius: 0,
-                    fill: false
-                },
-                {
-                    label: 'Fett (g)',
-                    data: fatValues,
-                    borderColor: '#f39c12',
-                    backgroundColor: '#f39c1222',
-                    borderWidth: 1.5,
-                    tension: 0.2,
-                    pointRadius: 0,
-                    fill: false
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { display: true, position: 'top', labels: { color: '#94a3b8' } }
-            },
-            scales: darkScales
-        }
+        data: { labels: dailyLabels, datasets: [
+            { label: 'Protein (g)',        data: proteinValues, borderColor: '#27ae60', backgroundColor: '#27ae6022', borderWidth: 1.5, tension: 0.2, pointRadius: 0, fill: false },
+            { label: 'Kohlenhydrate (g)',  data: carbsValues,   borderColor: '#e74c3c', backgroundColor: '#e74c3c22', borderWidth: 1.5, tension: 0.2, pointRadius: 0, fill: false },
+            { label: 'Fett (g)',           data: fatValues,     borderColor: '#f39c12', backgroundColor: '#f39c1222', borderWidth: 1.5, tension: 0.2, pointRadius: 0, fill: false }
+        ] },
+        options: { responsive: true, plugins: { legend: { display: true, position: 'top' } }, scales: { y: { beginAtZero: true } } }
     });
 </script>
 </body>

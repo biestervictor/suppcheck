@@ -5,47 +5,88 @@
   <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
   <title>GymBook Import – SuppCheck</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #0f172a; color: #f1f5f9; margin: 0; }
-    .drop-zone{border:2px dashed #4a9eff;border-radius:12px;padding:3rem;text-align:center;cursor:pointer;transition:background .2s}
-    .drop-zone.dragover{background:rgba(74,158,255,.1)}
-    .progress-wrap{background:#1e293b;border-radius:8px;height:12px;overflow:hidden;margin-top:1rem}
-    .progress-bar{height:100%;background:#4a9eff;width:0;transition:width .3s}
-    .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;margin-top:1.5rem}
-    .stat-card{background:#1e293b;border-radius:8px;padding:1rem;text-align:center}
-    .stat-val{font-size:1.8rem;font-weight:700;color:#4a9eff}
-    .stat-label{font-size:.8rem;color:#94a3b8;margin-top:.25rem}
+    body { font-family: Arial, sans-serif; background: #f7f7f7; color: #333; margin: 0; }
+
+    .drop-zone {
+      border: 2px dashed #2d6cdf; border-radius: 12px; padding: 3rem;
+      text-align: center; cursor: pointer; transition: background .2s;
+      background: #fff;
+    }
+    .drop-zone.dragover { background: rgba(45,108,223,.06); }
+    .drop-zone p { color: #555; }
+
+    .progress-wrap {
+      background: #e0e0e0; border-radius: 8px; height: 12px;
+      overflow: hidden; margin-top: 1rem;
+    }
+    .progress-bar { height: 100%; background: #2d6cdf; width: 0; transition: width .3s; border-radius: 8px; }
+
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 1rem; margin-top: 1.5rem; }
+    .stat-card {
+      background: #fff; border-radius: 8px; padding: 1rem;
+      text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+    .stat-val   { font-size: 1.8rem; font-weight: 700; color: #2d6cdf; }
+    .stat-label { font-size: .8rem; color: #888; margin-top: .25rem; }
+
+    .status-box {
+      margin-top: 2rem; padding: 1rem 1.25rem;
+      background: #fff; border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      border-left: 4px solid #2d6cdf;
+    }
   </style>
 </head>
 <body>
 <th:block th:replace="~{fragments/nav :: main-nav}"></th:block>
-<main class="container" style="max-width:700px;margin:2rem auto;padding:0 1rem">
-  <h1>GymBook Import</h1>
-  <p style="color:#94a3b8">GymBook-Backup (.database) hochladen – SQLite-Datei direkt aus der GymBook-App.</p>
+<main style="max-width:700px;margin:2rem auto;padding:0 1rem">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+    <h1 style="margin:0;color:#2d6cdf">GymBook Import</h1>
+    <a th:href="@{/gymbook}"
+       style="padding:.45rem 1rem;background:#fff;border:1px solid #e0e0e0;border-radius:6px;color:#333;text-decoration:none;font-size:.9rem;">
+      Dashboard
+    </a>
+  </div>
+
+  <p style="color:#555">GymBook-Backup (.database) hochladen – SQLite-Datei direkt aus der GymBook-App.</p>
 
   <div id="dropZone" class="drop-zone">
     <div style="font-size:2.5rem">🏋️</div>
     <p style="margin:.5rem 0 0">Backup hier ablegen oder <strong>klicken</strong></p>
-    <p style="font-size:.85rem;color:#64748b">.database – beliebige Größe</p>
+    <p style="font-size:.85rem;color:#888">.database – beliebige Größe</p>
     <input type="file" id="fileInput" accept=".database" style="display:none"/>
   </div>
 
   <div class="progress-wrap" id="progressWrap" style="display:none">
     <div class="progress-bar" id="progressBar"></div>
   </div>
-  <p id="statusMsg" style="margin-top:.75rem;color:#94a3b8"></p>
+  <p id="statusMsg" style="margin-top:.75rem;color:#555;font-size:.9rem"></p>
 
   <div class="stat-grid" id="statGrid" style="display:none">
-    <div class="stat-card"><div class="stat-val" id="statSessions">–</div><div class="stat-label">Sessions</div></div>
-    <div class="stat-card"><div class="stat-val" id="statSets">–</div><div class="stat-label">Sätze</div></div>
+    <div class="stat-card">
+      <div class="stat-val" id="statSessions">–</div>
+      <div class="stat-label">Sessions</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="statSets">–</div>
+      <div class="stat-label">Sätze</div>
+    </div>
   </div>
 
-  <!-- Current status if already imported -->
-  <div th:if="${status != null and status != 'idle'}" style="margin-top:2rem;padding:1rem;background:#1e293b;border-radius:8px">
+  <!-- Status letzter Import -->
+  <div th:if="${status != null and status != 'idle'}" class="status-box">
     <strong>Letzter Import:</strong>
-    <span th:text="${status}" style="color:#4a9eff"></span>
-    <span th:if="${importedSessions > 0}"> – <span th:text="${importedSessions}"></span> Sessions, <span th:text="${importedSets}"></span> Sätze</span>
-    <span th:if="${importError}" style="color:#f87171"> – <span th:text="${importError}"></span></span>
+    <span th:text="${status}" style="color:#2d6cdf;font-weight:600"></span>
+    <span th:if="${importedSessions > 0}">
+      – <span th:text="${importedSessions}"></span> Sessions,
+      <span th:text="${importedSets}"></span> Sätze
+    </span>
+    <span th:if="${importError}" style="color:#e53e3e">
+      – <span th:text="${importError}"></span>
+    </span>
   </div>
+
 </main>
 
 <script>
@@ -57,9 +98,9 @@ const statusMsg   = document.getElementById('statusMsg');
 const statGrid    = document.getElementById('statGrid');
 let pollTimer;
 
-dropZone.addEventListener('click',  () => fileInput.click());
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-dropZone.addEventListener('dragleave',() => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('click',    () => fileInput.click());
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
 dropZone.addEventListener('drop', e => {
   e.preventDefault(); dropZone.classList.remove('dragover');
   const file = e.dataTransfer.files[0];
@@ -68,7 +109,7 @@ dropZone.addEventListener('drop', e => {
 fileInput.addEventListener('change', () => { if (fileInput.files[0]) startUpload(fileInput.files[0]); });
 
 function startUpload(file) {
-  const fd = new FormData();
+  const fd  = new FormData();
   fd.append('file', file);
   const xhr = new XMLHttpRequest();
   progressWrap.style.display = 'block';
@@ -84,6 +125,7 @@ function startUpload(file) {
     } else {
       const r = JSON.parse(xhr.responseText || '{}');
       statusMsg.textContent = 'Fehler: ' + (r.error || xhr.status);
+      statusMsg.style.color = '#e53e3e';
     }
   };
   xhr.open('POST', '/gymbook/import/upload');
@@ -103,11 +145,12 @@ function pollStatus() {
         document.getElementById('statSessions').textContent = d.importedSessions || '–';
         document.getElementById('statSets').textContent     = d.importedSets     || '–';
         statusMsg.textContent = 'Import abgeschlossen!';
+        statusMsg.style.color = '#2d6cdf';
       }
       if (d.status === 'error') {
         clearInterval(pollTimer);
         statusMsg.textContent = 'Fehler: ' + d.error;
-        statusMsg.style.color = '#f87171';
+        statusMsg.style.color = '#e53e3e';
       }
     });
 }

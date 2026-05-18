@@ -37,6 +37,7 @@ class GymBookControllerTest {
         lenient().when(dashboardService.getTopExercises(anyInt())).thenReturn(Map.of());
         lenient().when(dashboardService.getAllExerciseNames()).thenReturn(List.of());
         lenient().when(dashboardService.getMuscleHeatmap(anyInt())).thenReturn(Map.of());
+        lenient().when(dashboardService.getMuscleExercises(anyInt())).thenReturn(Map.of());
         lenient().when(dashboardService.getWeightProgression(anyString())).thenReturn(List.of());
         lenient().when(importService.getStatus()).thenReturn("idle");
         lenient().when(importService.getImportedSessions()).thenReturn(0L);
@@ -90,6 +91,14 @@ class GymBookControllerTest {
         controller.bodyMap(30, model);
         assertTrue(model.containsAttribute("heatmap"));
         assertEquals(30, model.getAttribute("days"));
+    }
+
+    @Test
+    void bodyMap_addsMuscleExercises() {
+        when(dashboardService.getMuscleExercises(90)).thenReturn(Map.of("020.pectorals", List.of("Bankdrücken")));
+        Model model = new ConcurrentModel();
+        controller.bodyMap(90, model);
+        assertTrue(model.containsAttribute("muscleExercises"));
     }
 
     // ── exerciseProgress ─────────────────────────────────────────────────────
