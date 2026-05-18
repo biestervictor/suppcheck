@@ -5,6 +5,12 @@ metadata:
   namespace: {{ .Values.suppcheck.nameSpace}}
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    {{- if eq .Values.ingress.className "nginx" }}
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    {{- end }}
 
 spec:
   tls:

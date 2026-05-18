@@ -5,9 +5,15 @@ import org.example.suppcheck.health.model.HealthMetric;
 import org.example.suppcheck.health.model.HealthWorkout;
 import org.example.suppcheck.health.service.HealthDashboardService;
 import org.example.suppcheck.health.service.HealthImportService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.File;
+import java.io.IOException;
 
 import java.util.List;
 import java.util.Map;
@@ -74,6 +80,32 @@ public class HealthController {
         model.addAttribute("importedDays",     importService.getImportedDays());
         model.addAttribute("importError",      importService.getImportError());
         return "health/health-import";
+    }
+
+    /**
+     * AJAX-Upload-Endpoint: empfängt die Export.xml als Multipart,
+     * speichert sie in einer Temp-Datei und startet den asynchronen Import.
+     */
+    @PostMapping(value = "/import/upload", consumes = "multipart/form-data", produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> uploadAndImport(
+            @RequestParam("file") MultipartFile file) {
+        if (importService.isRunning()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", "Import läuft bereits."));
+        }
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Keine Datei empfangen."));
+        }
+        try {
+            File tempFile = File.createTempFile("health-export-", ".xml");
+            file.transferTo(tempFile);
+            importService.startImportAsync(tempFile, true);
+            return ResponseEntity.ok(Map.of("status", "started"));
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Upload fehlgeschlagen: " + e.getMessage()));
+        }
     }
 
     @PostMapping("/import")

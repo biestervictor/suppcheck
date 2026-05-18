@@ -117,6 +117,10 @@ public class HealthImportService {
     // ── Import starten ────────────────────────────────────────────────────────
 
     public void startImportAsync(String filePath) {
+        startImportAsync(new File(filePath), false);
+    }
+
+    public void startImportAsync(File file, boolean deleteTempFile) {
         if (isRunning()) throw new IllegalStateException("Import is already running");
         importStatus.set("running");
         importError.set(null);
@@ -127,12 +131,17 @@ public class HealthImportService {
 
         Thread t = new Thread(() -> {
             try {
-                runImport(filePath);
+                runImport(file.getAbsolutePath());
                 importStatus.set("done");
             } catch (Exception e) {
                 log.error("Health import failed", e);
                 importError.set(e.getMessage());
                 importStatus.set("error");
+            } finally {
+                if (deleteTempFile && file.exists()) {
+                    boolean deleted = file.delete();
+                    if (!deleted) log.warn("Temp-Datei konnte nicht gelöscht werden: {}", file.getAbsolutePath());
+                }
             }
         }, "health-import");
         t.setDaemon(true);

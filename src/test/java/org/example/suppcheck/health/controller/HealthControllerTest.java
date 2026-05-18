@@ -10,6 +10,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ui.ConcurrentModel;
 import org.springframework.ui.Model;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.File;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -109,6 +115,50 @@ class HealthControllerTest {
 
         assertEquals("done", model.getAttribute("status"));
         assertEquals(5000L, model.getAttribute("importedMetrics"));
+    }
+
+    // ── uploadAndImport ──────────────────────────────────────────────────────
+
+    @Test
+    void uploadAndImport_conflictWhenAlreadyRunning() {
+        when(importService.isRunning()).thenReturn(true);
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "Export.xml", "text/xml", "<data/>".getBytes());
+
+        ResponseEntity<Map<String, Object>> response = controller.uploadAndImport(file);
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().containsKey("error"));
+        verify(importService, never()).startImportAsync(any(File.class), anyBoolean());
+    }
+
+    @Test
+    void uploadAndImport_badRequestWhenFileEmpty() {
+        when(importService.isRunning()).thenReturn(false);
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "Export.xml", "text/xml", new byte[0]);
+
+        ResponseEntity<Map<String, Object>> response = controller.uploadAndImport(file);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().containsKey("error"));
+        verify(importService, never()).startImportAsync(any(File.class), anyBoolean());
+    }
+
+    @Test
+    void uploadAndImport_successStartsImportAsync() {
+        when(importService.isRunning()).thenReturn(false);
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "Export.xml", "text/xml", "<HealthData/>".getBytes());
+
+        ResponseEntity<Map<String, Object>> response = controller.uploadAndImport(file);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("started", response.getBody().get("status"));
+        verify(importService).startImportAsync(any(File.class), eq(true));
     }
 
     // ── startImport ──────────────────────────────────────────────────────────
