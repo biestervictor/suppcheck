@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Training Dashboard – SuppCheck</title>
+  <link rel="stylesheet" th:href="@{/css/style.css}"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;margin-bottom:2rem}
+    .stat-card{background:#1e293b;border-radius:10px;padding:1.2rem;text-align:center}
+    .stat-val{font-size:2rem;font-weight:700;color:#4a9eff}
+    .stat-label{font-size:.8rem;color:#94a3b8;margin-top:.25rem}
+    .session-table{width:100%;border-collapse:collapse;font-size:.9rem}
+    .session-table th{text-align:left;padding:.6rem .8rem;color:#94a3b8;border-bottom:1px solid #334155;font-weight:500}
+    .session-table td{padding:.6rem .8rem;border-bottom:1px solid #1e293b;vertical-align:top}
+    .session-table tr:hover td{background:#1e293b}
+    .exercise-pill{display:inline-block;background:#0f172a;border:1px solid #334155;border-radius:4px;padding:.15rem .5rem;margin:.1rem;font-size:.78rem;cursor:pointer;text-decoration:none;color:#cbd5e1}
+    .exercise-pill:hover{border-color:#4a9eff;color:#4a9eff}
+    .chart-wrap{background:#1e293b;border-radius:10px;padding:1.5rem;margin-bottom:2rem}
+  </style>
+</head>
+<body>
+<div th:replace="~{fragments/nav :: main-nav}"></div>
+<main class="container" style="max-width:1100px;margin:2rem auto;padding:0 1rem">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+    <h1 style="margin:0">Training Dashboard</h1>
+    <div style="display:flex;gap:.75rem">
+      <a th:href="@{/gymbook/body-map}" class="btn btn-secondary">Körper-Map</a>
+      <a th:href="@{/gymbook/import}"   class="btn btn-primary">Import</a>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-val" th:text="${totalSessions}">0</div>
+      <div class="stat-label">Trainingseinheiten</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" th:text="${recentSessions.size()}">0</div>
+      <div class="stat-label">Letzte 30 Einheiten</div>
+    </div>
+  </div>
+
+  <!-- Top exercises chart -->
+  <div class="chart-wrap" th:if="${!topExLabels.isEmpty()}">
+    <h3 style="margin:0 0 1rem">Top-Übungen (nach Sätzen gesamt)</h3>
+    <canvas id="topExChart" height="80"></canvas>
+  </div>
+
+  <!-- Recent sessions table -->
+  <h2>Letzte Trainingseinheiten</h2>
+  <div th:if="${recentSessions.isEmpty()}" style="color:#64748b;padding:2rem;text-align:center">
+    Noch keine Daten – bitte zuerst GymBook-Backup importieren.
+    <br/><a th:href="@{/gymbook/import}" class="btn btn-primary" style="margin-top:1rem">Import</a>
+  </div>
+  <table class="session-table" th:unless="${recentSessions.isEmpty()}">
+    <thead>
+      <tr>
+        <th>Datum</th>
+        <th>Übungen</th>
+        <th>Sätze</th>
+        <th>Wiederholungen</th>
+        <th>Ausgeführte Übungen</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr th:each="s : ${recentSessions}">
+        <td th:text="${s.date}" style="white-space:nowrap;font-weight:600"></td>
+        <td th:text="${s.exercises.size()}"></td>
+        <td th:text="${s.totalSets}"></td>
+        <td th:text="${s.totalReps}"></td>
+        <td>
+          <span th:each="ex : ${s.exercises}">
+            <a th:href="@{/gymbook/exercise/{n}(n=${ex.name})}"
+               th:text="${ex.name}"
+               class="exercise-pill"></a>
+          </span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</main>
+
+<script th:inline="javascript">
+const labels = /*[[${topExLabels}]]*/ [];
+const values = /*[[${topExValues}]]*/ [];
+if (labels.length > 0) {
+  new Chart(document.getElementById('topExChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Sätze gesamt',
+        data: values,
+        backgroundColor: 'rgba(74,158,255,0.7)',
+        borderColor: '#4a9eff',
+        borderWidth: 1,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+        y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>

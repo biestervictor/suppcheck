@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Körper-Map – SuppCheck</title>
+  <link rel="stylesheet" th:href="@{/css/style.css}"/>
+  <style>
+    .body-layout{display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:start}
+    .body-svg-wrap{background:#1e293b;border-radius:12px;padding:1.5rem;text-align:center}
+    .legend-wrap{background:#1e293b;border-radius:12px;padding:1.5rem}
+    .muscle-row{display:flex;align-items:center;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid #0f172a}
+    .muscle-row:last-child{border-bottom:none}
+    .muscle-name{font-size:.9rem;color:#cbd5e1}
+    .muscle-bar-wrap{flex:1;margin:0 1rem;background:#0f172a;border-radius:4px;height:8px;overflow:hidden}
+    .muscle-bar{height:100%;background:#4a9eff;border-radius:4px;transition:width .4s}
+    .muscle-count{font-size:.85rem;color:#64748b;min-width:2rem;text-align:right}
+    .filter-bar{margin-bottom:1.5rem;display:flex;gap:.5rem;flex-wrap:wrap}
+    .filter-btn{padding:.4rem .9rem;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#94a3b8;cursor:pointer;font-size:.85rem;text-decoration:none}
+    .filter-btn.active,.filter-btn:hover{border-color:#4a9eff;color:#4a9eff}
+
+    /* SVG muscle coloring – each muscle gets a data-id attribute */
+    .muscle-group{fill:#334155;transition:fill .3s;cursor:pointer}
+    .muscle-group:hover{fill:#4a9eff !important}
+    .muscle-group.heat-1{fill:#1d4ed8}
+    .muscle-group.heat-2{fill:#2563eb}
+    .muscle-group.heat-3{fill:#3b82f6}
+    .muscle-group.heat-4{fill:#60a5fa}
+    .muscle-group.heat-5{fill:#93c5fd}
+    .muscle-group.heat-max{fill:#f97316}
+
+    @media (max-width:768px) { .body-layout{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+<div th:replace="~{fragments/nav :: main-nav}"></div>
+<main class="container" style="max-width:1100px;margin:2rem auto;padding:0 1rem">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+    <h1 style="margin:0">Körper-Map</h1>
+    <a th:href="@{/gymbook}" class="btn btn-secondary">Dashboard</a>
+  </div>
+
+  <!-- Zeitraum-Filter -->
+  <div class="filter-bar">
+    <a th:href="@{/gymbook/body-map(days=30)}"  th:classappend="${days==30  ? ' active' : ''}" class="filter-btn">30 Tage</a>
+    <a th:href="@{/gymbook/body-map(days=60)}"  th:classappend="${days==60  ? ' active' : ''}" class="filter-btn">60 Tage</a>
+    <a th:href="@{/gymbook/body-map(days=90)}"  th:classappend="${days==90  ? ' active' : ''}" class="filter-btn">90 Tage</a>
+    <a th:href="@{/gymbook/body-map(days=180)}" th:classappend="${days==180 ? ' active' : ''}" class="filter-btn">180 Tage</a>
+    <a th:href="@{/gymbook/body-map(days=365)}" th:classappend="${days==365 ? ' active' : ''}" class="filter-btn">365 Tage</a>
+  </div>
+
+  <div class="body-layout">
+
+    <!-- SVG Body Map -->
+    <div class="body-svg-wrap">
+      <h3 style="margin:0 0 1rem;color:#94a3b8;font-size:.9rem;text-transform:uppercase;letter-spacing:.05em">Vorderseite</h3>
+      <svg viewBox="0 0 200 400" width="100%" style="max-width:260px">
+        <!-- Head -->
+        <ellipse cx="100" cy="28" rx="22" ry="26" fill="#475569"/>
+        <!-- Neck -->
+        <rect x="92" y="50" width="16" height="14" fill="#475569"/>
+
+        <!-- Shoulders (010.shoulders) -->
+        <ellipse data-muscle="010.shoulders" class="muscle-group" cx="62"  cy="74" rx="18" ry="12"/>
+        <ellipse data-muscle="010.shoulders" class="muscle-group" cx="138" cy="74" rx="18" ry="12"/>
+
+        <!-- Chest (020.pectorals) -->
+        <path data-muscle="020.pectorals" class="muscle-group"
+              d="M78 65 Q100 60 122 65 L125 100 Q100 108 75 100 Z"/>
+
+        <!-- Trapezius (030.trapezius) visible at top back / front upper -->
+        <path data-muscle="030.trapezius" class="muscle-group"
+              d="M82 64 Q100 58 118 64 L116 72 Q100 66 84 72 Z"/>
+
+        <!-- Biceps (041.armFlexors) -->
+        <rect data-muscle="041.armFlexors" class="muscle-group" x="42" y="86" width="14" height="40" rx="7"/>
+        <rect data-muscle="041.armFlexors" class="muscle-group" x="144" y="86" width="14" height="40" rx="7"/>
+
+        <!-- Triceps (040.armExtensors) – shown on outer arms -->
+        <rect data-muscle="040.armExtensors" class="muscle-group" x="30" y="86" width="12" height="38" rx="6"/>
+        <rect data-muscle="040.armExtensors" class="muscle-group" x="158" y="86" width="12" height="38" rx="6"/>
+
+        <!-- Forearms (042/043) -->
+        <rect data-muscle="042.wristExtensors" class="muscle-group" x="34" y="126" width="12" height="32" rx="6"/>
+        <rect data-muscle="042.wristExtensors" class="muscle-group" x="154" y="126" width="12" height="32" rx="6"/>
+
+        <!-- Abs (050.abdominals) -->
+        <rect data-muscle="050.abdominals" class="muscle-group" x="84" y="102" width="32" height="52" rx="6"/>
+
+        <!-- Obliques (051.obliques) -->
+        <path data-muscle="051.obliques" class="muscle-group" d="M78 105 Q84 108 84 154 Q73 140 72 115 Z"/>
+        <path data-muscle="051.obliques" class="muscle-group" d="M122 105 Q116 108 116 154 Q127 140 128 115 Z"/>
+
+        <!-- Glutes (060.glutes) -->
+        <path data-muscle="060.glutes" class="muscle-group" d="M80 158 Q100 153 120 158 L124 192 Q100 200 76 192 Z"/>
+
+        <!-- Quads (070.quadriceps) -->
+        <rect data-muscle="070.quadriceps" class="muscle-group" x="80" y="195" width="16" height="70" rx="8"/>
+        <rect data-muscle="070.quadriceps" class="muscle-group" x="104" y="195" width="16" height="70" rx="8"/>
+
+        <!-- Adductors (071.adductors) -->
+        <path data-muscle="071.adductors" class="muscle-group" d="M96 195 Q100 200 100 265 Q96 265 92 260 Q88 225 92 195 Z"/>
+
+        <!-- Hamstrings (072.thighFlexors) – shown slightly at inner back -->
+        <rect data-muscle="072.thighFlexors" class="muscle-group" x="80" y="265" width="16" height="40" rx="8" opacity=".6"/>
+        <rect data-muscle="072.thighFlexors" class="muscle-group" x="104" y="265" width="16" height="40" rx="8" opacity=".6"/>
+
+        <!-- Calves -->
+        <rect data-muscle="090.calves" class="muscle-group" x="80" y="305" width="14" height="45" rx="7"/>
+        <rect data-muscle="090.calves" class="muscle-group" x="106" y="305" width="14" height="45" rx="7"/>
+
+        <!-- Torso outline -->
+        <path fill="none" stroke="#475569" stroke-width="1.5"
+              d="M78 65 Q62 62 45 78 L30 84 L28 158 Q42 168 76 160 L76 195 L80 350 L92 352 L92 270 L100 265 L108 270 L108 352 L120 350 L124 195 L124 160 Q158 168 172 158 L170 84 L155 78 Q138 62 122 65"/>
+      </svg>
+
+      <h3 style="margin:1.5rem 0 .75rem;color:#94a3b8;font-size:.9rem;text-transform:uppercase;letter-spacing:.05em">Rückseite</h3>
+      <svg viewBox="0 0 200 400" width="100%" style="max-width:260px">
+        <!-- Head back -->
+        <ellipse cx="100" cy="28" rx="22" ry="26" fill="#475569"/>
+        <rect x="92" y="50" width="16" height="14" fill="#475569"/>
+
+        <!-- Trapezius (030.trapezius) – back view, large -->
+        <path data-muscle="030.trapezius" class="muscle-group"
+              d="M80 64 Q100 56 120 64 L130 100 Q100 110 70 100 Z"/>
+
+        <!-- Rear deltoid (010.shoulders back) -->
+        <ellipse data-muscle="010.shoulders" class="muscle-group" cx="62"  cy="74" rx="18" ry="12"/>
+        <ellipse data-muscle="010.shoulders" class="muscle-group" cx="138" cy="74" rx="18" ry="12"/>
+
+        <!-- Lats (031.dorsalMuscles) -->
+        <path data-muscle="031.dorsalMuscles" class="muscle-group"
+              d="M70 100 Q55 115 56 145 L76 155 L76 105 Z"/>
+        <path data-muscle="031.dorsalMuscles" class="muscle-group"
+              d="M130 100 Q145 115 144 145 L124 155 L124 105 Z"/>
+
+        <!-- Lower back (032.lumbarMuscles) -->
+        <rect data-muscle="032.lumbarMuscles" class="muscle-group" x="82" y="138" width="36" height="30" rx="6"/>
+
+        <!-- Triceps back view (040.armExtensors) -->
+        <rect data-muscle="040.armExtensors" class="muscle-group" x="42" y="86" width="14" height="42" rx="7"/>
+        <rect data-muscle="040.armExtensors" class="muscle-group" x="144" y="86" width="14" height="42" rx="7"/>
+
+        <!-- Biceps visible slightly (041.armFlexors) -->
+        <rect data-muscle="041.armFlexors" class="muscle-group" x="30" y="90" width="11" height="36" rx="5" opacity=".5"/>
+        <rect data-muscle="041.armFlexors" class="muscle-group" x="159" y="90" width="11" height="36" rx="5" opacity=".5"/>
+
+        <!-- Glutes back view -->
+        <path data-muscle="060.glutes" class="muscle-group" d="M76 158 Q100 150 124 158 L128 195 Q100 204 72 195 Z"/>
+
+        <!-- Hamstrings back (072.thighFlexors) -->
+        <rect data-muscle="072.thighFlexors" class="muscle-group" x="78" y="198" width="18" height="68" rx="9"/>
+        <rect data-muscle="072.thighFlexors" class="muscle-group" x="104" y="198" width="18" height="68" rx="9"/>
+
+        <!-- Adductors (071.adductors) back-->
+        <path data-muscle="071.adductors" class="muscle-group" d="M96 198 Q100 205 100 266 Q96 266 92 260 Q88 228 92 198 Z"/>
+
+        <!-- Calves back -->
+        <rect data-muscle="090.calves" class="muscle-group" x="80" y="268" width="16" height="50" rx="8"/>
+        <rect data-muscle="090.calves" class="muscle-group" x="104" y="268" width="16" height="50" rx="8"/>
+
+        <!-- Torso outline back -->
+        <path fill="none" stroke="#475569" stroke-width="1.5"
+              d="M78 65 Q62 62 45 78 L30 84 L28 158 Q42 168 76 160 L76 195 L80 350 L92 352 L92 270 L100 265 L108 270 L108 352 L120 350 L124 195 L124 160 Q158 168 172 158 L170 84 L155 78 Q138 62 122 65"/>
+      </svg>
+    </div>
+
+    <!-- Legende / Heatmap-Tabelle -->
+    <div class="legend-wrap">
+      <h3 style="margin:0 0 .5rem">Muskelgruppen – letzte <span th:text="${days}"></span> Tage</h3>
+      <p style="color:#64748b;font-size:.85rem;margin:0 0 1rem">Anzahl Trainingseinheiten je Muskel</p>
+
+      <div th:if="${heatmap.isEmpty()}" style="color:#64748b">
+        Noch keine Daten. Bitte GymBook importieren.
+      </div>
+
+      <div th:unless="${heatmap.isEmpty()}" id="muscleList"></div>
+    </div>
+  </div>
+</main>
+
+<script th:inline="javascript">
+const rawHeatmap = /*[[${heatmap}]]*/ {};
+
+// Human-readable muscle labels
+const MUSCLE_LABELS = {
+  '010.shoulders':      'Schultern',
+  '020.pectorals':      'Brust',
+  '030.trapezius':      'Trapez / Nacken',
+  '031.dorsalMuscles':  'Rücken (Lat)',
+  '032.lumbarMuscles':  'Unterer Rücken',
+  '040.armExtensors':   'Trizeps',
+  '041.armFlexors':     'Bizeps',
+  '042.wristExtensors': 'Unterarm (Strecker)',
+  '043.wristFlexors':   'Unterarm (Beuger)',
+  '050.abdominals':     'Bauch (Abs)',
+  '051.obliques':       'Schräge Bauchmuskeln',
+  '060.glutes':         'Gesäß (Glutes)',
+  '070.quadriceps':     'Quadrizeps',
+  '071.adductors':      'Adduktoren',
+  '072.thighFlexors':   'Hamstrings',
+  '090.calves':         'Waden',
+  '090.cardio':         'Cardio',
+  '099.other':          'Sonstige',
+};
+
+const maxVal = Math.max(1, ...Object.values(rawHeatmap));
+
+// Build legend
+const list = document.getElementById('muscleList');
+const sorted = Object.entries(rawHeatmap).sort((a,b) => b[1] - a[1]);
+sorted.forEach(([id, count]) => {
+  const label = MUSCLE_LABELS[id] || id;
+  const pct   = Math.round(count / maxVal * 100);
+  const row   = document.createElement('div');
+  row.className = 'muscle-row';
+  row.innerHTML = `
+    <span class="muscle-name">${label}</span>
+    <div class="muscle-bar-wrap"><div class="muscle-bar" style="width:${pct}%"></div></div>
+    <span class="muscle-count">${count}×</span>`;
+  list.appendChild(row);
+});
+
+// Color SVG muscles based on heatmap
+document.querySelectorAll('[data-muscle]').forEach(el => {
+  const id  = el.getAttribute('data-muscle');
+  const cnt = rawHeatmap[id] || 0;
+  if (cnt === 0) return;
+  const ratio = cnt / maxVal;
+  let cls;
+  if (ratio >= 0.9)      cls = 'heat-max';
+  else if (ratio >= 0.7) cls = 'heat-1';
+  else if (ratio >= 0.5) cls = 'heat-2';
+  else if (ratio >= 0.3) cls = 'heat-3';
+  else if (ratio >= 0.1) cls = 'heat-4';
+  else                   cls = 'heat-5';
+  el.classList.add(cls);
+  el.title = (MUSCLE_LABELS[id] || id) + ': ' + cnt + '×';
+});
+</script>
+</body>
+</html>

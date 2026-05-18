@@ -243,7 +243,10 @@ public class HealthImportService {
 
             // ── Tägliche Aggregatmetriken ─────────────────────────────────────
             switch (type) {
-                case "HKQuantityTypeIdentifierStepCount"                -> d.addSteps(val);
+                // Schritte: nur Apple-Geräte (Apple Watch, iPhone) — QRing etc. ausschließen
+                case "HKQuantityTypeIdentifierStepCount" -> {
+                    if (isAppleStepSource(source)) d.addSteps(val);
+                }
                 case "HKQuantityTypeIdentifierActiveEnergyBurned"       -> d.addActiveEnergy(val);
                 case "HKQuantityTypeIdentifierBasalEnergyBurned"        -> d.addBasalEnergy(val);
                 case "HKQuantityTypeIdentifierHeartRate"                 -> d.addHeartRate(val);
@@ -251,14 +254,28 @@ public class HealthImportService {
                 case "HKQuantityTypeIdentifierRespiratoryRate"           -> d.addRespiratoryRate(val);
                 case "HKQuantityTypeIdentifierOxygenSaturation"          -> d.addOxygenSaturation(val * 100.0);
                 case "HKQuantityTypeIdentifierTimeInDaylight"            -> d.addDaylight(val);
-                // ── Nutrition ─────────────────────────────────────────────────
-                case "HKQuantityTypeIdentifierDietaryEnergyConsumed"    -> d.addDietaryKcal(val);
-                case "HKQuantityTypeIdentifierDietaryProtein"           -> d.addDietaryProtein(val);
-                case "HKQuantityTypeIdentifierDietaryCarbohydrates"     -> d.addDietaryCarbs(val);
-                case "HKQuantityTypeIdentifierDietaryFatTotal"          -> d.addDietaryFat(val);
-                case "HKQuantityTypeIdentifierDietarySugar"             -> d.addDietarySugar(val);
-                case "HKQuantityTypeIdentifierDietaryFiber"             -> d.addDietaryFiber(val);
-                case "HKQuantityTypeIdentifierDietaryWater"             -> d.addDietaryWater(val);
+                // ── Nutrition: nur Yazio als Quelle ──────────────────────────
+                case "HKQuantityTypeIdentifierDietaryEnergyConsumed" -> {
+                    if (isYazioSource(source)) d.addDietaryKcal(val);
+                }
+                case "HKQuantityTypeIdentifierDietaryProtein" -> {
+                    if (isYazioSource(source)) d.addDietaryProtein(val);
+                }
+                case "HKQuantityTypeIdentifierDietaryCarbohydrates" -> {
+                    if (isYazioSource(source)) d.addDietaryCarbs(val);
+                }
+                case "HKQuantityTypeIdentifierDietaryFatTotal" -> {
+                    if (isYazioSource(source)) d.addDietaryFat(val);
+                }
+                case "HKQuantityTypeIdentifierDietarySugar" -> {
+                    if (isYazioSource(source)) d.addDietarySugar(val);
+                }
+                case "HKQuantityTypeIdentifierDietaryFiber" -> {
+                    if (isYazioSource(source)) d.addDietaryFiber(val);
+                }
+                case "HKQuantityTypeIdentifierDietaryWater" -> {
+                    if (isYazioSource(source)) d.addDietaryWater(val);
+                }
                 default -> {}
             }
         }
@@ -352,6 +369,25 @@ public class HealthImportService {
             if (m.getOxygenSamples() > 0)       u.set("avgOxygenSaturation", m.getAvgOxygenSaturation());
             return u;
         }
+    }
+
+    // ── Quellen-Filter ────────────────────────────────────────────────────────
+
+    /**
+     * Nur Apple-Geräte als Schrittquelle: Apple Watch und iPhone.
+     * Drittanbieter wie QRing zählen Schritte parallel und würden doppeln.
+     */
+    private static boolean isAppleStepSource(String source) {
+        if (source == null) return false;
+        // non-breaking space \u00a0 in "Apple\u00a0Watch" aus dem Export
+        return source.startsWith("Apple") || source.startsWith("iPhone") || source.startsWith("Victors iPhone");
+    }
+
+    /**
+     * Nur Yazio-Einträge für Ernährungsdaten übernehmen.
+     */
+    private static boolean isYazioSource(String source) {
+        return "Yazio".equalsIgnoreCase(source);
     }
 
     // ── Datum-Parsing ─────────────────────────────────────────────────────────

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title th:text="${exerciseName != null ? exerciseName + ' – GymBook' : 'Übung wählen – GymBook'}">Übung</title>
+  <link rel="stylesheet" th:href="@{/css/style.css}"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .exercise-select{width:100%;padding:.6rem 1rem;background:#1e293b;border:1px solid #334155;border-radius:8px;color:#f1f5f9;font-size:1rem;margin-bottom:1.5rem}
+    .chart-wrap{background:#1e293b;border-radius:10px;padding:1.5rem;margin-bottom:2rem}
+    .log-table{width:100%;border-collapse:collapse;font-size:.9rem}
+    .log-table th{text-align:left;padding:.6rem .8rem;color:#94a3b8;border-bottom:1px solid #334155;font-weight:500}
+    .log-table td{padding:.55rem .8rem;border-bottom:1px solid #1e293b}
+    .log-table tr:hover td{background:#1e293b}
+    .set-badge{display:inline-block;background:#0f172a;border:1px solid #334155;border-radius:4px;padding:.1rem .45rem;margin:.1rem;font-size:.78rem;color:#94a3b8}
+    .pr-badge{background:rgba(249,115,22,.15);border-color:#f97316;color:#f97316}
+  </style>
+</head>
+<body>
+<div th:replace="~{fragments/nav :: main-nav}"></div>
+<main class="container" style="max-width:1000px;margin:2rem auto;padding:0 1rem">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+    <h1 style="margin:0" th:text="${exerciseName != null ? exerciseName : 'Übung auswählen'}">Übung</h1>
+    <a th:href="@{/gymbook}" class="btn btn-secondary">Dashboard</a>
+  </div>
+
+  <!-- Exercise selector -->
+  <form method="get" th:action="@{/gymbook/exercise/__dummy__}" id="exerciseForm">
+    <select class="exercise-select" id="exerciseSelect" onchange="navigateToExercise(this.value)">
+      <option value="">– Übung wählen –</option>
+      <option th:each="ex : ${allExercises}"
+              th:value="${ex}"
+              th:text="${ex}"
+              th:selected="${ex == exerciseName}"></option>
+    </select>
+  </form>
+
+  <!-- Weight progression chart -->
+  <div th:if="${progressData != null and !progressData.isEmpty()}">
+    <div class="chart-wrap">
+      <h3 style="margin:0 0 1rem">Maximales Gewicht pro Training (kg)</h3>
+      <canvas id="weightChart" height="100"></canvas>
+    </div>
+
+    <!-- Session log table -->
+    <h2>Trainingsprotokoll</h2>
+    <table class="log-table">
+      <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Max (kg)</th>
+          <th>Sätze</th>
+          <th>Wdh.</th>
+          <th>Satz-Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="p : ${progressData}">
+          <td th:text="${p.date}" style="font-weight:600;white-space:nowrap"></td>
+          <td>
+            <span th:text="${#numbers.formatDecimal(p.maxWeightKg,1,1)}"></span> kg
+          </td>
+          <td th:text="${p.totalSets}"></td>
+          <td th:text="${p.totalReps}"></td>
+          <td>
+            <span th:each="s : ${p.sets}"
+                  th:classappend="${s.weightKg == p.maxWeightKg ? ' pr-badge' : ''}"
+                  th:text="${#numbers.formatDecimal(s.weightKg,1,1) + ' kg × ' + s.reps}"
+                  class="set-badge"></span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- No data yet -->
+  <div th:if="${exerciseName != null and (progressData == null or progressData.isEmpty())}"
+       style="color:#64748b;padding:2rem;text-align:center">
+    Keine Daten für diese Übung gefunden.
+  </div>
+</main>
+
+<script th:inline="javascript">
+const labels  = /*[[${dateLabels}]]*/ [];
+const weights = /*[[${weightValues}]]*/ [];
+
+if (labels.length > 0) {
+  new Chart(document.getElementById('weightChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Max. Gewicht (kg)',
+        data: weights,
+        borderColor: '#4a9eff',
+        backgroundColor: 'rgba(74,158,255,0.1)',
+        pointBackgroundColor: '#4a9eff',
+        pointRadius: 4,
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ctx.parsed.y + ' kg' } }
+      },
+      scales: {
+        x: { ticks: { color: '#94a3b8', maxTicksLimit: 12 }, grid: { color: '#334155' } },
+        y: { ticks: { color: '#94a3b8', callback: v => v + ' kg' }, grid: { color: '#334155' } }
+      }
+    }
+  });
+}
+
+function navigateToExercise(name) {
+  if (name) window.location.href = '/gymbook/exercise/' + encodeURIComponent(name);
+}
+</script>
+</body>
+</html>

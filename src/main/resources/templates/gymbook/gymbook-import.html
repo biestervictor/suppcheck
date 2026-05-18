@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>GymBook Import – SuppCheck</title>
+  <link rel="stylesheet" th:href="@{/css/style.css}"/>
+  <style>
+    .drop-zone{border:2px dashed #4a9eff;border-radius:12px;padding:3rem;text-align:center;cursor:pointer;transition:background .2s}
+    .drop-zone.dragover{background:rgba(74,158,255,.1)}
+    .progress-wrap{background:#1e293b;border-radius:8px;height:12px;overflow:hidden;margin-top:1rem}
+    .progress-bar{height:100%;background:#4a9eff;width:0;transition:width .3s}
+    .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;margin-top:1.5rem}
+    .stat-card{background:#1e293b;border-radius:8px;padding:1rem;text-align:center}
+    .stat-val{font-size:1.8rem;font-weight:700;color:#4a9eff}
+    .stat-label{font-size:.8rem;color:#94a3b8;margin-top:.25rem}
+  </style>
+</head>
+<body>
+<div th:replace="~{fragments/nav :: main-nav}"></div>
+<main class="container" style="max-width:700px;margin:2rem auto;padding:0 1rem">
+  <h1>GymBook Import</h1>
+  <p style="color:#94a3b8">GymBook-Backup (.database) hochladen – SQLite-Datei direkt aus der GymBook-App.</p>
+
+  <div id="dropZone" class="drop-zone">
+    <div style="font-size:2.5rem">🏋️</div>
+    <p style="margin:.5rem 0 0">Backup hier ablegen oder <strong>klicken</strong></p>
+    <p style="font-size:.85rem;color:#64748b">.database – beliebige Größe</p>
+    <input type="file" id="fileInput" accept=".database" style="display:none"/>
+  </div>
+
+  <div class="progress-wrap" id="progressWrap" style="display:none">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+  <p id="statusMsg" style="margin-top:.75rem;color:#94a3b8"></p>
+
+  <div class="stat-grid" id="statGrid" style="display:none">
+    <div class="stat-card"><div class="stat-val" id="statSessions">–</div><div class="stat-label">Sessions</div></div>
+    <div class="stat-card"><div class="stat-val" id="statSets">–</div><div class="stat-label">Sätze</div></div>
+  </div>
+
+  <!-- Current status if already imported -->
+  <div th:if="${status != null and status != 'idle'}" style="margin-top:2rem;padding:1rem;background:#1e293b;border-radius:8px">
+    <strong>Letzter Import:</strong>
+    <span th:text="${status}" style="color:#4a9eff"></span>
+    <span th:if="${importedSessions > 0}"> – <span th:text="${importedSessions}"></span> Sessions, <span th:text="${importedSets}"></span> Sätze</span>
+    <span th:if="${importError}" style="color:#f87171"> – <span th:text="${importError}"></span></span>
+  </div>
+</main>
+
+<script>
+const dropZone    = document.getElementById('dropZone');
+const fileInput   = document.getElementById('fileInput');
+const progressWrap= document.getElementById('progressWrap');
+const progressBar = document.getElementById('progressBar');
+const statusMsg   = document.getElementById('statusMsg');
+const statGrid    = document.getElementById('statGrid');
+let pollTimer;
+
+dropZone.addEventListener('click',  () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave',() => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) startUpload(file);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) startUpload(fileInput.files[0]); });
+
+function startUpload(file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  const xhr = new XMLHttpRequest();
+  progressWrap.style.display = 'block';
+  statusMsg.textContent = 'Lade hoch…';
+  xhr.upload.addEventListener('progress', e => {
+    if (e.lengthComputable) progressBar.style.width = (e.loaded / e.total * 100) + '%';
+  });
+  xhr.onload = () => {
+    if (xhr.status === 200) {
+      statusMsg.textContent = 'Upload abgeschlossen – Import läuft…';
+      progressBar.style.width = '100%';
+      pollTimer = setInterval(pollStatus, 1500);
+    } else {
+      const r = JSON.parse(xhr.responseText || '{}');
+      statusMsg.textContent = 'Fehler: ' + (r.error || xhr.status);
+    }
+  };
+  xhr.open('POST', '/gymbook/import/upload');
+  xhr.send(fd);
+}
+
+function pollStatus() {
+  fetch('/gymbook/import/status')
+    .then(r => r.json())
+    .then(d => {
+      statusMsg.textContent = 'Status: ' + d.status
+        + (d.importedSessions ? ' | Sessions: ' + d.importedSessions : '')
+        + (d.importedSets     ? ' | Sätze: '    + d.importedSets     : '');
+      if (d.status === 'done') {
+        clearInterval(pollTimer);
+        statGrid.style.display = 'grid';
+        document.getElementById('statSessions').textContent = d.importedSessions || '–';
+        document.getElementById('statSets').textContent     = d.importedSets     || '–';
+        statusMsg.textContent = 'Import abgeschlossen!';
+      }
+      if (d.status === 'error') {
+        clearInterval(pollTimer);
+        statusMsg.textContent = 'Fehler: ' + d.error;
+        statusMsg.style.color = '#f87171';
+      }
+    });
+}
+</script>
+</body>
+</html>
