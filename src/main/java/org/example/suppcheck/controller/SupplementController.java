@@ -11,6 +11,7 @@ import org.example.suppcheck.mapper.SupplementMapper;
 import org.example.suppcheck.model.Ingredient;
 import org.example.suppcheck.model.IngredientHistoryEntry;
 import org.example.suppcheck.model.Shop;
+import org.example.suppcheck.model.StockBatch;
 import org.example.suppcheck.model.Supplement;
 import org.example.suppcheck.model.SupplementType;
 import org.example.suppcheck.service.DailyIntakeSnapshotService;
@@ -23,6 +24,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.time.LocalDate;
 
 /**
  * Controller for the Supplement entity.
@@ -321,6 +324,37 @@ public class SupplementController {
             @RequestParam int delta) {
         try {
             int newStock = supplementService.adjustStock(id, delta);
+            return ResponseEntity.ok(Map.of("stock", newStock));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    /**
+     * Fügt einen Restock-Batch hinzu (Flavor + MHD + Menge) und erhöht den Lagerbestand.
+     *
+     * @param id         die Supplement-ID
+     * @param flavor     Geschmacksrichtung (optional)
+     * @param expiryDate MHD als ISO-String yyyy-MM-dd (optional)
+     * @param quantity   Anzahl Packungen/Portionen (min. 1)
+     * @return JSON mit neuem Bestand, z.B. {"stock": 3}
+     */
+    @PostMapping(value = "/{id}/stock/batch", produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<Map<String, Integer>> addStockBatch(
+            @PathVariable String id,
+            @RequestParam(required = false) String flavor,
+            @RequestParam(required = false) String expiryDate,
+            @RequestParam(defaultValue = "1") int quantity) {
+        try {
+            LocalDate expiry = (expiryDate != null && !expiryDate.isBlank())
+                    ? LocalDate.parse(expiryDate) : null;
+            StockBatch batch = new StockBatch(
+                    (flavor != null && !flavor.isBlank()) ? flavor : null,
+                    expiry,
+                    LocalDate.now(),
+                    Math.max(1, quantity));
+            int newStock = supplementService.addStockBatch(id, batch);
             return ResponseEntity.ok(Map.of("stock", newStock));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();

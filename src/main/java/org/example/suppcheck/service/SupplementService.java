@@ -13,6 +13,7 @@ import org.example.suppcheck.dto.IngredientWithSources;
 import org.example.suppcheck.model.Ingredient;
 import org.example.suppcheck.model.IngredientHistoryEntry;
 import org.example.suppcheck.model.PriceEntry;
+import org.example.suppcheck.model.StockBatch;
 import org.example.suppcheck.model.Supplement;
 import org.example.suppcheck.model.SupplementType;
 import org.example.suppcheck.repository.SupplementRepository;
@@ -318,6 +319,24 @@ public class SupplementService {
     supp.setStock(newStock);
     supplementRepository.save(supp);
     return newStock;
+  }
+
+  /**
+   * Fügt einen Restock-Batch hinzu und erhöht den Lagerbestand um dessen Menge.
+   *
+   * @param id    die Supplement-ID
+   * @param batch der hinzuzufügende Batch (Flavor, MHD, Datum, Menge)
+   * @return neuer Gesamtbestand
+   * @throws IllegalArgumentException wenn kein Supplement mit der ID gefunden wurde
+   */
+  public int addStockBatch(String id, StockBatch batch) {
+    Supplement supp = supplementRepository.findById(id)
+        .orElseThrow(() -> new IllegalArgumentException("Supplement mit ID " + id + " nicht gefunden"));
+    if (supp.getStockBatches() == null) supp.setStockBatches(new java.util.ArrayList<>());
+    supp.getStockBatches().add(batch);
+    supp.setStock(supp.getStock() + batch.getQuantity());
+    supplementRepository.save(supp);
+    return supp.getStock();
   }
 
   /**

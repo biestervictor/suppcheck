@@ -631,5 +631,52 @@ class SupplementServiceTest {
                 () -> service.adjustStock("missing", 1));
         verify(repository, never()).save(any());
     }
+
+    // --- addStockBatch ---
+
+    @Test
+    void addStockBatch_addsToStockAndSavesBatch() {
+        Supplement supp = new Supplement();
+        supp.setId("id-1");
+        supp.setStock(2);
+        when(repository.findById("id-1")).thenReturn(Optional.of(supp));
+
+        org.example.suppcheck.model.StockBatch batch =
+                new org.example.suppcheck.model.StockBatch("Chocolate", null, java.time.LocalDate.now(), 3);
+
+        int result = service.addStockBatch("id-1", batch);
+
+        assertEquals(5, result);
+        assertEquals(5, supp.getStock());
+        assertEquals(1, supp.getStockBatches().size());
+        assertEquals("Chocolate", supp.getStockBatches().get(0).getFlavor());
+        verify(repository).save(supp);
+    }
+
+    @Test
+    void addStockBatch_noFlavor_stockStillIncremented() {
+        Supplement supp = new Supplement();
+        supp.setId("id-2");
+        supp.setStock(0);
+        when(repository.findById("id-2")).thenReturn(Optional.of(supp));
+
+        org.example.suppcheck.model.StockBatch batch =
+                new org.example.suppcheck.model.StockBatch(null, null, java.time.LocalDate.now(), 1);
+
+        int result = service.addStockBatch("id-2", batch);
+
+        assertEquals(1, result);
+        verify(repository).save(supp);
+    }
+
+    @Test
+    void addStockBatch_notFound_throwsIllegalArgumentException() {
+        when(repository.findById("missing")).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.addStockBatch("missing",
+                        new org.example.suppcheck.model.StockBatch(null, null, java.time.LocalDate.now(), 1)));
+        verify(repository, never()).save(any());
+    }
 }
 

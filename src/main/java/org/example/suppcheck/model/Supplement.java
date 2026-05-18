@@ -83,6 +83,18 @@ public class Supplement {
   private int stock = 0;
 
   /**
+   * Verfügbare Flavors/Geschmacksrichtungen für dieses Supplement.
+   * Wird beim Bearbeiten gepflegt und im Restock-Modal als Dropdown angeboten.
+   */
+  private List<String> flavors = new ArrayList<>();
+
+  /**
+   * Einzelne Restock-Einheiten mit Flavor, MHD und Datum.
+   * Der aktuelle Gesamtbestand ergibt sich aus {@link #stock}.
+   */
+  private List<StockBatch> stockBatches = new ArrayList<>();
+
+  /**
    * Returns the latest historical price if present.
    */
   public double getPrice() {

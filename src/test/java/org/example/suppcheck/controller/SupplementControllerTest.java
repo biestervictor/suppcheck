@@ -2,6 +2,7 @@ package org.example.suppcheck.controller;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -401,6 +402,64 @@ class SupplementControllerTest {
         assertNotNull(response.getBody());
         assertEquals(1, response.getBody().getIngredients().size());
         assertEquals("Protein", response.getBody().getIngredients().getFirst().getName());
+    }
+
+    // --- adjustStock ---
+
+    @Test
+    void adjustStock_success_returnsNewStock() {
+        when(service.adjustStock("id-1", 1)).thenReturn(4);
+
+        ResponseEntity<java.util.Map<String, Integer>> resp = controller.adjustStock("id-1", 1);
+
+        assertEquals(HttpStatus.OK, resp.getStatusCode());
+        assertNotNull(resp.getBody());
+        assertEquals(4, resp.getBody().get("stock"));
+    }
+
+    @Test
+    void adjustStock_notFound_returns404() {
+        when(service.adjustStock("missing", 1))
+                .thenThrow(new IllegalArgumentException("not found"));
+
+        ResponseEntity<java.util.Map<String, Integer>> resp = controller.adjustStock("missing", 1);
+
+        assertEquals(HttpStatus.NOT_FOUND, resp.getStatusCode());
+    }
+
+    // --- addStockBatch ---
+
+    @Test
+    void addStockBatch_success_returnsNewStock() {
+        when(service.addStockBatch(eq("id-1"), any())).thenReturn(5);
+
+        ResponseEntity<java.util.Map<String, Integer>> resp =
+                controller.addStockBatch("id-1", "Chocolate", "2026-12-31", 3);
+
+        assertEquals(HttpStatus.OK, resp.getStatusCode());
+        assertNotNull(resp.getBody());
+        assertEquals(5, resp.getBody().get("stock"));
+    }
+
+    @Test
+    void addStockBatch_noFlavorNoMhd_success() {
+        when(service.addStockBatch(eq("id-2"), any())).thenReturn(1);
+
+        ResponseEntity<java.util.Map<String, Integer>> resp =
+                controller.addStockBatch("id-2", null, null, 1);
+
+        assertEquals(HttpStatus.OK, resp.getStatusCode());
+    }
+
+    @Test
+    void addStockBatch_notFound_returns404() {
+        when(service.addStockBatch(eq("missing"), any()))
+                .thenThrow(new IllegalArgumentException("not found"));
+
+        ResponseEntity<java.util.Map<String, Integer>> resp =
+                controller.addStockBatch("missing", null, null, 1);
+
+        assertEquals(HttpStatus.NOT_FOUND, resp.getStatusCode());
     }
 }
 

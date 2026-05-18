@@ -364,11 +364,15 @@
         </td>
         <td th:text="${supplement.mhdProdukt ? '✅' : ''}">MHD</td>
         <td>
-            <div class="stock-controls" th:data-id="${supplement.id}">
+            <div class="stock-controls"
+                 th:data-id="${supplement.id}"
+                 th:data-name="${supplement.name}"
+                 th:data-mhd="${supplement.mhdProdukt}"
+                 th:data-flavors="${supplement.flavors != null and !supplement.flavors.isEmpty() ? #strings.listJoin(supplement.flavors, '|') : ''}">
                 <button class="stock-btn minus" type="button" onclick="adjustStock(this, -1)">−</button>
                 <span class="stock-value" th:classappend="${supplement.stock == 0 ? ' empty' : ''}"
                       th:text="${supplement.stock}">0</span>
-                <button class="stock-btn plus" type="button" onclick="adjustStock(this, 1)">+</button>
+                <button class="stock-btn plus" type="button" onclick="openRestockModal(this)">+</button>
             </div>
         </td>
         <td>
@@ -570,6 +574,134 @@
         })
         .catch(function(err) {
             alert('Fehler beim Aktualisieren des Bestands: ' + err.message);
+        });
+    }
+</script>
+
+<!-- ======== Restock Modal ======== -->
+<div id="restock-modal" class="check-modal-overlay">
+    <div class="check-modal-box">
+        <h3>Bestand hinzufügen</h3>
+        <p id="restock-modal-name" style="margin:0 0 16px;font-weight:bold;color:#444;"></p>
+
+        <div style="margin-bottom:12px">
+            <label for="restock-flavor" style="display:block;margin-bottom:4px;font-weight:bold;color:#444;">Flavor / Geschmack (optional):</label>
+            <input type="text" id="restock-flavor" list="restock-flavor-list"
+                   placeholder="z.B. Chocolate, Vanilla …"
+                   style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #bfc9d1;border-radius:4px;font-size:0.95em;"/>
+            <datalist id="restock-flavor-list"></datalist>
+        </div>
+
+        <div id="restock-mhd-group" style="margin-bottom:12px;display:none">
+            <label for="restock-mhd" style="display:block;margin-bottom:4px;font-weight:bold;color:#444;">MHD:</label>
+            <input type="date" id="restock-mhd"
+                   style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #bfc9d1;border-radius:4px;font-size:0.95em;"/>
+        </div>
+
+        <div style="margin-bottom:18px">
+            <label for="restock-qty" style="display:block;margin-bottom:4px;font-weight:bold;color:#444;">Anzahl (Packungen/Portionen):</label>
+            <input type="number" id="restock-qty" min="1" value="1"
+                   style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #bfc9d1;border-radius:4px;font-size:0.95em;"/>
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button onclick="submitRestock()"
+                    style="background:#27ae60;color:#fff;border:none;padding:8px 18px;border-radius:4px;cursor:pointer;font-size:0.95em;font-weight:bold;">
+                ✅ Hinzufügen
+            </button>
+            <button onclick="closeRestockModal()"
+                    style="background:#aaa;color:#fff;border:none;padding:8px 18px;border-radius:4px;cursor:pointer;font-size:0.95em;">
+                Abbrechen
+            </button>
+        </div>
+        <span id="restock-status" style="display:block;margin-top:12px;font-style:italic;min-height:1.4em;"></span>
+    </div>
+</div>
+
+<script>
+    var currentRestockId       = null;
+    var currentRestockControls = null;
+
+    function openRestockModal(btn) {
+        var controls = btn.closest('.stock-controls');
+        currentRestockId       = controls.getAttribute('data-id');
+        currentRestockControls = controls;
+
+        var name      = controls.getAttribute('data-name') || '';
+        var isMhd     = controls.getAttribute('data-mhd') === 'true';
+        var flavorsRaw = controls.getAttribute('data-flavors') || '';
+        var flavors   = flavorsRaw ? flavorsRaw.split('|').filter(function(f){ return f.trim(); }) : [];
+
+        document.getElementById('restock-modal-name').textContent = name;
+        document.getElementById('restock-mhd-group').style.display = isMhd ? 'block' : 'none';
+        document.getElementById('restock-mhd').value    = '';
+        document.getElementById('restock-flavor').value = '';
+        document.getElementById('restock-qty').value    = '1';
+        document.getElementById('restock-status').textContent = '';
+        document.getElementById('restock-status').style.color = '#555';
+
+        var dataList = document.getElementById('restock-flavor-list');
+        dataList.innerHTML = '';
+        flavors.forEach(function(f) {
+            var opt = document.createElement('option');
+            opt.value = f.trim();
+            dataList.appendChild(opt);
+        });
+
+        document.getElementById('restock-modal').classList.add('active');
+    }
+
+    function closeRestockModal() {
+        document.getElementById('restock-modal').classList.remove('active');
+        currentRestockId       = null;
+        currentRestockControls = null;
+    }
+
+    document.getElementById('restock-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeRestockModal();
+    });
+
+    function submitRestock() {
+        var flavor = document.getElementById('restock-flavor').value.trim();
+        var mhd    = document.getElementById('restock-mhd').value;
+        var qty    = parseInt(document.getElementById('restock-qty').value, 10);
+        var status = document.getElementById('restock-status');
+
+        if (isNaN(qty) || qty < 1) {
+            status.textContent = 'Bitte eine gültige Anzahl eingeben (min. 1).';
+            status.style.color = '#c0392b';
+            return;
+        }
+
+        status.textContent = 'Wird gespeichert…';
+        status.style.color = '#555';
+
+        var formData = new FormData();
+        if (flavor) formData.append('flavor',     flavor);
+        if (mhd)    formData.append('expiryDate', mhd);
+        formData.append('quantity', qty);
+
+        fetch('/supplements/' + currentRestockId + '/stock/batch', {
+            method: 'POST',
+            body: formData
+        })
+        .then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
+        .then(function(data) {
+            var valueEl = currentRestockControls.querySelector('.stock-value');
+            valueEl.textContent = data.stock;
+            if (data.stock === 0) {
+                valueEl.classList.add('empty');
+            } else {
+                valueEl.classList.remove('empty');
+            }
+            closeRestockModal();
+        })
+        .catch(function(err) {
+            status.textContent = 'Fehler: ' + err.message;
+            status.style.color = '#c0392b';
         });
     }
 </script>
