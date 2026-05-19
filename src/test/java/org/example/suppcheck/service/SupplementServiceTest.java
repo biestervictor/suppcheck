@@ -446,10 +446,13 @@ class SupplementServiceTest {
     }
 
     @Test
-    void saveSupplement_existingWithNullBatches_keepsExistingFlavors() {
+    void saveSupplement_existingWithEmptyBatches_clearsFlavorsAndStock() {
         Supplement existing = new Supplement();
         existing.setId("id-1");
         existing.setFlavors(new ArrayList<>(List.of("Mango")));
+        existing.setStock(5);
+        StockBatch oldBatch = new StockBatch("Mango", null, LocalDate.now(), 5);
+        existing.setStockBatches(new ArrayList<>(List.of(oldBatch)));
         PriceEntry entry = new PriceEntry();
         entry.setPrice(10.0); entry.setOvp(20.0);
         existing.setPrices(new ArrayList<>(List.of(entry)));
@@ -458,12 +461,13 @@ class SupplementServiceTest {
         Supplement incoming = new Supplement();
         incoming.setId("id-1");
         incoming.setPrice(10.0); incoming.setOvp(20.0);
-        incoming.setFlavors(new ArrayList<>(List.of("Mango")));
-        // no stockBatches set
+        // stockBatches defaults to new ArrayList<>() — user deleted all batches
 
         service.saveSupplement(incoming);
 
-        assertEquals(List.of("Mango"), existing.getFlavors());
+        assertEquals(List.of(), existing.getFlavors());
+        assertEquals(0, existing.getStock());
+        assertEquals(List.of(), existing.getStockBatches());
     }
 
     // --- Hilfsmethode ---

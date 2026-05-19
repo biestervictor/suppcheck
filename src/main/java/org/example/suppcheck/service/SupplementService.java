@@ -243,16 +243,16 @@ public class SupplementService {
       existing.setNonDaily(supplement.isNonDaily());
       existing.setConsumptionIntervalDays(supplement.getConsumptionIntervalDays());
 
-      // Bestände und Flavors aktualisieren (nur wenn Batches im DTO übergeben wurden)
+      // Bestände und Flavors aktualisieren (leere Liste = alle Batches löschen)
       List<StockBatch> incomingBatches = supplement.getStockBatches();
-      if (incomingBatches != null && !incomingBatches.isEmpty()) {
+      if (incomingBatches != null) {
         existing.setStockBatches(new ArrayList<>(incomingBatches));
-        // Lagerbestand = Summe aller verbleibenden Einheiten
+        // Lagerbestand = Summe aller verbleibenden Einheiten (0 bei leerer Liste)
         int totalStock = incomingBatches.stream()
             .mapToInt(b -> b.getRemaining() != null ? b.getRemaining() : b.getQuantity())
             .sum();
         existing.setStock(totalStock);
-        // Flavors aus Batches ableiten
+        // Flavors aus Batches ableiten (leer bei leerer Batch-Liste)
         List<String> derivedFlavors = incomingBatches.stream()
             .map(StockBatch::getFlavor)
             .filter(f -> f != null && !f.isBlank())
@@ -260,8 +260,6 @@ public class SupplementService {
             .sorted()
             .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
         existing.setFlavors(derivedFlavors);
-      } else {
-        existing.setFlavors(supplement.getFlavors() != null ? supplement.getFlavors() : new ArrayList<>());
       }
 
       // Record ingredient history if anything changed
