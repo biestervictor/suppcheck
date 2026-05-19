@@ -182,7 +182,7 @@
 </div>
 
 <!-- ── Schritte & Muskelgruppen nebeneinander ────────────────────────────── -->
-<div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;margin-bottom:24px">
+<div style="display:flex;gap:20px;align-items:stretch;flex-wrap:wrap;margin-bottom:24px">
 
     <!-- Schritte-Chart -->
     <div class="chart-card" style="flex:1;min-width:280px;margin-bottom:0;display:flex;flex-direction:column">
@@ -196,7 +196,7 @@
                 <button class="range-btn" onclick="setStepsRange(0,this)">Alle</button>
             </div>
         </div>
-        <div style="position:relative;height:220px;width:100%">
+        <div style="position:relative;flex:1;min-height:220px;width:100%">
             <canvas id="stepsChart"></canvas>
         </div>
     </div>

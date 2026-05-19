@@ -291,6 +291,15 @@
         .ing-item.open .ing-detail { display: block; }
         .ing-sub-list { list-style: none; padding-left: 10px; margin: 2px 0 0; }
         .ing-sub-list li { color: #888; }
+        .ing-more-btn {
+            display: inline-block;
+            margin-top: 3px;
+            font-size: 0.78em;
+            color: #2d6cdf;
+            cursor: pointer;
+            user-select: none;
+        }
+        .ing-more-btn:hover { text-decoration: underline; }
 
     </style>
     <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
@@ -433,7 +442,7 @@
         </td>
         <td>
             <ul class="ing-list">
-                <li class="ing-item" th:each="ing : ${supplement.ingredients}">
+                <li class="ing-item" th:each="ing, iStat : ${supplement.ingredients}" th:if="${iStat.index < 5}">
                     <span class="ing-name" onclick="toggleIng(this.closest('.ing-item'))">
                         <span th:text="${ing.name}"></span>
                         <span class="ing-arrow">&#9654;</span>
@@ -446,6 +455,28 @@
                         </ul>
                     </div>
                 </li>
+                <th:block th:if="${supplement.ingredients.size() > 5}">
+                    <li>
+                        <ul class="ing-list" th:id="'ing-extra-' + ${supplement.id}" style="display:none">
+                            <li class="ing-item" th:each="ing, iStat : ${supplement.ingredients}" th:if="${iStat.index >= 5}">
+                                <span class="ing-name" onclick="toggleIng(this.closest('.ing-item'))">
+                                    <span th:text="${ing.name}"></span>
+                                    <span class="ing-arrow">&#9654;</span>
+                                </span>
+                                <div class="ing-detail">
+                                    <span th:text="'(' + ${ing.mg} + ' mg)'"></span>
+                                    <ul class="ing-sub-list" th:if="${ing.subIngredients != null and !ing.subIngredients.isEmpty()}">
+                                        <li th:each="sub : ${ing.subIngredients}"
+                                            th:text="${'→ ' + sub.name + ' (' + sub.mg + ' mg)'}"></li>
+                                    </ul>
+                                </div>
+                            </li>
+                        </ul>
+                        <span class="ing-more-btn"
+                              th:attr="onclick='toggleIngExtra(this,\'' + 'ing-extra-' + ${supplement.id} + '\',' + ${supplement.ingredients.size() - 5} + ')'"
+                              th:text="'+ ' + ${supplement.ingredients.size() - 5} + ' weitere …'"></span>
+                    </li>
+                </th:block>
             </ul>
         </td>
 
@@ -615,6 +646,14 @@
 <script>
     function toggleIng(item) {
         item.classList.toggle('open');
+    }
+
+    function toggleIngExtra(btn, extraId, total) {
+        var ul = document.getElementById(extraId);
+        if (!ul) return;
+        var hidden = ul.style.display === 'none';
+        ul.style.display = hidden ? 'block' : 'none';
+        btn.textContent = hidden ? '− weniger' : '+ ' + total + ' weitere …';
     }
 </script>
 <script>
