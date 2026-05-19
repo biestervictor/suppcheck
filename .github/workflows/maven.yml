@@ -62,6 +62,9 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Extracted version: $VERSION"
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -80,6 +83,8 @@ jobs:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ github.sha }}
