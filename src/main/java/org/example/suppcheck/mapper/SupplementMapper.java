@@ -29,7 +29,6 @@ public final class SupplementMapper {
     supp.setOvp(dto.getOvp() != null ? dto.getOvp() : 0d);
     supp.setDiscount(dto.getDiscount());
     supp.setMhdProdukt(dto.isMhdProdukt());
-    supp.setInBenutzung(dto.isInBenutzung());
     supp.setNonDaily(dto.isNonDaily());
     supp.setConsumptionIntervalDays(dto.getConsumptionIntervalDays() > 1 ? dto.getConsumptionIntervalDays() : 1);
 
@@ -44,6 +43,7 @@ public final class SupplementMapper {
         batch.setAddedDate(parseDate(bDto.getAddedDate()) != null ? parseDate(bDto.getAddedDate()) : LocalDate.now());
         batch.setQuantity(bDto.getQuantity() > 0 ? bDto.getQuantity() : 1);
         batch.setRemaining(bDto.getRemaining());
+        batch.setInBenutzung(bDto.isInBenutzung());
         stockBatches.add(batch);
       }
     }

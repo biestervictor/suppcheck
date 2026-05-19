@@ -25,4 +25,7 @@ public class StockBatchDto {
 
   /** Verbleibende Menge – editierbar. null = Legacy. */
   private Integer remaining;
+
+  /** True wenn dieser Batch/Flavor aktuell in Benutzung ist. */
+  private boolean inBenutzung;
 }

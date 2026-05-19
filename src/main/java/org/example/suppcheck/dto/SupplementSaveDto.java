@@ -23,12 +23,6 @@ public class SupplementSaveDto {
   private boolean mhdProdukt;
 
   /**
-   * True wenn dieses Supplement aktuell in Benutzung ist.
-   * Es darf immer nur ein Supplement gleichzeitig dieses Flag tragen.
-   */
-  private boolean inBenutzung;
-
-  /**
    * True wenn dieses Supplement nicht täglich eingenommen wird.
    */
   private boolean nonDaily;

@@ -36,6 +36,12 @@ public class StockBatch {
     private Integer remaining;
 
     /**
+     * True wenn dieser Batch/Flavor aktuell in Benutzung ist.
+     * Global darf immer nur ein Batch dieses Flag tragen.
+     */
+    private boolean inBenutzung = false;
+
+    /**
      * Erstellt einen neuen Batch; {@code remaining} wird auf {@code quantity} gesetzt.
      */
     public StockBatch(String flavor, LocalDate expiryDate, LocalDate addedDate, int quantity) {

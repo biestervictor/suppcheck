@@ -470,38 +470,42 @@ class SupplementServiceTest {
         assertEquals(List.of(), existing.getStockBatches());
     }
 
-    // --- inBenutzung uniqueness ---
+    // --- inBenutzung uniqueness (Batch-Level) ---
 
     @Test
-    void saveSupplement_setInBenutzung_clearsOtherSupplements() {
-        // existing supplement being saved
+    void saveSupplement_batchSetInBenutzung_clearsOtherSupplementsBatches() {
+        // existing supplement being saved — with a batch marked inBenutzung
         Supplement existing = new Supplement();
         existing.setId("id-1");
-        existing.setInBenutzung(true);
         PriceEntry entry = new PriceEntry();
         entry.setPrice(10.0); entry.setOvp(20.0);
         existing.setPrices(new ArrayList<>(List.of(entry)));
         when(repository.findById("id-1")).thenReturn(Optional.of(existing));
 
-        // another supplement already marked as in-use
+        // another supplement has a batch marked as in-use
+        StockBatch otherBatch = new StockBatch("Mango", null, LocalDate.now(), 3);
+        otherBatch.setInBenutzung(true);
         Supplement other = new Supplement();
         other.setId("id-2");
-        other.setInBenutzung(true);
-        when(repository.findByInBenutzungTrue()).thenReturn(new ArrayList<>(List.of(other)));
+        other.setStockBatches(new ArrayList<>(List.of(otherBatch)));
+        when(repository.findByStockBatchesInBenutzungIsTrue()).thenReturn(new ArrayList<>(List.of(other)));
 
+        // incoming with a batch marked inBenutzung
+        StockBatch incomingBatch = new StockBatch("Vanilla", null, LocalDate.now(), 2);
+        incomingBatch.setInBenutzung(true);
         Supplement incoming = new Supplement();
         incoming.setId("id-1");
         incoming.setPrice(10.0); incoming.setOvp(20.0);
-        incoming.setInBenutzung(true);
+        incoming.setStockBatches(new ArrayList<>(List.of(incomingBatch)));
 
         service.saveSupplement(incoming);
 
-        assertFalse(other.isInBenutzung());
+        assertFalse(otherBatch.isInBenutzung());
         verify(repository).save(other);
     }
 
     @Test
-    void saveSupplement_setInBenutzungFalse_doesNotClearOthers() {
+    void saveSupplement_noBatchInBenutzung_doesNotQueryOthers() {
         Supplement existing = new Supplement();
         existing.setId("id-1");
         PriceEntry entry = new PriceEntry();
@@ -509,33 +513,36 @@ class SupplementServiceTest {
         existing.setPrices(new ArrayList<>(List.of(entry)));
         when(repository.findById("id-1")).thenReturn(Optional.of(existing));
 
+        // incoming batches — none in use
+        StockBatch batch = new StockBatch("Mango", null, LocalDate.now(), 2);
         Supplement incoming = new Supplement();
         incoming.setId("id-1");
         incoming.setPrice(10.0); incoming.setOvp(20.0);
-        incoming.setInBenutzung(false);
+        incoming.setStockBatches(new ArrayList<>(List.of(batch)));
 
         service.saveSupplement(incoming);
 
-        verify(repository, never()).findByInBenutzungTrue();
+        verify(repository, never()).findByStockBatchesInBenutzungIsTrue();
     }
 
     @Test
-    void saveSupplement_newInBenutzung_clearsOtherSupplements() {
-        // no existing supplement with id-new
-        when(repository.findById("id-new")).thenReturn(Optional.empty());
-
+    void saveSupplement_newBatchInBenutzung_clearsOtherSupplementsBatches() {
+        // new supplement (no id)
+        StockBatch otherBatch = new StockBatch("Choco", null, LocalDate.now(), 1);
+        otherBatch.setInBenutzung(true);
         Supplement other = new Supplement();
         other.setId("id-other");
-        other.setInBenutzung(true);
-        when(repository.findByInBenutzungTrue()).thenReturn(new ArrayList<>(List.of(other)));
+        other.setStockBatches(new ArrayList<>(List.of(otherBatch)));
+        when(repository.findByStockBatchesInBenutzungIsTrue()).thenReturn(new ArrayList<>(List.of(other)));
 
+        StockBatch newBatch = new StockBatch("Vanilla", null, LocalDate.now(), 5);
+        newBatch.setInBenutzung(true);
         Supplement incoming = new Supplement();
-        // no id → new supplement
-        incoming.setInBenutzung(true);
+        incoming.setStockBatches(new ArrayList<>(List.of(newBatch)));
 
         service.saveSupplement(incoming);
 
-        assertFalse(other.isInBenutzung());
+        assertFalse(otherBatch.isInBenutzung());
         verify(repository).save(other);
     }
 

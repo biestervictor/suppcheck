@@ -95,12 +95,6 @@ public class Supplement {
   private List<StockBatch> stockBatches = new ArrayList<>();
 
   /**
-   * True wenn dieses Supplement aktuell in Benutzung ist.
-   * Es darf immer nur ein Supplement pro Benutzer dieses Flag tragen.
-   */
-  private boolean inBenutzung = false;
-
-  /**
    * Returns the latest historical price if present.
    */
   public double getPrice() {

@@ -242,7 +242,6 @@ public class SupplementService {
       existing.setMhdProdukt(supplement.isMhdProdukt());
       existing.setNonDaily(supplement.isNonDaily());
       existing.setConsumptionIntervalDays(supplement.getConsumptionIntervalDays());
-      existing.setInBenutzung(supplement.isInBenutzung());
 
       // Bestände und Flavors aktualisieren (leere Liste = alle Batches löschen)
       List<StockBatch> incomingBatches = supplement.getStockBatches();
@@ -285,9 +284,11 @@ public class SupplementService {
 
       supplementRepository.save(existing);
 
-      // Uniqueness: nur ein Supplement darf gleichzeitig "in Benutzung" sein
-      if (existing.isInBenutzung()) {
-        clearInBenutzungExcept(existing.getId());
+      // Uniqueness: nur ein Batch (global) darf inBenutzung=true tragen
+      boolean hasInBenutzungBatch = existing.getStockBatches() != null &&
+          existing.getStockBatches().stream().anyMatch(StockBatch::isInBenutzung);
+      if (hasInBenutzungBatch) {
+        clearInBenutzungBatchesExcept(existing.getId());
       }
 
       return;
@@ -307,9 +308,11 @@ public class SupplementService {
 
     supplementRepository.save(supplement);
 
-    // Uniqueness: nur ein Supplement darf gleichzeitig "in Benutzung" sein
-    if (supplement.isInBenutzung()) {
-      clearInBenutzungExcept(supplement.getId());
+    // Uniqueness: nur ein Batch (global) darf inBenutzung=true tragen
+    boolean hasInBenutzungBatch = supplement.getStockBatches() != null &&
+        supplement.getStockBatches().stream().anyMatch(StockBatch::isInBenutzung);
+    if (hasInBenutzungBatch) {
+      clearInBenutzungBatchesExcept(supplement.getId());
     }
   }
 
@@ -325,13 +328,13 @@ public class SupplementService {
   }
 
   /**
-   * Clears the {@code inBenutzung} flag on all supplements except the one with the given id.
-   * Called after saving a supplement with {@code inBenutzung=true} to enforce uniqueness.
+   * Clears the {@code inBenutzung} flag on all batches of all supplements except the one
+   * with the given id. Called after saving a supplement whose batch has {@code inBenutzung=true}.
    */
-  private void clearInBenutzungExcept(String excludeId) {
-    supplementRepository.findByInBenutzungTrue().forEach(other -> {
+  private void clearInBenutzungBatchesExcept(String excludeId) {
+    supplementRepository.findByStockBatchesInBenutzungIsTrue().forEach(other -> {
       if (!other.getId().equals(excludeId)) {
-        other.setInBenutzung(false);
+        other.getStockBatches().forEach(b -> b.setInBenutzung(false));
         supplementRepository.save(other);
       }
     });

@@ -428,7 +428,12 @@
             </span>
         </td>
         <td th:text="${supplement.mhdProdukt ? '✅' : ''}">MHD</td>
-        <td th:text="${supplement.inBenutzung ? '▶' : ''}"></td>
+        <td th:with="inUseBatch=${supplement.stockBatches != null ? supplement.stockBatches.?[inBenutzung == true] : null}">
+            <span th:if="${inUseBatch != null and !inUseBatch.isEmpty()}"
+                  style="color:#2d6cdf;font-weight:600;"
+                  th:text="${inUseBatch[0].flavor != null and !#strings.isEmpty(inUseBatch[0].flavor) ? '▶ ' + inUseBatch[0].flavor : '▶'}">
+            </span>
+        </td>
         <td>
             <div class="stock-controls"
                  th:data-id="${supplement.id}"

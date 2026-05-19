@@ -264,8 +264,6 @@
     <input id="isInactive" th:field="*{inactive}" type="checkbox"/><br/><br/>
    <label for="mhdProdukt">MHD-Produkt:</label>
    <input id="mhdProdukt" th:field="*{mhdProdukt}" type="checkbox"/><br/><br/>
-   <label for="inBenutzung">In Benutzung:</label>
-   <input id="inBenutzung" th:field="*{inBenutzung}" type="checkbox"/><br/><br/>
    <label for="nonDaily">Nicht täglich:</label>
     <input id="nonDaily" th:field="*{nonDaily}" type="checkbox" onchange="toggleIntervalField(this.checked)"/><br/><br/>
     <div id="interval-container" th:style="${supplement.nonDaily} ? 'display:block' : 'display:none'">
@@ -311,12 +309,24 @@
                            th:name="|stockBatches[${bStat.index}].remaining|"
                            th:value="${batch.remaining != null ? batch.remaining : batch.quantity}"/>
                 </div>
-                <!-- Preserve non-editable fields -->
-                <input type="hidden"
-                       th:name="|stockBatches[${bStat.index}].quantity|"
-                       th:value="${batch.quantity}"/>
-                <input type="hidden"
-                       th:name="|stockBatches[${bStat.index}].addedDate|"
+                 <!-- Preserve non-editable fields -->
+                 <input type="hidden"
+                        th:name="|stockBatches[${bStat.index}].quantity|"
+                        th:value="${batch.quantity}"/>
+                 <input type="hidden"
+                        th:name="|stockBatches[${bStat.index}].addedDate|"
+                        th:value="${batch.addedDate != null ? #temporals.format(batch.addedDate, 'yyyy-MM-dd') : ''}"/>
+                 <div style="display:flex;align-items:center;gap:4px;align-self:center;">
+                     <input type="checkbox"
+                            class="inbenutzung-cb"
+                            th:name="|stockBatches[${bStat.index}].inBenutzung|"
+                            th:checked="${batch.inBenutzung}"
+                            th:value="true"
+                            onchange="setInBenutzungSingle(this)"
+                            title="In Benutzung"/>
+                     <label style="font-size:.8em;color:#2d6cdf;white-space:nowrap;cursor:pointer;"
+                            th:for="|inBenutzung_${bStat.index}|">In Benutzung</label>
+                 </div>
                        th:value="${batch.addedDate != null ? #temporals.format(batch.addedDate, 'yyyy-MM-dd') : ''}"/>
                 <span class="batch-meta"
                       th:if="${batch.addedDate != null}"
@@ -602,6 +612,13 @@
             row.querySelectorAll('[name]').forEach(input => {
                 input.name = input.name.replace(/stockBatches\[\d+\]/, `stockBatches[${idx}]`);
             });
+        });
+    }
+
+    // Ensure only one "In Benutzung" checkbox is checked at a time (radio semantics)
+    function setInBenutzungSingle(checkbox) {
+        document.querySelectorAll('.inbenutzung-cb').forEach(cb => {
+            if (cb !== checkbox) cb.checked = false;
         });
     }
 

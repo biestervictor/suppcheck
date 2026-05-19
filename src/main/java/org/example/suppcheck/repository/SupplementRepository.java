@@ -20,8 +20,8 @@ public interface SupplementRepository extends MongoRepository<Supplement, String
   Supplement findByName(String name);
 
   /**
-   * Returns all supplements that are currently marked as "in use".
+   * Returns all supplements that have at least one batch marked as "in use".
    * Under normal conditions this list has at most one element.
    */
-  List<Supplement> findByInBenutzungTrue();
+  List<Supplement> findByStockBatchesInBenutzungIsTrue();
 }
