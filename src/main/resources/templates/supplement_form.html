@@ -287,11 +287,47 @@
                  style="color:#888;font-size:.9em;margin-bottom:8px;">
                 Noch keine Bestände vorhanden – über den
                 <strong>+</strong>-Button in der Übersicht hinzufügen.
-                  </div>
-                      <label style="font-size:.8em;color:#2d6cdf;white-space:nowrap;cursor:pointer;"
-                             th:for="|inBenutzung_${bStat.index}|">In Benutzung</label>
-                  </div>
-                 <span class="batch-meta"
+            </div>
+            <div id="batch-list">
+            <div th:each="batch, bStat : ${supplement.stockBatches}" class="batch-row">
+                <div>
+                    <label style="display:block;font-size:.8em;color:#666;margin-bottom:2px;">Flavor</label>
+                    <input type="text"
+                           th:name="|stockBatches[${bStat.index}].flavor|"
+                           th:value="${batch.flavor}"
+                           placeholder="kein Flavor"/>
+                </div>
+                <div>
+                    <label style="display:block;font-size:.8em;color:#666;margin-bottom:2px;">MHD</label>
+                    <input type="date"
+                           th:name="|stockBatches[${bStat.index}].expiryDate|"
+                           th:value="${batch.expiryDate != null ? #temporals.format(batch.expiryDate, 'yyyy-MM-dd') : ''}"/>
+                </div>
+                <div>
+                    <label style="display:block;font-size:.8em;color:#666;margin-bottom:2px;">Verbleibend</label>
+                    <input type="number" min="0"
+                           th:name="|stockBatches[${bStat.index}].remaining|"
+                           th:value="${batch.remaining != null ? batch.remaining : batch.quantity}"/>
+                </div>
+                 <!-- Preserve non-editable fields -->
+                 <input type="hidden"
+                        th:name="|stockBatches[${bStat.index}].quantity|"
+                        th:value="${batch.quantity}"/>
+                 <input type="hidden"
+                        th:name="|stockBatches[${bStat.index}].addedDate|"
+                        th:value="${batch.addedDate != null ? #temporals.format(batch.addedDate, 'yyyy-MM-dd') : ''}"/>
+                 <div style="display:flex;align-items:center;gap:4px;align-self:center;">
+                     <input type="checkbox"
+                            class="inbenutzung-cb"
+                            th:name="|stockBatches[${bStat.index}].inBenutzung|"
+                            th:checked="${batch.inBenutzung}"
+                            th:value="true"
+                            onchange="setInBenutzungSingle(this)"
+                            title="In Benutzung"/>
+                     <label style="font-size:.8em;color:#2d6cdf;white-space:nowrap;cursor:pointer;"
+                            th:for="|inBenutzung_${bStat.index}|">In Benutzung</label>
+                 </div>
+                <span class="batch-meta"
                       th:if="${batch.addedDate != null}"
                       th:text="'hinzugefügt: ' + ${#temporals.format(batch.addedDate, 'dd.MM.yyyy')} + ' · Original: ' + ${batch.quantity}"></span>
                 <button type="button" class="batch-delete" onclick="removeBatchRow(this)" title="Eintrag löschen">×</button>
