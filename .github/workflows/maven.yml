@@ -111,11 +111,16 @@ jobs:
         if: github.actor != 'dependabot[bot]' && github.event_name == 'push'
         run: |
           VERSION="${{ steps.version.outputs.version }}"
+          GITHUB_SHA="${{ github.sha }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add helmcharts/values.yaml helmcharts/Chart.yaml pom.xml
           git diff --cached --quiet || git commit -m "ci: bump to v${VERSION}, update image tag [skip ci]"
           git pull --rebase -X theirs origin dev
+          # Re-enforce our image SHA after rebase – parallel CI runs can overwrite it
+          sed -i "s|^  tag: .*|  tag: \"${GITHUB_SHA}\"|" helmcharts/values.yaml
+          git add helmcharts/values.yaml
+          git diff --cached --quiet || git commit --amend --no-edit
           git push origin dev
 
       - name: Create Git version tag
