@@ -33,9 +33,10 @@ public class SupplementSaveDto {
   private int consumptionIntervalDays = 1;
 
   /**
-   * Verfügbare Flavors für dieses Supplement.
+   * Vorhandene Bestände (StockBatches) – im Bearbeitungsformular direkt editierbar.
+   * Flavors werden bei der Verarbeitung automatisch aus diesen Batches abgeleitet.
    */
-  private List<String> flavors = new ArrayList<>();
+  private List<StockBatchDto> stockBatches = new ArrayList<>();
 
   // ── Erster Bestand (nur beim Anlegen, optional) ──────────────────────────
 

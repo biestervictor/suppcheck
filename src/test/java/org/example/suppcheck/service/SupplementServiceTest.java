@@ -396,6 +396,76 @@ class SupplementServiceTest {
         assertEquals(7, existing.getConsumptionIntervalDays());
     }
 
+    @Test
+    void saveSupplement_existingWithStockBatches_updatesStockAndFlavors() {
+        Supplement existing = new Supplement();
+        existing.setId("id-1");
+        PriceEntry entry = new PriceEntry();
+        entry.setPrice(10.0); entry.setOvp(20.0);
+        existing.setPrices(new ArrayList<>(List.of(entry)));
+        when(repository.findById("id-1")).thenReturn(Optional.of(existing));
+
+        StockBatch b1 = new StockBatch("Chocolate", null, LocalDate.now(), 5);
+        b1.setRemaining(3);
+        StockBatch b2 = new StockBatch("Vanilla", null, LocalDate.now(), 4);
+        b2.setRemaining(4);
+
+        Supplement incoming = new Supplement();
+        incoming.setId("id-1");
+        incoming.setPrice(10.0); incoming.setOvp(20.0);
+        incoming.setStockBatches(new ArrayList<>(List.of(b1, b2)));
+
+        service.saveSupplement(incoming);
+
+        verify(repository).save(existing);
+        assertEquals(7, existing.getStock()); // 3 + 4
+        assertEquals(2, existing.getStockBatches().size());
+        assertEquals(List.of("Chocolate", "Vanilla"), existing.getFlavors());
+    }
+
+    @Test
+    void saveSupplement_existingWithStockBatches_nullRemaining_fallsBackToQuantity() {
+        Supplement existing = new Supplement();
+        existing.setId("id-1");
+        PriceEntry entry = new PriceEntry();
+        entry.setPrice(10.0); entry.setOvp(20.0);
+        existing.setPrices(new ArrayList<>(List.of(entry)));
+        when(repository.findById("id-1")).thenReturn(Optional.of(existing));
+
+        StockBatch legacy = new StockBatch("Strawberry", null, LocalDate.now(), 6);
+        // remaining stays null (legacy batch)
+
+        Supplement incoming = new Supplement();
+        incoming.setId("id-1");
+        incoming.setPrice(10.0); incoming.setOvp(20.0);
+        incoming.setStockBatches(new ArrayList<>(List.of(legacy)));
+
+        service.saveSupplement(incoming);
+
+        assertEquals(6, existing.getStock()); // falls back to quantity
+    }
+
+    @Test
+    void saveSupplement_existingWithNullBatches_keepsExistingFlavors() {
+        Supplement existing = new Supplement();
+        existing.setId("id-1");
+        existing.setFlavors(new ArrayList<>(List.of("Mango")));
+        PriceEntry entry = new PriceEntry();
+        entry.setPrice(10.0); entry.setOvp(20.0);
+        existing.setPrices(new ArrayList<>(List.of(entry)));
+        when(repository.findById("id-1")).thenReturn(Optional.of(existing));
+
+        Supplement incoming = new Supplement();
+        incoming.setId("id-1");
+        incoming.setPrice(10.0); incoming.setOvp(20.0);
+        incoming.setFlavors(new ArrayList<>(List.of("Mango")));
+        // no stockBatches set
+
+        service.saveSupplement(incoming);
+
+        assertEquals(List.of("Mango"), existing.getFlavors());
+    }
+
     // --- Hilfsmethode ---
 
     private Supplement createActiveSupplement(String type, List<Ingredient> ingredients) {

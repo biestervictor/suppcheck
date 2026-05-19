@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
 import org.example.suppcheck.dto.IngredientDto;
+import org.example.suppcheck.dto.StockBatchDto;
 import org.example.suppcheck.dto.SupplementSaveDto;
 import org.example.suppcheck.model.Supplement;
 import org.junit.jupiter.api.Test;
@@ -98,7 +99,7 @@ class SupplementMapperTest {
     assertEquals("BASIC", entity.getSupplementType());
     assertFalse(entity.isInactive());
     assertEquals(29.99, entity.getCurrentOvp(), 0.00001);
-    assertEquals(0.0, entity.getOvp(), 0.00001); // no history yet -> 0
+    assertEquals(0.0, entity.getOvp(), 0.00001);
     assertEquals(5.0, entity.getDiscount(), 0.00001);
     assertTrue(entity.isMhdProdukt());
 
@@ -114,36 +115,59 @@ class SupplementMapperTest {
   }
 
   @Test
-  void toEntity_flavors_mappedAndBlankFiltered() {
+  void toEntity_stockBatches_mappedAndFlavorsderived() {
+    StockBatchDto b1 = new StockBatchDto();
+    b1.setFlavor("Chocolate");
+    b1.setExpiryDate("2026-12-31");
+    b1.setAddedDate("2026-01-01");
+    b1.setQuantity(5);
+    b1.setRemaining(3);
+
+    StockBatchDto b2 = new StockBatchDto();
+    b2.setFlavor("Vanilla");
+    b2.setExpiryDate("2027-06-30");
+    b2.setAddedDate("2026-02-01");
+    b2.setQuantity(10);
+    b2.setRemaining(10);
+
     SupplementSaveDto dto = new SupplementSaveDto();
-    dto.setName("Test");
-    dto.setFlavors(List.of("Chocolate", "  ", "Vanilla", ""));
+    dto.setName("Whey");
+    dto.setStockBatches(List.of(b1, b2));
 
     Supplement entity = SupplementMapper.toEntity(dto);
 
+    assertEquals(2, entity.getStockBatches().size());
+    assertEquals("Chocolate", entity.getStockBatches().get(0).getFlavor());
+    assertEquals(3, entity.getStockBatches().get(0).getRemaining());
+    assertEquals("Vanilla", entity.getStockBatches().get(1).getFlavor());
     assertEquals(List.of("Chocolate", "Vanilla"), entity.getFlavors());
   }
 
   @Test
-  void toEntity_nullFlavors_resultsInEmptyList() {
+  void toEntity_stockBatchBlankFlavor_notIncludedInFlavors() {
+    StockBatchDto b = new StockBatchDto();
+    b.setFlavor("  ");
+    b.setQuantity(3);
+    b.setRemaining(3);
+
     SupplementSaveDto dto = new SupplementSaveDto();
     dto.setName("Test");
-    dto.setFlavors(null);
+    dto.setStockBatches(List.of(b));
 
     Supplement entity = SupplementMapper.toEntity(dto);
 
-    assertNotNull(entity.getFlavors());
+    assertNull(entity.getStockBatches().get(0).getFlavor());
     assertTrue(entity.getFlavors().isEmpty());
   }
 
   @Test
-  void toEntity_flavorsTrimmed() {
+  void toEntity_noStockBatches_emptyFlavors() {
     SupplementSaveDto dto = new SupplementSaveDto();
     dto.setName("Test");
-    dto.setFlavors(List.of("  Strawberry  ", "  Mango"));
 
     Supplement entity = SupplementMapper.toEntity(dto);
 
-    assertEquals(List.of("Strawberry", "Mango"), entity.getFlavors());
+    assertTrue(entity.getStockBatches().isEmpty());
+    assertTrue(entity.getFlavors().isEmpty());
   }
 }

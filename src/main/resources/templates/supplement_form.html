@@ -110,6 +110,37 @@
             font-size: 1em;
             color: #2d6cdf;
         }
+        details.section-details {
+            background: #f0f4ff;
+            border: 1px solid #c0d0f0;
+            border-radius: 5px;
+            margin-bottom: 18px;
+        }
+        details.section-details > summary {
+            padding: 10px 18px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #2d6cdf;
+            user-select: none;
+        }
+        details.section-details > .details-body {
+            padding: 0 18px 14px;
+        }
+        .batch-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: #fff;
+            border: 1px solid #dde8f8;
+            border-radius: 4px;
+            flex-wrap: wrap;
+        }
+        .batch-row input[type="text"]   { width: 140px; }
+        .batch-row input[type="date"]   { width: 150px; }
+        .batch-row input[type="number"] { width: 70px; }
+        .batch-meta { font-size: 0.78em; color: #888; white-space: nowrap; }
 
         /* ---- Check result annotations ---- */
         .check-banner {
@@ -226,32 +257,68 @@
         <span style="color:#777;font-size:0.9em;margin-left:6px;">Tage (z.B. 3 = alle 3 Tage)</span><br/><br/>
     </div>
 
-    <!-- ── Flavors ─────────────────────────────────────────────────────── -->
-    <div class="section-box">
-        <h3>Flavors</h3>
-        <div id="flavor-list">
-            <div class="flavor-row" th:each="flavor, fStat : *{flavors}">
-                <input type="text"
-                       th:name="|flavors[${fStat.index}]|"
-                       th:value="${flavor}"
-                       placeholder="z.B. Chocolate"/>
-                <button type="button" onclick="removeFlavor(this)">Entfernen</button>
+    <!-- ── Bestände / Flavors ──────────────────────────────────────────────── -->
+    <details class="section-details"
+             th:attr="${supplement.id != null and supplement.stockBatches != null and !supplement.stockBatches.isEmpty()} ? 'open=open' : null">
+        <summary>Bestände / Flavors
+            <span th:if="${supplement.stockBatches != null and !supplement.stockBatches.isEmpty()}"
+                  style="font-weight:normal;color:#555;margin-left:8px;font-size:.9em;"
+                  th:text="'(' + ${supplement.stockBatches.size()} + ' Einträge)'"></span>
+        </summary>
+        <div class="details-body">
+            <div th:if="${supplement.stockBatches == null or supplement.stockBatches.isEmpty()}"
+                 style="color:#888;font-size:.9em;margin-bottom:8px;">
+                Noch keine Bestände vorhanden – über den
+                <strong>+</strong>-Button in der Übersicht hinzufügen.
+            </div>
+            <div th:each="batch, bStat : ${supplement.stockBatches}" class="batch-row">
+                <div>
+                    <label style="display:block;font-size:.8em;color:#666;margin-bottom:2px;">Flavor</label>
+                    <input type="text"
+                           th:name="|stockBatches[${bStat.index}].flavor|"
+                           th:value="${batch.flavor}"
+                           placeholder="kein Flavor"/>
+                </div>
+                <div>
+                    <label style="display:block;font-size:.8em;color:#666;margin-bottom:2px;">MHD</label>
+                    <input type="date"
+                           th:name="|stockBatches[${bStat.index}].expiryDate|"
+                           th:value="${batch.expiryDate != null ? #temporals.format(batch.expiryDate, 'yyyy-MM-dd') : ''}"/>
+                </div>
+                <div>
+                    <label style="display:block;font-size:.8em;color:#666;margin-bottom:2px;">Verbleibend</label>
+                    <input type="number" min="0"
+                           th:name="|stockBatches[${bStat.index}].remaining|"
+                           th:value="${batch.remaining != null ? batch.remaining : batch.quantity}"/>
+                </div>
+                <!-- Preserve non-editable fields -->
+                <input type="hidden"
+                       th:name="|stockBatches[${bStat.index}].quantity|"
+                       th:value="${batch.quantity}"/>
+                <input type="hidden"
+                       th:name="|stockBatches[${bStat.index}].addedDate|"
+                       th:value="${batch.addedDate != null ? #temporals.format(batch.addedDate, 'yyyy-MM-dd') : ''}"/>
+                <span class="batch-meta"
+                      th:if="${batch.addedDate != null}"
+                      th:text="'hinzugefügt: ' + ${#temporals.format(batch.addedDate, 'dd.MM.yyyy')} + ' · Original: ' + ${batch.quantity}"></span>
             </div>
         </div>
-        <button type="button" onclick="addFlavor()">+ Flavor hinzufügen</button>
-    </div>
+    </details>
 
-    <!-- ── Erster Bestand (nur bei Neuanlage) ─────────────────────────── -->
-    <div class="section-box" id="initial-batch-section" th:style="${supplement.id != null} ? 'display:none' : 'display:block'">
-        <h3>Erster Bestand <span style="font-weight:normal;color:#888;">(optional)</span></h3>
-        <label for="initialFlavor">Flavor:</label>
-        <input id="initialFlavor" name="initialFlavor" type="text" placeholder="z.B. Chocolate (leer = kein Flavor)"/><br/><br/>
-        <label for="initialMhd">MHD:</label>
-        <input id="initialMhd" name="initialMhd" type="date"/><br/><br/>
-        <label for="initialQty">Menge (Portionen):</label>
-        <input id="initialQty" name="initialQty" type="number" min="0" value="0" style="width:80px;"/>
-        <span style="color:#777;font-size:0.9em;margin-left:6px;">(0 = kein Bestand anlegen)</span><br/><br/>
-    </div>
+    <!-- ── Erster Bestand (nur bei Neuanlage) ─────────────────────────────── -->
+    <details class="section-details" th:if="${supplement.id == null}">
+        <summary>Erster Bestand <span style="font-weight:normal;color:#888;">(optional)</span></summary>
+        <div class="details-body">
+            <label for="initialFlavor">Flavor:</label>
+            <input id="initialFlavor" name="initialFlavor" type="text"
+                   placeholder="z.B. Chocolate (leer = kein Flavor)"/><br/><br/>
+            <label for="initialMhd">MHD:</label>
+            <input id="initialMhd" name="initialMhd" type="date"/><br/><br/>
+            <label for="initialQty">Menge (Portionen):</label>
+            <input id="initialQty" name="initialQty" type="number" min="0" value="0" style="width:80px;"/>
+            <span style="color:#777;font-size:0.9em;margin-left:6px;">(0 = kein Bestand anlegen)</span><br/><br/>
+        </div>
+    </details>
 
     <div id="ingredients-list">
         <div class="ingredient-row" th:each="ingredient, iStat : *{ingredients}">
@@ -499,31 +566,6 @@
         var input = document.getElementById('consumptionIntervalDays');
         container.style.display = checked ? 'block' : 'none';
         input.disabled = !checked;
-    }
-
-    function addFlavor() {
-        var list = document.getElementById('flavor-list');
-        var idx = list.querySelectorAll('.flavor-row').length;
-        var div = document.createElement('div');
-        div.className = 'flavor-row';
-        div.innerHTML =
-            '<input type="text" name="flavors[' + idx + ']" placeholder="z.B. Vanilla"/>' +
-            '<button type="button" onclick="removeFlavor(this)">Entfernen</button>';
-        list.appendChild(div);
-        updateFlavorIndices();
-    }
-
-    function removeFlavor(btn) {
-        btn.parentElement.remove();
-        updateFlavorIndices();
-    }
-
-    function updateFlavorIndices() {
-        var rows = document.querySelectorAll('#flavor-list .flavor-row');
-        rows.forEach(function(row, idx) {
-            var input = row.querySelector('input[type="text"]');
-            if (input) input.name = 'flavors[' + idx + ']';
-        });
     }
 
     // =====================================================================

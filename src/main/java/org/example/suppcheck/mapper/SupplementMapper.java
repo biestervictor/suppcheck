@@ -1,10 +1,13 @@
 package org.example.suppcheck.mapper;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import org.example.suppcheck.dto.IngredientDto;
+import org.example.suppcheck.dto.StockBatchDto;
 import org.example.suppcheck.dto.SupplementSaveDto;
 import org.example.suppcheck.model.Ingredient;
+import org.example.suppcheck.model.StockBatch;
 import org.example.suppcheck.model.Supplement;
 
 public final class SupplementMapper {
@@ -29,14 +32,29 @@ public final class SupplementMapper {
     supp.setNonDaily(dto.isNonDaily());
     supp.setConsumptionIntervalDays(dto.getConsumptionIntervalDays() > 1 ? dto.getConsumptionIntervalDays() : 1);
 
-    List<String> flavors = new ArrayList<>();
-    if (dto.getFlavors() != null) {
-      for (String f : dto.getFlavors()) {
-        if (f != null && !f.isBlank()) {
-          flavors.add(f.trim());
-        }
+    // Map stock batches
+    List<StockBatch> stockBatches = new ArrayList<>();
+    if (dto.getStockBatches() != null) {
+      for (StockBatchDto bDto : dto.getStockBatches()) {
+        if (bDto == null) continue;
+        StockBatch batch = new StockBatch();
+        batch.setFlavor(trimToNull(bDto.getFlavor()));
+        batch.setExpiryDate(parseDate(bDto.getExpiryDate()));
+        batch.setAddedDate(parseDate(bDto.getAddedDate()) != null ? parseDate(bDto.getAddedDate()) : LocalDate.now());
+        batch.setQuantity(bDto.getQuantity() > 0 ? bDto.getQuantity() : 1);
+        batch.setRemaining(bDto.getRemaining());
+        stockBatches.add(batch);
       }
     }
+    supp.setStockBatches(stockBatches);
+
+    // Derive flavors from batches (unique, sorted, non-blank)
+    List<String> flavors = stockBatches.stream()
+        .map(StockBatch::getFlavor)
+        .filter(f -> f != null && !f.isBlank())
+        .distinct()
+        .sorted()
+        .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
     supp.setFlavors(flavors);
 
     List<Ingredient> ingredients = new ArrayList<>();
@@ -73,6 +91,15 @@ public final class SupplementMapper {
     return ing;
   }
 
+  private static LocalDate parseDate(String s) {
+    if (s == null || s.isBlank()) return null;
+    try {
+      return LocalDate.parse(s.trim());
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
   private static String trimToNull(String s) {
     if (s == null) {
       return null;
@@ -81,4 +108,5 @@ public final class SupplementMapper {
     return t.isEmpty() ? null : t;
   }
 }
+
 
