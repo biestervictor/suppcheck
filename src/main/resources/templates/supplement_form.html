@@ -259,7 +259,7 @@
 
     <!-- ── Bestände / Flavors ──────────────────────────────────────────────── -->
     <details class="section-details"
-             th:attr="${supplement.id != null and supplement.stockBatches != null and !supplement.stockBatches.isEmpty()} ? 'open=open' : null">
+             th:open="${supplement.id != null and supplement.stockBatches != null and !supplement.stockBatches.isEmpty()}">
         <summary>Bestände / Flavors
             <span th:if="${supplement.stockBatches != null and !supplement.stockBatches.isEmpty()}"
                   style="font-weight:normal;color:#555;margin-left:8px;font-size:.9em;"
