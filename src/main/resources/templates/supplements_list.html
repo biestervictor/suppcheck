@@ -726,10 +726,17 @@
         </div>
 
         <!-- Anzahl -->
-        <div style="margin-bottom:18px">
+        <div style="margin-bottom:12px">
             <label for="restock-qty" style="display:block;margin-bottom:4px;font-weight:bold;color:#444;">Anzahl:</label>
             <input type="number" id="restock-qty" min="1" value="1"
                    style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #bfc9d1;border-radius:4px;font-size:0.95em;"/>
+        </div>
+
+        <!-- In Benutzung -->
+        <div style="margin-bottom:18px;display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" id="restock-in-benutzung" style="cursor:pointer;width:16px;height:16px;"/>
+            <label for="restock-in-benutzung" style="font-weight:bold;color:#2d6cdf;cursor:pointer;font-size:0.95em;">In Benutzung</label>
+            <span style="font-size:0.82em;color:#888;">(aktuell geöffnet)</span>
         </div>
 
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -766,6 +773,7 @@
         document.getElementById('restock-flavor-hint').style.display = 'none';
         document.getElementById('restock-mhd').value = '';
         document.getElementById('restock-qty').value = '1';
+        document.getElementById('restock-in-benutzung').checked = false;
         document.getElementById('restock-status').textContent = '';
         document.getElementById('restock-modal').classList.add('active');
 
@@ -881,6 +889,9 @@
         if (flavor) formData.append('flavor',     flavor);
         if (mhd)    formData.append('expiryDate', mhd);
         formData.append('quantity', qty);
+        if (document.getElementById('restock-in-benutzung').checked) {
+            formData.append('inBenutzung', 'true');
+        }
 
         fetch('/supplements/' + currentRestockId + '/stock/batch', {
             method: 'POST', body: formData
@@ -1046,7 +1057,16 @@
             fd2.append('quantity', qty);
             fetch('/supplements/' + currentConsumeId + '/stock/consume', { method: 'POST', body: fd2 })
                 .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-                .then(function(data) { onConsumeSuccess(data.stock); })
+                .then(function(data) {
+                    onConsumeSuccess(data.stock);
+                    if (data.wasInBenutzung) {
+                        var suppId = currentConsumeId;
+                        fetch('/supplements/' + suppId + '/stock/batches')
+                            .then(function(r) { return r.ok ? r.json() : []; })
+                            .then(function(batches) { openInBenutzungModal(suppId, batches); })
+                            .catch(function() { openInBenutzungModal(suppId, []); });
+                    }
+                })
                 .catch(function(err) { status.textContent = 'Fehler: ' + err.message; status.style.color = '#c0392b'; });
         }
     }
@@ -1058,6 +1078,103 @@
         var minusBtn = currentConsumeControls.querySelector('.stock-btn.minus');
         if (minusBtn) minusBtn.style.display = newStock === 0 ? 'none' : '';
         closeConsumeModal();
+    }
+</script>
+
+<!-- ======== In-Benutzung Follow-up Modal ======== -->
+<div id="inbenutzung-followup-modal" class="check-modal-overlay">
+    <div class="check-modal-box">
+        <h3 style="margin:0 0 4px">Welcher Batch ist jetzt in Benutzung?</h3>
+        <p style="margin:0 0 16px;font-size:0.9em;color:#666;">Der entnommene Batch war als „In Benutzung" markiert. Bitte wähle den nächsten Batch aus:</p>
+        <div id="inbenutzung-batch-list" style="margin-bottom:18px;"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button onclick="submitInBenutzungPick()"
+                    style="background:#2d6cdf;color:#fff;border:none;padding:8px 18px;border-radius:4px;cursor:pointer;font-size:0.95em;font-weight:bold;">
+                ▶ Setzen
+            </button>
+            <button onclick="closeInBenutzungModal()"
+                    style="background:#aaa;color:#fff;border:none;padding:8px 18px;border-radius:4px;cursor:pointer;font-size:0.95em;">
+                Überspringen
+            </button>
+        </div>
+        <span id="inbenutzung-status" style="display:block;margin-top:12px;font-style:italic;min-height:1.4em;"></span>
+    </div>
+</div>
+
+<script>
+    var currentInBenutzungId = null;
+
+    function openInBenutzungModal(supplementId, batches) {
+        currentInBenutzungId = supplementId;
+        document.getElementById('inbenutzung-status').textContent = '';
+
+        var container = document.getElementById('inbenutzung-batch-list');
+        var activeBatches = (batches || []).filter(function(b) {
+            var r = (b.remaining !== null && b.remaining !== undefined) ? b.remaining : b.quantity;
+            return r > 0;
+        });
+
+        if (activeBatches.length === 0) {
+            container.innerHTML = '<div style="font-size:0.9em;color:#888;">Keine weiteren aktiven Batches vorhanden.</div>';
+        } else {
+            var sorted = activeBatches.slice().sort(function(a, b) {
+                if (!a.expiryDate && !b.expiryDate) return 0;
+                if (!a.expiryDate) return 1;
+                if (!b.expiryDate) return -1;
+                return a.expiryDate.localeCompare(b.expiryDate);
+            });
+            var html = '';
+            sorted.forEach(function(b, idx) {
+                var val      = (b.flavor || '') + '||' + (b.expiryDate || '');
+                var remaining = (b.remaining !== null && b.remaining !== undefined) ? b.remaining : b.quantity;
+                var mhdLabel  = b.expiryDate
+                    ? (function(d) { var s = d.split('-'); return s[2] + '.' + s[1] + '.' + s[0]; })(b.expiryDate)
+                    : 'Kein MHD';
+                var label = (b.flavor || 'Kein Flavor') + ' | MHD: ' + mhdLabel + ' | Verbleibend: ' + remaining;
+                html += '<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid #e0e0e0;' +
+                        'border-radius:4px;margin-bottom:6px;cursor:pointer;font-size:0.88em;">' +
+                        '<input type="radio" name="inbenutzung-batch" value="' + val + '"' +
+                        (idx === 0 ? ' checked' : '') + ' style="cursor:pointer;">' +
+                        '<span>' + label + '</span></label>';
+            });
+            container.innerHTML = html;
+        }
+
+        document.getElementById('inbenutzung-followup-modal').classList.add('active');
+    }
+
+    function closeInBenutzungModal() {
+        document.getElementById('inbenutzung-followup-modal').classList.remove('active');
+        currentInBenutzungId = null;
+    }
+
+    document.getElementById('inbenutzung-followup-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeInBenutzungModal();
+    });
+
+    function submitInBenutzungPick() {
+        var selectedRadio = document.querySelector('input[name="inbenutzung-batch"]:checked');
+        if (!selectedRadio) { closeInBenutzungModal(); return; }
+
+        var parts      = selectedRadio.value.split('||');
+        var flavor     = parts[0] || null;
+        var expiryDate = parts[1] || null;
+        var status     = document.getElementById('inbenutzung-status');
+
+        status.textContent = 'Wird gespeichert…';
+        status.style.color = '#555';
+
+        var fd = new FormData();
+        if (flavor)     fd.append('flavor',     flavor);
+        if (expiryDate) fd.append('expiryDate', expiryDate);
+
+        fetch('/supplements/' + currentInBenutzungId + '/stock/batch/setInBenutzung', { method: 'POST', body: fd })
+            .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+            .then(function() { closeInBenutzungModal(); })
+            .catch(function(err) {
+                status.textContent = 'Fehler: ' + err.message;
+                status.style.color = '#c0392b';
+            });
     }
 </script>
 </body>

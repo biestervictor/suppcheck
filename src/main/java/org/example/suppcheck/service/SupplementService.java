@@ -372,19 +372,35 @@ public class SupplementService {
   /**
    * Fügt einen Restock-Batch hinzu und erhöht den Lagerbestand um dessen Menge.
    *
-   * @param id    die Supplement-ID
-   * @param batch der hinzuzufügende Batch (Flavor, MHD, Datum, Menge)
+   * @param id          die Supplement-ID
+   * @param batch       der hinzuzufügende Batch (Flavor, MHD, Datum, Menge)
+   * @param inBenutzung wenn true: globale Uniqueness erzwingen (alle anderen Batches werden auf false gesetzt)
    * @return neuer Gesamtbestand
    * @throws IllegalArgumentException wenn kein Supplement mit der ID gefunden wurde
    */
-  public int addStockBatch(String id, StockBatch batch) {
+  public int addStockBatch(String id, StockBatch batch, boolean inBenutzung) {
     Supplement supp = supplementRepository.findById(id)
         .orElseThrow(() -> new IllegalArgumentException("Supplement mit ID " + id + " nicht gefunden"));
     if (supp.getStockBatches() == null) supp.setStockBatches(new java.util.ArrayList<>());
     supp.getStockBatches().add(batch);
     supp.setStock(supp.getStock() + batch.getQuantity());
     supplementRepository.save(supp);
+    if (inBenutzung) {
+      clearInBenutzungBatchesExcept(supp.getId());
+    }
     return supp.getStock();
+  }
+
+  /**
+   * Fügt einen Restock-Batch hinzu (ohne inBenutzung-Logik).
+   *
+   * @param id    die Supplement-ID
+   * @param batch der hinzuzufügende Batch (Flavor, MHD, Datum, Menge)
+   * @return neuer Gesamtbestand
+   * @throws IllegalArgumentException wenn kein Supplement mit der ID gefunden wurde
+   */
+  public int addStockBatch(String id, StockBatch batch) {
+    return addStockBatch(id, batch, false);
   }
 
   /**
@@ -398,10 +414,10 @@ public class SupplementService {
    * @param flavor        Flavor/Geschmacksrichtung (null oder leer = kein Flavor)
    * @param expiryDateStr MHD als ISO-String "yyyy-MM-dd" (null oder leer = kein MHD)
    * @param qty           zu entnehmende Menge (min. 1)
-   * @return neuer Gesamtbestand
+   * @return Map mit "stock" (neuer Gesamtbestand) und "wasInBenutzung" (boolean)
    * @throws IllegalArgumentException wenn kein Supplement mit der ID gefunden wurde
    */
-  public int consumeFromBatch(String id, String flavor, String expiryDateStr, int qty) {
+  public Map<String, Object> consumeFromBatch(String id, String flavor, String expiryDateStr, int qty) {
     Supplement supp = supplementRepository.findById(id)
         .orElseThrow(() -> new IllegalArgumentException("Supplement mit ID " + id + " nicht gefunden"));
 
@@ -409,6 +425,7 @@ public class SupplementService {
         ? LocalDate.parse(expiryDateStr) : null;
     String normalizedFlavor = (flavor != null && !flavor.isBlank()) ? flavor : null;
 
+    boolean wasInBenutzung = false;
     if (supp.getStockBatches() != null) {
       for (StockBatch batch : supp.getStockBatches()) {
         boolean flavorMatch = Objects.equals(batch.getFlavor(), normalizedFlavor);
@@ -416,6 +433,7 @@ public class SupplementService {
         if (flavorMatch && expiryMatch) {
           int effective = batch.getRemaining() != null ? batch.getRemaining() : batch.getQuantity();
           batch.setRemaining(Math.max(0, effective - qty));
+          wasInBenutzung = batch.isInBenutzung();
           break;
         }
       }
@@ -424,7 +442,50 @@ public class SupplementService {
     int newStock = Math.max(0, supp.getStock() - qty);
     supp.setStock(newStock);
     supplementRepository.save(supp);
-    return newStock;
+
+    Map<String, Object> result = new HashMap<>();
+    result.put("stock", newStock);
+    result.put("wasInBenutzung", wasInBenutzung);
+    return result;
+  }
+
+  /**
+   * Setzt den {@code inBenutzung}-Flag auf dem Batch, der durch Flavor + MHD identifiziert wird,
+   * und löscht das Flag von allen anderen Batches (global).
+   *
+   * @param id            die Supplement-ID
+   * @param flavor        Flavor/Geschmacksrichtung (null oder leer = kein Flavor)
+   * @param expiryDateStr MHD als ISO-String "yyyy-MM-dd" (null oder leer = kein MHD)
+   * @throws IllegalArgumentException wenn das Supplement nicht gefunden wurde oder kein passender Batch existiert
+   */
+  public void setInBenutzungBatch(String id, String flavor, String expiryDateStr) {
+    Supplement supp = supplementRepository.findById(id)
+        .orElseThrow(() -> new IllegalArgumentException("Supplement mit ID " + id + " nicht gefunden"));
+
+    LocalDate expiryDate = (expiryDateStr != null && !expiryDateStr.isBlank())
+        ? LocalDate.parse(expiryDateStr) : null;
+    String normalizedFlavor = (flavor != null && !flavor.isBlank()) ? flavor : null;
+
+    boolean found = false;
+    if (supp.getStockBatches() != null) {
+      for (StockBatch batch : supp.getStockBatches()) {
+        boolean flavorMatch = Objects.equals(batch.getFlavor(), normalizedFlavor);
+        boolean expiryMatch = Objects.equals(batch.getExpiryDate(), expiryDate);
+        if (flavorMatch && expiryMatch) {
+          // Alle Batches dieses Supplements erst zurücksetzen, dann diesen setzen
+          supp.getStockBatches().forEach(b -> b.setInBenutzung(false));
+          batch.setInBenutzung(true);
+          found = true;
+          break;
+        }
+      }
+    }
+    if (!found) {
+      throw new IllegalArgumentException("Kein passender Batch gefunden (Flavor=" + normalizedFlavor + ", MHD=" + expiryDate + ")");
+    }
+    supplementRepository.save(supp);
+    // Globale Uniqueness: alle anderen Supplements zurücksetzen
+    clearInBenutzungBatchesExcept(supp.getId());
   }
 
   /**

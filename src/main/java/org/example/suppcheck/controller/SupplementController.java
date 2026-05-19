@@ -362,7 +362,8 @@ public class SupplementController {
             @PathVariable String id,
             @RequestParam(required = false) String flavor,
             @RequestParam(required = false) String expiryDate,
-            @RequestParam(defaultValue = "1") int quantity) {
+            @RequestParam(defaultValue = "1") int quantity,
+            @RequestParam(defaultValue = "false") boolean inBenutzung) {
         try {
             LocalDate expiry = (expiryDate != null && !expiryDate.isBlank())
                     ? LocalDate.parse(expiryDate) : null;
@@ -371,7 +372,8 @@ public class SupplementController {
                     expiry,
                     LocalDate.now(),
                     Math.max(1, quantity));
-            int newStock = supplementService.addStockBatch(id, batch);
+            batch.setInBenutzung(inBenutzung);
+            int newStock = supplementService.addStockBatch(id, batch, inBenutzung);
             return ResponseEntity.ok(Map.of("stock", newStock));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
@@ -405,14 +407,14 @@ public class SupplementController {
      */
     @PostMapping(value = "/{id}/stock/consume", produces = "application/json")
     @ResponseBody
-    public ResponseEntity<Map<String, Integer>> consumeFromBatch(
+    public ResponseEntity<Map<String, Object>> consumeFromBatch(
             @PathVariable String id,
             @RequestParam(required = false) String flavor,
             @RequestParam(required = false) String expiryDate,
             @RequestParam(defaultValue = "1") int quantity) {
         try {
-            int newStock = supplementService.consumeFromBatch(id, flavor, expiryDate, quantity);
-            return ResponseEntity.ok(Map.of("stock", newStock));
+            Map<String, Object> result = supplementService.consumeFromBatch(id, flavor, expiryDate, quantity);
+            return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
@@ -436,6 +438,28 @@ public class SupplementController {
                     return ResponseEntity.ok(hist);
                 })
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+    }
+
+    /**
+     * Setzt den inBenutzung-Flag auf einem bestimmten Batch und löscht ihn global von allen anderen.
+     *
+     * @param id         die Supplement-ID
+     * @param flavor     Flavor des Batches (optional)
+     * @param expiryDate MHD des Batches als ISO-String yyyy-MM-dd (optional)
+     * @return 200 OK bei Erfolg, 404 wenn Supplement oder Batch nicht gefunden
+     */
+    @PostMapping(value = "/{id}/stock/batch/setInBenutzung", produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> setInBenutzungBatch(
+            @PathVariable String id,
+            @RequestParam(required = false) String flavor,
+            @RequestParam(required = false) String expiryDate) {
+        try {
+            supplementService.setInBenutzungBatch(id, flavor, expiryDate);
+            return ResponseEntity.ok(Map.of("success", true));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
     }
 }
 

@@ -742,7 +742,7 @@ class SupplementServiceTest {
         supp.setStockBatches(new ArrayList<>(List.of(batch)));
         when(repository.findById("id-1")).thenReturn(Optional.of(supp));
 
-        int result = service.consumeFromBatch("id-1", "Chocolate", "2026-12-31", 2);
+        int result = (int) service.consumeFromBatch("id-1", "Chocolate", "2026-12-31", 2).get("stock");
 
         assertEquals(3, result);
         assertEquals(3, supp.getStock());
@@ -760,7 +760,7 @@ class SupplementServiceTest {
         when(repository.findById("id-1")).thenReturn(Optional.of(supp));
 
         // Consume for "Chocolate" – no matching batch; stock still decremented
-        int result = service.consumeFromBatch("id-1", "Chocolate", null, 1);
+        int result = (int) service.consumeFromBatch("id-1", "Chocolate", null, 1).get("stock");
 
         assertEquals(2, result);
         assertEquals(2, supp.getStock());
@@ -776,7 +776,7 @@ class SupplementServiceTest {
         supp.setStock(4);
         when(repository.findById("id-2")).thenReturn(Optional.of(supp));
 
-        int result = service.consumeFromBatch("id-2", null, null, 2);
+        int result = (int) service.consumeFromBatch("id-2", null, null, 2).get("stock");
 
         assertEquals(2, result);
         verify(repository).save(supp);
@@ -789,7 +789,7 @@ class SupplementServiceTest {
         supp.setStock(1);
         when(repository.findById("id-3")).thenReturn(Optional.of(supp));
 
-        int result = service.consumeFromBatch("id-3", null, null, 5);
+        int result = (int) service.consumeFromBatch("id-3", null, null, 5).get("stock");
 
         assertEquals(0, result);
         verify(repository).save(supp);
