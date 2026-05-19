@@ -470,6 +470,75 @@ class SupplementServiceTest {
         assertEquals(List.of(), existing.getStockBatches());
     }
 
+    // --- inBenutzung uniqueness ---
+
+    @Test
+    void saveSupplement_setInBenutzung_clearsOtherSupplements() {
+        // existing supplement being saved
+        Supplement existing = new Supplement();
+        existing.setId("id-1");
+        existing.setInBenutzung(true);
+        PriceEntry entry = new PriceEntry();
+        entry.setPrice(10.0); entry.setOvp(20.0);
+        existing.setPrices(new ArrayList<>(List.of(entry)));
+        when(repository.findById("id-1")).thenReturn(Optional.of(existing));
+
+        // another supplement already marked as in-use
+        Supplement other = new Supplement();
+        other.setId("id-2");
+        other.setInBenutzung(true);
+        when(repository.findByInBenutzungTrue()).thenReturn(new ArrayList<>(List.of(other)));
+
+        Supplement incoming = new Supplement();
+        incoming.setId("id-1");
+        incoming.setPrice(10.0); incoming.setOvp(20.0);
+        incoming.setInBenutzung(true);
+
+        service.saveSupplement(incoming);
+
+        assertFalse(other.isInBenutzung());
+        verify(repository).save(other);
+    }
+
+    @Test
+    void saveSupplement_setInBenutzungFalse_doesNotClearOthers() {
+        Supplement existing = new Supplement();
+        existing.setId("id-1");
+        PriceEntry entry = new PriceEntry();
+        entry.setPrice(10.0); entry.setOvp(20.0);
+        existing.setPrices(new ArrayList<>(List.of(entry)));
+        when(repository.findById("id-1")).thenReturn(Optional.of(existing));
+
+        Supplement incoming = new Supplement();
+        incoming.setId("id-1");
+        incoming.setPrice(10.0); incoming.setOvp(20.0);
+        incoming.setInBenutzung(false);
+
+        service.saveSupplement(incoming);
+
+        verify(repository, never()).findByInBenutzungTrue();
+    }
+
+    @Test
+    void saveSupplement_newInBenutzung_clearsOtherSupplements() {
+        // no existing supplement with id-new
+        when(repository.findById("id-new")).thenReturn(Optional.empty());
+
+        Supplement other = new Supplement();
+        other.setId("id-other");
+        other.setInBenutzung(true);
+        when(repository.findByInBenutzungTrue()).thenReturn(new ArrayList<>(List.of(other)));
+
+        Supplement incoming = new Supplement();
+        // no id → new supplement
+        incoming.setInBenutzung(true);
+
+        service.saveSupplement(incoming);
+
+        assertFalse(other.isInBenutzung());
+        verify(repository).save(other);
+    }
+
     // --- Hilfsmethode ---
 
     private Supplement createActiveSupplement(String type, List<Ingredient> ingredients) {

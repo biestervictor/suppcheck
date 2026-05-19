@@ -242,6 +242,7 @@ public class SupplementService {
       existing.setMhdProdukt(supplement.isMhdProdukt());
       existing.setNonDaily(supplement.isNonDaily());
       existing.setConsumptionIntervalDays(supplement.getConsumptionIntervalDays());
+      existing.setInBenutzung(supplement.isInBenutzung());
 
       // Bestände und Flavors aktualisieren (leere Liste = alle Batches löschen)
       List<StockBatch> incomingBatches = supplement.getStockBatches();
@@ -283,6 +284,12 @@ public class SupplementService {
 
 
       supplementRepository.save(existing);
+
+      // Uniqueness: nur ein Supplement darf gleichzeitig "in Benutzung" sein
+      if (existing.isInBenutzung()) {
+        clearInBenutzungExcept(existing.getId());
+      }
+
       return;
     }
 
@@ -299,6 +306,11 @@ public class SupplementService {
 
 
     supplementRepository.save(supplement);
+
+    // Uniqueness: nur ein Supplement darf gleichzeitig "in Benutzung" sein
+    if (supplement.isInBenutzung()) {
+      clearInBenutzungExcept(supplement.getId());
+    }
   }
 
   /**
@@ -310,6 +322,19 @@ public class SupplementService {
     } else if (!(supp.getPrices() instanceof ArrayList)) {
       supp.setPrices(new ArrayList<>(supp.getPrices()));
     }
+  }
+
+  /**
+   * Clears the {@code inBenutzung} flag on all supplements except the one with the given id.
+   * Called after saving a supplement with {@code inBenutzung=true} to enforce uniqueness.
+   */
+  private void clearInBenutzungExcept(String excludeId) {
+    supplementRepository.findByInBenutzungTrue().forEach(other -> {
+      if (!other.getId().equals(excludeId)) {
+        other.setInBenutzung(false);
+        supplementRepository.save(other);
+      }
+    });
   }
 
   /**

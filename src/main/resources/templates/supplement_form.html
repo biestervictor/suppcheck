@@ -262,9 +262,11 @@
     <br/><br/>
     <label for="isInactive">Inaktiv:</label>
     <input id="isInactive" th:field="*{inactive}" type="checkbox"/><br/><br/>
-    <label for="mhdProdukt">MHD-Produkt:</label>
-    <input id="mhdProdukt" th:field="*{mhdProdukt}" type="checkbox"/><br/><br/>
-    <label for="nonDaily">Nicht täglich:</label>
+   <label for="mhdProdukt">MHD-Produkt:</label>
+   <input id="mhdProdukt" th:field="*{mhdProdukt}" type="checkbox"/><br/><br/>
+   <label for="inBenutzung">In Benutzung:</label>
+   <input id="inBenutzung" th:field="*{inBenutzung}" type="checkbox"/><br/><br/>
+   <label for="nonDaily">Nicht täglich:</label>
     <input id="nonDaily" th:field="*{nonDaily}" type="checkbox" onchange="toggleIntervalField(this.checked)"/><br/><br/>
     <div id="interval-container" th:style="${supplement.nonDaily} ? 'display:block' : 'display:none'">
         <label for="consumptionIntervalDays">Einnahme alle X Tage:</label>

@@ -395,6 +395,7 @@
         <th>Preis / Portion</th>
         <th>Preis pro Monat</th>
         <th>MHD</th>
+        <th>In Benutzung</th>
         <th>Bestand</th>
         <th>Zutaten</th>
         <th>Aktion</th>
@@ -427,6 +428,7 @@
             </span>
         </td>
         <td th:text="${supplement.mhdProdukt ? '✅' : ''}">MHD</td>
+        <td th:text="${supplement.inBenutzung ? '▶' : ''}"></td>
         <td>
             <div class="stock-controls"
                  th:data-id="${supplement.id}"
