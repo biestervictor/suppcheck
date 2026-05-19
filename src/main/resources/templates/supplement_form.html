@@ -88,6 +88,29 @@
             color: #7a5f00;
         }
 
+        .flavor-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .flavor-row input[type="text"] {
+            flex: 1;
+            max-width: 280px;
+        }
+        .section-box {
+            background: #f0f4ff;
+            border: 1px solid #c0d0f0;
+            border-radius: 5px;
+            padding: 14px 18px;
+            margin-bottom: 18px;
+        }
+        .section-box h3 {
+            margin: 0 0 12px;
+            font-size: 1em;
+            color: #2d6cdf;
+        }
+
         /* ---- Check result annotations ---- */
         .check-banner {
             background: #fff3cd;
@@ -201,6 +224,33 @@
         <input id="consumptionIntervalDays" th:field="*{consumptionIntervalDays}" type="number" min="2" step="1" style="width:80px;"
                th:disabled="${!supplement.nonDaily}"/>
         <span style="color:#777;font-size:0.9em;margin-left:6px;">Tage (z.B. 3 = alle 3 Tage)</span><br/><br/>
+    </div>
+
+    <!-- ── Flavors ─────────────────────────────────────────────────────── -->
+    <div class="section-box">
+        <h3>Flavors</h3>
+        <div id="flavor-list">
+            <div class="flavor-row" th:each="flavor, fStat : *{flavors}">
+                <input type="text"
+                       th:name="|flavors[${fStat.index}]|"
+                       th:value="${flavor}"
+                       placeholder="z.B. Chocolate"/>
+                <button type="button" onclick="removeFlavor(this)">Entfernen</button>
+            </div>
+        </div>
+        <button type="button" onclick="addFlavor()">+ Flavor hinzufügen</button>
+    </div>
+
+    <!-- ── Erster Bestand (nur bei Neuanlage) ─────────────────────────── -->
+    <div class="section-box" id="initial-batch-section" th:style="${supplement.id != null} ? 'display:none' : 'display:block'">
+        <h3>Erster Bestand <span style="font-weight:normal;color:#888;">(optional)</span></h3>
+        <label for="initialFlavor">Flavor:</label>
+        <input id="initialFlavor" name="initialFlavor" type="text" placeholder="z.B. Chocolate (leer = kein Flavor)"/><br/><br/>
+        <label for="initialMhd">MHD:</label>
+        <input id="initialMhd" name="initialMhd" type="date"/><br/><br/>
+        <label for="initialQty">Menge (Portionen):</label>
+        <input id="initialQty" name="initialQty" type="number" min="0" value="0" style="width:80px;"/>
+        <span style="color:#777;font-size:0.9em;margin-left:6px;">(0 = kein Bestand anlegen)</span><br/><br/>
     </div>
 
     <div id="ingredients-list">
@@ -449,6 +499,31 @@
         var input = document.getElementById('consumptionIntervalDays');
         container.style.display = checked ? 'block' : 'none';
         input.disabled = !checked;
+    }
+
+    function addFlavor() {
+        var list = document.getElementById('flavor-list');
+        var idx = list.querySelectorAll('.flavor-row').length;
+        var div = document.createElement('div');
+        div.className = 'flavor-row';
+        div.innerHTML =
+            '<input type="text" name="flavors[' + idx + ']" placeholder="z.B. Vanilla"/>' +
+            '<button type="button" onclick="removeFlavor(this)">Entfernen</button>';
+        list.appendChild(div);
+        updateFlavorIndices();
+    }
+
+    function removeFlavor(btn) {
+        btn.parentElement.remove();
+        updateFlavorIndices();
+    }
+
+    function updateFlavorIndices() {
+        var rows = document.querySelectorAll('#flavor-list .flavor-row');
+        rows.forEach(function(row, idx) {
+            var input = row.querySelector('input[type="text"]');
+            if (input) input.name = 'flavors[' + idx + ']';
+        });
     }
 
     // =====================================================================

@@ -242,6 +242,7 @@ public class SupplementService {
       existing.setMhdProdukt(supplement.isMhdProdukt());
       existing.setNonDaily(supplement.isNonDaily());
       existing.setConsumptionIntervalDays(supplement.getConsumptionIntervalDays());
+      existing.setFlavors(supplement.getFlavors() != null ? supplement.getFlavors() : new ArrayList<>());
 
       // Record ingredient history if anything changed
       ingredientHistoryService.buildEntry(oldIngredients, supplement.getIngredients())

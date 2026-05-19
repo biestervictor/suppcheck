@@ -112,4 +112,38 @@ class SupplementMapperTest {
     assertEquals("Sub", entity.getIngredients().getFirst().getSubIngredients().getFirst().getName());
     assertEquals(44.0, entity.getIngredients().getFirst().getSubIngredients().getFirst().getMg(), 0.00001);
   }
+
+  @Test
+  void toEntity_flavors_mappedAndBlankFiltered() {
+    SupplementSaveDto dto = new SupplementSaveDto();
+    dto.setName("Test");
+    dto.setFlavors(List.of("Chocolate", "  ", "Vanilla", ""));
+
+    Supplement entity = SupplementMapper.toEntity(dto);
+
+    assertEquals(List.of("Chocolate", "Vanilla"), entity.getFlavors());
+  }
+
+  @Test
+  void toEntity_nullFlavors_resultsInEmptyList() {
+    SupplementSaveDto dto = new SupplementSaveDto();
+    dto.setName("Test");
+    dto.setFlavors(null);
+
+    Supplement entity = SupplementMapper.toEntity(dto);
+
+    assertNotNull(entity.getFlavors());
+    assertTrue(entity.getFlavors().isEmpty());
+  }
+
+  @Test
+  void toEntity_flavorsTrimmed() {
+    SupplementSaveDto dto = new SupplementSaveDto();
+    dto.setName("Test");
+    dto.setFlavors(List.of("  Strawberry  ", "  Mango"));
+
+    Supplement entity = SupplementMapper.toEntity(dto);
+
+    assertEquals(List.of("Strawberry", "Mango"), entity.getFlavors());
+  }
 }

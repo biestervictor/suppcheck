@@ -29,6 +29,16 @@ public final class SupplementMapper {
     supp.setNonDaily(dto.isNonDaily());
     supp.setConsumptionIntervalDays(dto.getConsumptionIntervalDays() > 1 ? dto.getConsumptionIntervalDays() : 1);
 
+    List<String> flavors = new ArrayList<>();
+    if (dto.getFlavors() != null) {
+      for (String f : dto.getFlavors()) {
+        if (f != null && !f.isBlank()) {
+          flavors.add(f.trim());
+        }
+      }
+    }
+    supp.setFlavors(flavors);
+
     List<Ingredient> ingredients = new ArrayList<>();
     if (dto.getIngredients() != null) {
       for (IngredientDto ingDto : dto.getIngredients()) {

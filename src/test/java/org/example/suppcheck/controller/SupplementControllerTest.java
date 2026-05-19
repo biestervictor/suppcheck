@@ -232,39 +232,90 @@ class SupplementControllerTest {
         assertTrue((boolean) model.getAttribute("isWorkoutDay"));
     }
 
-    // --- saveSupplement ---
+     // --- saveSupplement ---
 
-    @Test
-    void saveSupplement_newSupplement_redirectsToSupplementsList() {
-        org.example.suppcheck.dto.SupplementSaveDto dto = new org.example.suppcheck.dto.SupplementSaveDto();
-        dto.setName("NewSupp");
-        dto.setShop("ESN");
-        dto.setPortionSize(10);
-        dto.setSupplementType("BASIC");
-        dto.setPrice(15.0);
-        // no id → new supplement
+     @Test
+     void saveSupplement_newSupplement_redirectsToSupplementsList() {
+         org.example.suppcheck.dto.SupplementSaveDto dto = new org.example.suppcheck.dto.SupplementSaveDto();
+         dto.setName("NewSupp");
+         dto.setShop("ESN");
+         dto.setPortionSize(10);
+         dto.setSupplementType("BASIC");
+         dto.setPrice(15.0);
+         // no id → new supplement
 
-        String view = controller.saveSupplement(dto);
+         String view = controller.saveSupplement(dto);
 
-        assertEquals("redirect:/supplements", view);
-        verify(service).saveSupplement(any(Supplement.class));
-    }
+         assertEquals("redirect:/supplements", view);
+         verify(service).saveSupplement(any(Supplement.class));
+     }
 
-    @Test
-    void saveSupplement_existingSupplement_redirectsToSupplementsList() {
-        org.example.suppcheck.dto.SupplementSaveDto dto = new org.example.suppcheck.dto.SupplementSaveDto();
-        dto.setId("abc123");
-        dto.setName("ExistingSupp");
-        dto.setShop("ESN");
-        dto.setPortionSize(10);
-        dto.setSupplementType("BASIC");
-        dto.setPrice(15.0);
+     @Test
+     void saveSupplement_existingSupplement_redirectsToSupplementsList() {
+         org.example.suppcheck.dto.SupplementSaveDto dto = new org.example.suppcheck.dto.SupplementSaveDto();
+         dto.setId("abc123");
+         dto.setName("ExistingSupp");
+         dto.setShop("ESN");
+         dto.setPortionSize(10);
+         dto.setSupplementType("BASIC");
+         dto.setPrice(15.0);
 
-        String view = controller.saveSupplement(dto);
+         String view = controller.saveSupplement(dto);
 
-        assertEquals("redirect:/supplements", view);
-        verify(service).saveSupplement(any(Supplement.class));
-    }
+         assertEquals("redirect:/supplements", view);
+         verify(service).saveSupplement(any(Supplement.class));
+     }
+
+     @Test
+     void saveSupplement_newWithInitialBatch_callsAddStockBatch() {
+         org.example.suppcheck.dto.SupplementSaveDto dto = new org.example.suppcheck.dto.SupplementSaveDto();
+         dto.setName("NewSupp");
+         dto.setShop("ESN");
+         dto.setPortionSize(10);
+         dto.setSupplementType("BASIC");
+         dto.setInitialFlavor("Chocolate");
+         dto.setInitialMhd("2026-12-31");
+         dto.setInitialQty(5);
+
+         doAnswer(inv -> { ((Supplement) inv.getArgument(0)).setId("new-id"); return null; })
+                 .when(service).saveSupplement(any(Supplement.class));
+         when(service.addStockBatch(eq("new-id"), any(StockBatch.class))).thenReturn(5);
+
+         String view = controller.saveSupplement(dto);
+
+         assertEquals("redirect:/supplements", view);
+         verify(service).addStockBatch(eq("new-id"), any(StockBatch.class));
+     }
+
+     @Test
+     void saveSupplement_newWithZeroInitialQty_doesNotCallAddStockBatch() {
+         org.example.suppcheck.dto.SupplementSaveDto dto = new org.example.suppcheck.dto.SupplementSaveDto();
+         dto.setName("NewSupp");
+         dto.setPortionSize(10);
+         dto.setSupplementType("BASIC");
+         dto.setInitialQty(0);
+
+         doAnswer(inv -> { ((Supplement) inv.getArgument(0)).setId("new-id"); return null; })
+                 .when(service).saveSupplement(any(Supplement.class));
+
+         controller.saveSupplement(dto);
+
+         verify(service, never()).addStockBatch(any(), any(StockBatch.class));
+     }
+
+     @Test
+     void saveSupplement_existingWithInitialBatch_doesNotCallAddStockBatch() {
+         org.example.suppcheck.dto.SupplementSaveDto dto = new org.example.suppcheck.dto.SupplementSaveDto();
+         dto.setId("existing-id");
+         dto.setName("ExistingSupp");
+         dto.setPortionSize(10);
+         dto.setSupplementType("BASIC");
+         dto.setInitialQty(5); // existing → should NOT create batch
+
+         controller.saveSupplement(dto);
+
+         verify(service, never()).addStockBatch(any(), any(StockBatch.class));
+     }
 
     // --- showComparePage ---
 

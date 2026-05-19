@@ -32,4 +32,20 @@ public class SupplementSaveDto {
    */
   private int consumptionIntervalDays = 1;
 
+  /**
+   * Verfügbare Flavors für dieses Supplement.
+   */
+  private List<String> flavors = new ArrayList<>();
+
+  // ── Erster Bestand (nur beim Anlegen, optional) ──────────────────────────
+
+  /** Flavor des ersten Batches (leer = kein Flavor). */
+  private String initialFlavor;
+
+  /** MHD des ersten Batches als ISO-String "yyyy-MM-dd" (leer = kein MHD). */
+  private String initialMhd;
+
+  /** Menge des ersten Batches (0 = kein Batch anlegen). */
+  private int initialQty = 0;
+
 }

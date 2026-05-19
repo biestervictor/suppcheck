@@ -1,6 +1,7 @@
 package org.example.suppcheck.controller;
 
 import java.util.*;
+import java.time.LocalDate;
 
 import org.example.suppcheck.dto.CheckResult;
 import org.example.suppcheck.dto.IngredientDto;
@@ -223,8 +224,20 @@ public class SupplementController {
      */
     @PostMapping("/save")
     public String saveSupplement(@ModelAttribute SupplementSaveDto supplementDto) {
+        boolean isNew = supplementDto.getId() == null || supplementDto.getId().isBlank();
         Supplement supplement = SupplementMapper.toEntity(supplementDto);
         supplementService.saveSupplement(supplement);
+
+        // Initialen Batch anlegen (nur bei Neuanlage, wenn Menge > 0)
+        if (isNew && supplement.getId() != null && supplementDto.getInitialQty() > 0) {
+            LocalDate mhd = (supplementDto.getInitialMhd() != null && !supplementDto.getInitialMhd().isBlank())
+                    ? LocalDate.parse(supplementDto.getInitialMhd()) : null;
+            String flavor = (supplementDto.getInitialFlavor() != null && !supplementDto.getInitialFlavor().isBlank())
+                    ? supplementDto.getInitialFlavor().trim() : null;
+            StockBatch batch = new StockBatch(flavor, mhd, LocalDate.now(), supplementDto.getInitialQty());
+            supplementService.addStockBatch(supplement.getId(), batch);
+        }
+
         return "redirect:/supplements";
     }
 
