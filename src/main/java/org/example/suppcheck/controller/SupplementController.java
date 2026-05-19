@@ -228,14 +228,18 @@ public class SupplementController {
         Supplement supplement = SupplementMapper.toEntity(supplementDto);
         supplementService.saveSupplement(supplement);
 
-        // Initialen Batch anlegen (nur bei Neuanlage, wenn Menge > 0)
-        if (isNew && supplement.getId() != null && supplementDto.getInitialQty() > 0) {
+        // Initialen Batch anlegen wenn:
+        //   a) Neuanlage (isNew) und MongoDB hat eine ID vergeben, ODER
+        //   b) Bearbeitung eines Supplements das noch keine Bestände hat
+        boolean noBatchesYet = supplementDto.getStockBatches() == null || supplementDto.getStockBatches().isEmpty();
+        String targetId = isNew ? supplement.getId() : supplementDto.getId();
+        if (noBatchesYet && supplementDto.getInitialQty() > 0 && targetId != null && !targetId.isBlank()) {
             LocalDate mhd = (supplementDto.getInitialMhd() != null && !supplementDto.getInitialMhd().isBlank())
                     ? LocalDate.parse(supplementDto.getInitialMhd()) : null;
             String flavor = (supplementDto.getInitialFlavor() != null && !supplementDto.getInitialFlavor().isBlank())
                     ? supplementDto.getInitialFlavor().trim() : null;
             StockBatch batch = new StockBatch(flavor, mhd, LocalDate.now(), supplementDto.getInitialQty());
-            supplementService.addStockBatch(supplement.getId(), batch);
+            supplementService.addStockBatch(targetId, batch);
         }
 
         return "redirect:/supplements";

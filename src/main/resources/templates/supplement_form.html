@@ -141,6 +141,22 @@
         .batch-row input[type="date"]   { width: 150px; }
         .batch-row input[type="number"] { width: 70px; }
         .batch-meta { font-size: 0.78em; color: #888; white-space: nowrap; }
+        button.batch-delete {
+            background: none;
+            color: #c0392b;
+            border: 1px solid #e0b4b0;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            font-size: 13px;
+            line-height: 1;
+            padding: 0;
+            cursor: pointer;
+            flex-shrink: 0;
+            align-self: center;
+            margin-left: auto;
+        }
+        button.batch-delete:hover { background: #e74c3c; color: #fff; border-color: #e74c3c; }
 
         /* ---- Check result annotations ---- */
         .check-banner {
@@ -257,9 +273,10 @@
         <span style="color:#777;font-size:0.9em;margin-left:6px;">Tage (z.B. 3 = alle 3 Tage)</span><br/><br/>
     </div>
 
-    <!-- ── Bestände / Flavors ──────────────────────────────────────────────── -->
+    <!-- ── Bestände / Flavors (nur im Bearbeitungs-Modus) ────────────────────── -->
     <details class="section-details"
-             th:open="${supplement.id != null and supplement.stockBatches != null and !supplement.stockBatches.isEmpty()}">
+             th:if="${supplement.id != null}"
+             th:open="${supplement.stockBatches != null and !supplement.stockBatches.isEmpty()}">
         <summary>Bestände / Flavors
             <span th:if="${supplement.stockBatches != null and !supplement.stockBatches.isEmpty()}"
                   style="font-weight:normal;color:#555;margin-left:8px;font-size:.9em;"
@@ -271,6 +288,7 @@
                 Noch keine Bestände vorhanden – über den
                 <strong>+</strong>-Button in der Übersicht hinzufügen.
             </div>
+            <div id="batch-list">
             <div th:each="batch, bStat : ${supplement.stockBatches}" class="batch-row">
                 <div>
                     <label style="display:block;font-size:.8em;color:#666;margin-bottom:2px;">Flavor</label>
@@ -301,12 +319,16 @@
                 <span class="batch-meta"
                       th:if="${batch.addedDate != null}"
                       th:text="'hinzugefügt: ' + ${#temporals.format(batch.addedDate, 'dd.MM.yyyy')} + ' · Original: ' + ${batch.quantity}"></span>
+                <button type="button" class="batch-delete" onclick="removeBatchRow(this)" title="Eintrag löschen">×</button>
+            </div>
             </div>
         </div>
     </details>
 
-    <!-- ── Erster Bestand (nur bei Neuanlage) ─────────────────────────────── -->
-    <details class="section-details" th:if="${supplement.id == null}">
+    <!-- ── Erster Bestand (Neuanlage ODER Bearbeiten ohne vorhandene Bestände) ── -->
+    <details class="section-details"
+             th:if="${supplement.id == null or supplement.stockBatches == null or supplement.stockBatches.isEmpty()}"
+             th:open="${supplement.id != null and (supplement.stockBatches == null or supplement.stockBatches.isEmpty())}">
         <summary>Erster Bestand <span style="font-weight:normal;color:#888;">(optional)</span></summary>
         <div class="details-body">
             <label for="initialFlavor">Flavor:</label>
@@ -566,6 +588,19 @@
         var input = document.getElementById('consumptionIntervalDays');
         container.style.display = checked ? 'block' : 'none';
         input.disabled = !checked;
+    }
+
+    function removeBatchRow(btn) {
+        btn.closest('.batch-row').remove();
+        updateBatchIndices();
+    }
+
+    function updateBatchIndices() {
+        document.querySelectorAll('#batch-list .batch-row').forEach((row, idx) => {
+            row.querySelectorAll('[name]').forEach(input => {
+                input.name = input.name.replace(/stockBatches\[\d+\]/, `stockBatches[${idx}]`);
+            });
+        });
     }
 
     // =====================================================================

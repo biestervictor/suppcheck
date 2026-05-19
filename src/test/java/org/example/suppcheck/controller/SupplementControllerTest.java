@@ -304,17 +304,44 @@ class SupplementControllerTest {
      }
 
      @Test
-     void saveSupplement_existingWithInitialBatch_doesNotCallAddStockBatch() {
+     void saveSupplement_existingWithBatches_doesNotAddInitialBatch() {
+         // Existing supplement that already has stock batches → initialQty is ignored
          org.example.suppcheck.dto.SupplementSaveDto dto = new org.example.suppcheck.dto.SupplementSaveDto();
          dto.setId("existing-id");
          dto.setName("ExistingSupp");
          dto.setPortionSize(10);
          dto.setSupplementType("BASIC");
-         dto.setInitialQty(5); // existing → should NOT create batch
+         dto.setInitialQty(5); // would add a batch, but stockBatches not empty → ignored
+
+         org.example.suppcheck.dto.StockBatchDto existingBatch = new org.example.suppcheck.dto.StockBatchDto();
+         existingBatch.setFlavor("Chocolate");
+         existingBatch.setQuantity(5);
+         existingBatch.setRemaining(3);
+         dto.setStockBatches(java.util.List.of(existingBatch));
 
          controller.saveSupplement(dto);
 
          verify(service, never()).addStockBatch(any(), any(StockBatch.class));
+     }
+
+     @Test
+     void saveSupplement_existingWithNoBatches_addsInitialBatch() {
+         // Existing supplement with no batches yet → works like first-time setup
+         org.example.suppcheck.dto.SupplementSaveDto dto = new org.example.suppcheck.dto.SupplementSaveDto();
+         dto.setId("existing-id");
+         dto.setName("ExistingSupp");
+         dto.setPortionSize(10);
+         dto.setSupplementType("BASIC");
+         dto.setInitialFlavor("Vanilla");
+         dto.setInitialQty(4);
+         // stockBatches is empty (default)
+
+         when(service.addStockBatch(eq("existing-id"), any(StockBatch.class))).thenReturn(4);
+
+         String view = controller.saveSupplement(dto);
+
+         assertEquals("redirect:/supplements", view);
+         verify(service).addStockBatch(eq("existing-id"), any(StockBatch.class));
      }
 
     // --- showComparePage ---
