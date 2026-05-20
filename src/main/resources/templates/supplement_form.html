@@ -284,13 +284,10 @@
     <label for="price">Preis (berechnet):</label>
     <input id="price" required th:field="*{price}" type="number" step="any" readonly
            style="background:#eef3fa; cursor:not-allowed;"/><br/><br/>
-    <label for="portions">Portionsgröße (g):</label>
-    <input id="portions" required th:field="*{portionSize}" type="number"/><br/><br/>
-    <label for="portionenProPackung">Portionen pro Packung
-        <span style="font-weight:normal;color:#888;font-size:.88em;">(z.B. 60 Shakes pro Whey-Beutel — für den Reichweiten-Rechner)</span>:
+    <label for="portions">Portionen pro Packung
+        <span style="font-weight:normal;color:#888;font-size:.88em;">(z.B. 60 Shakes pro Whey-Beutel)</span>:
     </label>
-    <input id="portionenProPackung" th:field="*{portionenProPackung}" type="number" min="1" step="1"
-           placeholder="z.B. 60"/><br/><br/>
+    <input id="portions" required th:field="*{portionSize}" type="number" min="1" step="1" placeholder="z.B. 60"/><br/><br/>
     <label for="inhaltsstoffe">Inhaltsstoffe
         <span style="font-weight:normal;color:#888;font-size:.88em;">(optionaler Freitext, z.B. Zutaten-Auflistung vom Etikett)</span>:
     </label>
@@ -785,11 +782,6 @@
             });
 
         if (changed > 0) {
-            // Auch das Portionsgröße-Feld im Formular befüllen wenn noch leer
-            var portionField = document.getElementById('portions');
-            if (portionField && !portionField.value) {
-                portionField.value = portionSize;
-            }
             document.getElementById('per100g-checkbox').checked = false;
             document.getElementById('per100g-portionwrap').style.display = 'none';
             document.getElementById('ocr-status').textContent +=
@@ -1228,12 +1220,6 @@
         if (isPer100g) {
             checkbox.checked = true;
             wrap.style.display = 'inline-flex';
-            // Auto-fill portion size from the main form field
-            var portionField = document.getElementById('portions');
-            var portionInput = document.getElementById('per100g-portion');
-            if (portionField && portionInput && portionField.value) {
-                portionInput.value = portionField.value;
-            }
         }
     }
 
