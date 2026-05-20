@@ -355,7 +355,7 @@
 
     <!-- ── Vorgänger / Nachfolger-Verknüpfung ──────────────────────────────── -->
     <details class="section-details"
-             th:open="${supplement.nachfolgerId != null or vorgaenger != null}">
+             th:open="${supplement.id == null or supplement.nachfolgerId != null or vorgaenger != null}">
         <summary>Produktversion verknüpfen
             <span th:if="${supplement.nachfolgerId != null}"
                   style="font-weight:normal;color:#27ae60;margin-left:8px;font-size:.9em;">
@@ -389,7 +389,7 @@
                     <input type="radio" name="produktRelation" value="nachfolger"
                            id="rel-nachfolger" onchange="onRelationChange('nachfolger')"/>
                     Dieses Produkt hat einen <b>Nachfolger</b>
-                    <span style="color:#888;font-size:0.85em;">(ich bearbeite V1 und wähle V2 aus)</span>
+                    <span style="color:#888;font-size:0.85em;">(ich wähle das bereits bestehende V2 aus)</span>
                 </label>
             </div>
 
@@ -1044,8 +1044,7 @@
             document.getElementById('relation-select').value = vorgaengerIdFromServer;
             onRelationSelectChange();
         } else if (nachfolgerId) {
-            document.getElementById('rel-nachfolger').checked = true;
-            onRelationChange('nachfolger');
+            document.getElementById('rel-nachfolger').checked = true;            onRelationChange('nachfolger');
             document.getElementById('relation-select').value = nachfolgerId;
             onRelationSelectChange();
         } else {
