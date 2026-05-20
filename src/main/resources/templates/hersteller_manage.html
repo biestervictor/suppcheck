@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/head :: common-meta}"></th:block>
+    <title>Hersteller verwalten</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 0; }
+        h1 { margin: 32px 0 16px 0; text-align: center; color: #2d6cdf; }
+        .container {
+            width: 56%; margin: 32px auto 48px auto; background: #fff;
+            padding: 28px 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); border-radius: 6px;
+        }
+        .section-heading {
+            font-size: 1em; font-weight: 600; color: #2d6cdf;
+            margin: 0 0 14px; border-bottom: 2px solid #eaf1fb; padding-bottom: 4px;
+        }
+        /* Add form */
+        .add-form { display: flex; gap: 10px; align-items: center; margin-bottom: 28px; }
+        .add-form input[type="text"] {
+            flex: 1; padding: 8px 12px; border: 1px solid #bfc9d1;
+            border-radius: 4px; font-size: 0.95em;
+        }
+        .btn-add {
+            padding: 8px 20px; background: #2d6cdf; color: #fff;
+            border: none; border-radius: 4px; font-size: 0.95em; cursor: pointer; font-weight: 600;
+        }
+        .btn-add:hover { background: #1a55c0; }
+        /* List */
+        .hersteller-list { list-style: none; margin: 0; padding: 0; }
+        .hersteller-list li {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 14px; border-bottom: 1px solid #e8edf2; font-size: 0.97em;
+        }
+        .hersteller-list li:last-child { border-bottom: none; }
+        .hersteller-list li:hover { background: #f4f8ff; }
+        .btn-delete {
+            padding: 4px 12px; background: #e74c3c; color: #fff;
+            border: none; border-radius: 4px; font-size: 0.85em; cursor: pointer;
+        }
+        .btn-delete:hover { background: #c0392b; }
+        .empty-hint { color: #888; font-style: italic; padding: 12px 0; }
+        /* flash messages */
+        .msg-success {
+            background: #d5f5e3; color: #1a7a3a; border: 1px solid #a9dfbf;
+            border-radius: 4px; padding: 10px 16px; margin-bottom: 18px; font-size: 0.93em;
+        }
+        .msg-error {
+            background: #fadbd8; color: #922b21; border: 1px solid #f1948a;
+            border-radius: 4px; padding: 10px 16px; margin-bottom: 18px; font-size: 0.93em;
+        }
+    </style>
+    <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{fragments/nav :: main-nav}"></th:block>
+<h1>Hersteller verwalten</h1>
+
+<div class="container">
+
+    <!-- Flash messages -->
+    <div class="msg-success" th:if="${successMsg}" th:text="${successMsg}"></div>
+    <div class="msg-error"   th:if="${errorMsg}"   th:text="${errorMsg}"></div>
+
+    <!-- Add new Hersteller -->
+    <div class="section-heading">Neuen Hersteller hinzufügen</div>
+    <form class="add-form" th:action="@{/hersteller/add}" method="post">
+        <input type="text" name="name" placeholder="z.B. MyProtein" required maxlength="80"
+               autofocus/>
+        <button class="btn-add" type="submit">Hinzufügen</button>
+    </form>
+
+    <!-- Existing Hersteller list -->
+    <div class="section-heading">Bestehende Hersteller</div>
+    <ul class="hersteller-list" th:if="${not #lists.isEmpty(hersteller)}">
+        <li th:each="h : ${hersteller}">
+            <span th:text="${h.name}">Hersteller</span>
+            <form th:action="@{/hersteller/delete/{id}(id=${h.id})}" method="post"
+                  onsubmit="return confirm('Hersteller wirklich löschen?');">
+                <button class="btn-delete" type="submit">Löschen</button>
+            </form>
+        </li>
+    </ul>
+    <p class="empty-hint" th:if="${#lists.isEmpty(hersteller)}">
+        Noch keine Hersteller vorhanden.
+    </p>
+
+</div>
+</body>
+</html>

@@ -13,6 +13,7 @@ import org.example.suppcheck.model.PriceEntry;
 import org.example.suppcheck.model.Supplement;
 import org.example.suppcheck.service.DailyIntakeSnapshotService;
 import org.example.suppcheck.service.CheckService;
+import org.example.suppcheck.service.HerstellerService;
 import org.example.suppcheck.service.OcrService;
 import org.example.suppcheck.service.SupplementService;
 import org.junit.jupiter.api.Test;
@@ -26,7 +27,8 @@ class SupplementPriceHistoryPageTest {
     DailyIntakeSnapshotService snapshotService = mock(DailyIntakeSnapshotService.class);
     OcrService ocrService = mock(OcrService.class);
     CheckService checkService = mock(CheckService.class);
-    SupplementController controller = new SupplementController(supplementService, snapshotService, ocrService, checkService);
+    HerstellerService herstellerService = mock(HerstellerService.class);
+    SupplementController controller = new SupplementController(supplementService, snapshotService, ocrService, checkService, herstellerService);
 
     Supplement supp = new Supplement();
     supp.setId("id-1");

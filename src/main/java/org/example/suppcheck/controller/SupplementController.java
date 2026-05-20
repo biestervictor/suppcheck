@@ -11,12 +11,12 @@ import org.example.suppcheck.dto.SupplementSaveDto;
 import org.example.suppcheck.mapper.SupplementMapper;
 import org.example.suppcheck.model.Ingredient;
 import org.example.suppcheck.model.IngredientHistoryEntry;
-import org.example.suppcheck.model.Shop;
 import org.example.suppcheck.model.StockBatch;
 import org.example.suppcheck.model.Supplement;
 import org.example.suppcheck.model.SupplementType;
 import org.example.suppcheck.service.DailyIntakeSnapshotService;
 import org.example.suppcheck.service.CheckService;
+import org.example.suppcheck.service.HerstellerService;
 import org.example.suppcheck.service.OcrService;
 import org.example.suppcheck.service.SupplementService;
 import org.springframework.http.HttpStatus;
@@ -43,6 +43,7 @@ public class SupplementController {
     private final DailyIntakeSnapshotService snapshotService;
     private final OcrService ocrService;
     private final CheckService checkService;
+    private final HerstellerService herstellerService;
 
     /**
      * Constructor for SupplementController.
@@ -55,11 +56,13 @@ public class SupplementController {
     public SupplementController(SupplementService supplementService,
                                 DailyIntakeSnapshotService snapshotService,
                                 OcrService ocrService,
-                                CheckService checkService) {
+                                CheckService checkService,
+                                HerstellerService herstellerService) {
         this.supplementService = supplementService;
         this.snapshotService = snapshotService;
         this.ocrService = ocrService;
         this.checkService = checkService;
+        this.herstellerService = herstellerService;
     }
 
     /**
@@ -78,9 +81,7 @@ public class SupplementController {
         model.addAttribute("types", Arrays.stream(SupplementType.values())
                  .map(SupplementType::name)
                  .toList());
-        model.addAttribute(SHOPS, Arrays.stream(Shop.values())
-                 .map(Shop::name)
-                 .toList());
+        model.addAttribute(SHOPS, herstellerService.findAllNames());
         model.addAttribute("allSupplements", supplementService.getAllSupplements());
     }
 
@@ -217,8 +218,7 @@ public class SupplementController {
         model.addAttribute("supplements", supplements);
         model.addAttribute("types", Arrays.stream(SupplementType.values())
             .map(Enum::name).toList());
-        model.addAttribute(SHOPS, Arrays.stream(Shop.values())
-            .map(Enum::name).toList());
+        model.addAttribute(SHOPS, herstellerService.findAllNames());
         Map<String, Supplement> supplementById = supplements.stream()
             .filter(s -> s.getId() != null)
             .collect(java.util.stream.Collectors.toMap(Supplement::getId, s -> s, (a, b) -> a));
