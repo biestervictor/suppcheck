@@ -5,41 +5,43 @@
     <th:block th:replace="~{fragments/head :: common-meta}"></th:block>
     <title>Supplement Vergleich</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f7f7f7;
-            margin: 0;
-            padding: 0;
-        }
-        h1 {
-            margin: 32px 0 16px 0;
-            text-align: center;
-            color: #2d6cdf;
-        }
+        body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 0; }
+        h1 { margin: 32px 0 16px 0; text-align: center; color: #2d6cdf; }
         .vergleich-container {
-            width: 60%;
-            margin: 32px auto 0 auto;
-            background: #fff;
-            padding: 18px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-            border-radius: 6px;
+            width: 72%; margin: 32px auto 40px auto; background: #fff;
+            padding: 24px 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); border-radius: 6px;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 24px;
+        .select-row { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+        .select-row > div { flex: 1; min-width: 220px; }
+        .select-row label { display: block; font-size: 0.88em; color: #555; margin-bottom: 4px; }
+        .select-row select {
+            width: 100%; padding: 7px 10px; border: 1px solid #bfc9d1;
+            border-radius: 4px; font-size: 0.95em; background: #fff;
         }
-        th, td {
-            padding: 12px 18px;
-            border-bottom: 1px solid #e0e0e0;
-            text-align: left;
+        .section-heading {
+            font-size: 1em; font-weight: 600; color: #2d6cdf;
+            margin: 28px 0 8px; border-bottom: 2px solid #eaf1fb; padding-bottom: 4px;
         }
-        th {
-            background: #eaf1fb;
-        }
-        tr:last-child td {
-            border-bottom: none;
-        }
+        table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+        th, td { padding: 10px 14px; border-bottom: 1px solid #e0e0e0; text-align: left; }
+        th { background: #eaf1fb; font-weight: 600; }
+        tr:last-child td { border-bottom: none; }
+
+        /* ── Diff highlighting – identical to V1 vs V2 tab ── */
+        .diff-added    { color: #1a7a3a; background: #d5f5e3; }
+        .diff-removed  { color: #922b21; background: #fadbd8; }
+        .diff-modified { color: #935116; background: #fdebd0; }
+        .diff-added    td:first-child::before { content: '+ '; font-weight: bold; }
+        .diff-removed  td:first-child::before { content: '− '; font-weight: bold; }
+        .diff-modified td:first-child::before { content: '~ '; font-weight: bold; }
+        .diff-unchanged td { color: #888; }
+        .diff-empty { color: #888; font-style: italic; padding: 14px 0; text-align: center; }
+
+        /* highlight differing property cells */
+        .prop-diff { background: #fdebd0; color: #935116; font-weight: bold; }
+
+        /* sub-ingredient list inside a diff cell */
+        .sub-list { margin: 4px 0 0 16px; padding: 0; list-style-type: circle; font-size: 0.88em; }
     </style>
     <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
 </head>
@@ -49,69 +51,192 @@
 <th:block th:replace="~{fragments/banner :: banner('info', 'Waehle zwei Supplements aus, um Werte und Zutaten direkt zu vergleichen.')}"></th:block>
 <div class="vergleich-container">
     <form id="compare-form" onsubmit="return false;">
-        <label for="suppSelect1">Supplement 1:</label>
-        <select id="suppSelect1">
-            <option value="">-- Supplement wählen --</option>
-            <option th:each="supp : ${supplements}"
-                    th:value="${supp.shop + '||' + supp.name}"
-                    th:text="${supp.shop + ' - ' + supp.name}"></option>
-        </select>
-        &nbsp;&nbsp;
-        <label for="suppSelect2">Supplement 2:</label>
-        <select id="suppSelect2">
-            <option value="">-- Supplement wählen --</option>
-            <option th:each="supp : ${supplements}"
-                    th:value="${supp.shop + '||' + supp.name}"
-                    th:text="${supp.shop + ' - ' + supp.name}"></option>
-        </select>
+        <div class="select-row">
+            <div>
+                <label for="suppSelect1">Supplement A:</label>
+                <select id="suppSelect1">
+                    <option value="">-- Supplement wählen --</option>
+                    <option th:each="supp : ${supplements}"
+                            th:value="${supp.shop + '||' + supp.name}"
+                            th:text="${supp.shop + ' – ' + supp.name}"></option>
+                </select>
+            </div>
+            <div>
+                <label for="suppSelect2">Supplement B:</label>
+                <select id="suppSelect2">
+                    <option value="">-- Supplement wählen --</option>
+                    <option th:each="supp : ${supplements}"
+                            th:value="${supp.shop + '||' + supp.name}"
+                            th:text="${supp.shop + ' – ' + supp.name}"></option>
+                </select>
+            </div>
+        </div>
     </form>
-    <div id="compare-result" style="margin-top:24px;"></div>
+    <div id="compare-result" style="margin-top:8px;"></div>
 </div>
 <script th:inline="javascript">
     /*<![CDATA[*/
     var supplements = /*[[${supplements}]]*/ [];
+
     function getSupplementByShopName(shopName) {
         var parts = shopName.split('||');
-        return supplements.find(function(s) {
-            return s.shop === parts[0] && s.name === parts[1];
-        });
+        return supplements.find(function(s) { return s.shop === parts[0] && s.name === parts[1]; });
     }
+
+    function normName(name) {
+        return (name || '').toLowerCase().trim().replace(/\s+/g, ' ');
+    }
+
+    function fmtMg(mg) {
+        if (mg == null || mg === '') return '–';
+        var n = parseFloat(mg);
+        if (isNaN(n) || n === 0) return '–';
+        return n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 3 }) + ' mg';
+    }
+
+    function esc(str) {
+        return String(str || '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    /** Build a sub-ingredient <ul> string for a given ingredient object. */
+    function subList(ing) {
+        if (!ing || !ing.subIngredients || ing.subIngredients.length === 0) return '';
+        return '<ul class="sub-list">' +
+            ing.subIngredients.map(function(si) {
+                return '<li>' + esc(si.name) + ' (' + fmtMg(si.mg) + ')</li>';
+            }).join('') + '</ul>';
+    }
+
+    /**
+     * Compute ingredient diff between supp1 and supp2.
+     * Preserves order: supp1 ingredients first, then extras from supp2.
+     */
+    function computeDiff(supp1, supp2) {
+        var ings1 = supp1.ingredients || [];
+        var ings2 = supp2.ingredients || [];
+        var map1 = {}, map2 = {};
+        ings1.forEach(function(i) { map1[normName(i.name)] = i; });
+        ings2.forEach(function(i) { map2[normName(i.name)] = i; });
+
+        var rows = [];
+        var seen = {};
+
+        ings1.forEach(function(i) {
+            var key = normName(i.name);
+            seen[key] = true;
+            var i2 = map2[key];
+            if (!i2) {
+                rows.push({ ing1: i,    ing2: null, type: 'REMOVED' });
+            } else if (String(i.mg) !== String(i2.mg)) {
+                rows.push({ ing1: i,    ing2: i2,   type: 'MODIFIED' });
+            } else {
+                rows.push({ ing1: i,    ing2: i2,   type: 'UNCHANGED' });
+            }
+        });
+
+        ings2.forEach(function(i) {
+            if (!seen[normName(i.name)]) {
+                rows.push({ ing1: null, ing2: i,    type: 'ADDED' });
+            }
+        });
+
+        return rows;
+    }
+
     function renderCompare() {
         var sel1 = document.getElementById('suppSelect1').value;
         var sel2 = document.getElementById('suppSelect2').value;
         var supp1 = sel1 ? getSupplementByShopName(sel1) : null;
         var supp2 = sel2 ? getSupplementByShopName(sel2) : null;
         var html = '';
-        if (supp1 && supp2) {
-            html += '<table>';
-            html += '<tr><th>Eigenschaft</th><th>' + supp1.shop + ' - ' + supp1.name + '</th><th>' + supp2.shop + ' - ' + supp2.name + '</th></tr>';
-            html += '<tr><td>Preis</td><td>' + supp1.price + '</td><td>' + supp2.price + '</td></tr>';
-            html += '<tr><td>Portionsgröße</td><td>' + supp1.portionSize + '</td><td>' + supp2.portionSize + '</td></tr>';
-            html += '<tr><td>Typ</td><td>' + supp1.supplementType + '</td><td>' + supp2.supplementType + '</td></tr>';
-            html += '<tr><td>Zutaten</td>';
-            html += '<td>' + (supp1.ingredients ? supp1.ingredients.map(function(i){
-                var sub = (i.subIngredients && i.subIngredients.length > 0) ?
-                    '<ul style="margin:0 0 0 18px;padding:0;list-style-type:circle;">' +
-                    i.subIngredients.map(function(si){return '<li>' + si.name + ' (' + si.mg + 'mg)</li>';}).join('') + '</ul>' : '';
-                return i.name + ' (' + i.mg + 'mg)' + sub;
-            }).join('<br>') : '-') + '</td>';
-            html += '<td>' + (supp2.ingredients ? supp2.ingredients.map(function(i){
-                var sub = (i.subIngredients && i.subIngredients.length > 0) ?
-                    '<ul style="margin:0 0 0 18px;padding:0;list-style-type:circle;">' +
-                    i.subIngredients.map(function(si){return '<li>' + si.name + ' (' + si.mg + 'mg)</li>';}).join('') + '</ul>' : '';
-                return i.name + ' (' + i.mg + 'mg)' + sub;
-            }).join('<br>') : '-') + '</td>';
-            html += '</tr>';
-            html += '</table>';
-        } else {
-            html = '<div class="banner banner-info" style="width:auto;margin:0;">Bitte beide Supplements auswählen.</div>';
+
+        if (!supp1 || !supp2) {
+            html = '<p class="diff-empty">Bitte beide Supplements auswählen.</p>';
+            document.getElementById('compare-result').innerHTML = html;
+            return;
         }
+
+        var label1 = esc(supp1.shop) + ' – ' + esc(supp1.name);
+        var label2 = esc(supp2.shop) + ' – ' + esc(supp2.name);
+
+        /* ── Allgemeine Eigenschaften ── */
+        html += '<div class="section-heading">Allgemeine Eigenschaften</div>';
+        html += '<table><thead><tr><th>Eigenschaft</th><th>' + label1 + '</th><th>' + label2 + '</th></tr></thead><tbody>';
+
+        function propRow(label, v1, v2) {
+            var diff = String(v1 || '') !== String(v2 || '');
+            var cls = diff ? ' class="prop-diff"' : '';
+            return '<tr><td>' + label + '</td>' +
+                   '<td' + cls + '>' + esc(v1 || '–') + '</td>' +
+                   '<td' + cls + '>' + esc(v2 || '–') + '</td></tr>';
+        }
+
+        var price1 = supp1.price != null ? supp1.price + ' €' : null;
+        var price2 = supp2.price != null ? supp2.price + ' €' : null;
+        var ps1    = supp1.portionSize != null ? supp1.portionSize + ' g' : null;
+        var ps2    = supp2.portionSize != null ? supp2.portionSize + ' g' : null;
+
+        html += propRow('Preis',        price1, price2);
+        html += propRow('Portionsgröße', ps1,   ps2);
+        html += propRow('Typ',          supp1.supplementType, supp2.supplementType);
+        html += '</tbody></table>';
+
+        /* ── Zutaten-Vergleich ── */
+        html += '<div class="section-heading">Zutaten-Vergleich</div>';
+
+        var diff = computeDiff(supp1, supp2);
+
+        if (diff.length === 0) {
+            html += '<p class="diff-empty">Keine Zutaten vorhanden.</p>';
+        } else {
+            var hasChanges = diff.some(function(r) { return r.type !== 'UNCHANGED'; });
+
+            html += '<table>';
+            html += '<thead><tr>' +
+                    '<th>Zutat</th>' +
+                    '<th>Status</th>' +
+                    '<th>' + label1 + '</th>' +
+                    '<th>' + label2 + '</th>' +
+                    '</tr></thead><tbody>';
+
+            diff.forEach(function(row) {
+                var cls, statusLabel, nameDisplay, mg1, mg2;
+                var ing = row.ing1 || row.ing2;
+
+                if      (row.type === 'ADDED')    { cls = 'diff-added';    statusLabel = 'Nur in B'; }
+                else if (row.type === 'REMOVED')  { cls = 'diff-removed';  statusLabel = 'Nur in A'; }
+                else if (row.type === 'MODIFIED') { cls = 'diff-modified'; statusLabel = 'Unterschiedlich'; }
+                else                              { cls = 'diff-unchanged'; statusLabel = 'Gleich'; }
+
+                mg1 = row.ing1 ? fmtMg(row.ing1.mg) : '–';
+                mg2 = row.ing2 ? fmtMg(row.ing2.mg) : '–';
+
+                /* sub-ingredients shown below the mg value in the respective column */
+                var sub1 = row.ing1 ? subList(row.ing1) : '';
+                var sub2 = row.ing2 ? subList(row.ing2) : '';
+
+                html += '<tr class="' + cls + '">';
+                html += '<td>' + esc(ing.name) + '</td>';
+                html += '<td>' + statusLabel + '</td>';
+                html += '<td>' + mg1 + sub1 + '</td>';
+                html += '<td>' + mg2 + sub2 + '</td>';
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+
+            if (!hasChanges) {
+                html += '<p class="diff-empty" style="margin-top:10px;">Alle Zutaten sind identisch.</p>';
+            }
+        }
+
         document.getElementById('compare-result').innerHTML = html;
     }
+
     document.getElementById('suppSelect1').addEventListener('change', renderCompare);
     document.getElementById('suppSelect2').addEventListener('change', renderCompare);
     /*]]>*/
 </script>
 </body>
 </html>
-
