@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDate;
 
 import org.example.suppcheck.dto.IngredientDto;
 import org.example.suppcheck.dto.IngredientWithSources;
@@ -623,6 +624,27 @@ class SupplementControllerTest {
                 controller.consumeFromBatch("missing", null, null, 1);
 
         assertEquals(HttpStatus.NOT_FOUND, resp.getStatusCode());
+    }
+
+    // --- addHistoricalPrice ---
+
+    @Test
+    void addHistoricalPrice_callsServiceAndRedirects() {
+        LocalDate date = LocalDate.of(2025, 6, 15);
+
+        String view = controller.addHistoricalPrice("supp-1", date, 14.99, 24.99);
+
+        verify(service).addHistoricalPrice("supp-1", date, 14.99, 24.99);
+        assertEquals("redirect:/supplements/supp-1/prices", view);
+    }
+
+    @Test
+    void addHistoricalPrice_passesCorrectValues() {
+        LocalDate date = LocalDate.of(2024, 12, 1);
+
+        controller.addHistoricalPrice("abc", date, 9.50, 0.0);
+
+        verify(service).addHistoricalPrice("abc", date, 9.50, 0.0);
     }
 }
 

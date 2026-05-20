@@ -355,7 +355,7 @@
 
     <!-- ── Vorgänger / Nachfolger-Verknüpfung ──────────────────────────────── -->
     <details class="section-details"
-             th:open="${supplement.id == null or supplement.nachfolgerId != null or vorgaenger != null}">
+             th:open="${supplement.nachfolgerId != null or vorgaenger != null}">
         <summary>Produktversion verknüpfen
             <span th:if="${supplement.nachfolgerId != null}"
                   style="font-weight:normal;color:#27ae60;margin-left:8px;font-size:.9em;">

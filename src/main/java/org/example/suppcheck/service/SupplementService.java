@@ -304,6 +304,44 @@ public class SupplementService {
   }
 
   /**
+   * Adds a historical price entry for the given supplement at the specified date.
+   * The entry is inserted in chronological order (sorted by date ascending).
+   * If an entry for that exact date already exists, it is replaced.
+   *
+   * @param id    the supplement id
+   * @param date  the date of the historical price
+   * @param price the actual/discounted price
+   * @param ovp   the original retail price (OVP)
+   */
+  public void addHistoricalPrice(String id, LocalDate date, double price, double ovp) {
+    Supplement supp = supplementRepository.findById(id)
+        .orElseThrow(() -> new IllegalArgumentException("Supplement mit ID " + id + " nicht gefunden"));
+
+    ensureMutablePricesList(supp);
+
+    // Remove existing entry for same date (replace semantics)
+    supp.getPrices().removeIf(e -> e.getDate().equals(date));
+
+    // Build new entry
+    PriceEntry entry = new PriceEntry();
+    entry.setDate(date);
+    entry.setPrice(price);
+    entry.setOvp(ovp);
+
+    // Insert at correct chronological position
+    int insertIdx = supp.getPrices().size(); // default: append at end
+    for (int i = 0; i < supp.getPrices().size(); i++) {
+      if (supp.getPrices().get(i).getDate().isAfter(date)) {
+        insertIdx = i;
+        break;
+      }
+    }
+    supp.getPrices().add(insertIdx, entry);
+
+    supplementRepository.save(supp);
+  }
+
+  /**
    * Ensures the prices list on the supplement is mutable.
    */
   private void ensureMutablePricesList(Supplement supp) {

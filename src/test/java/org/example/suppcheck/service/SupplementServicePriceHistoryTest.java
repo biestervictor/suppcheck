@@ -176,4 +176,134 @@ class SupplementServicePriceHistoryTest {
     assertEquals(20.0, saved.getPrices().getFirst().getPrice(), 0.00001);
     assertEquals(35.0, saved.getPrices().getFirst().getOvp(), 0.00001);
   }
+
+  // ── addHistoricalPrice ────────────────────────────────────────────────────
+
+  @Test
+  void addHistoricalPrice_insertsEntryInChronologicalOrder() {
+    SupplementRepository repo = mock(SupplementRepository.class);
+    SupplementService service = new SupplementService(repo, new IngredientHistoryService());
+
+    Supplement supp = new Supplement();
+    supp.setId("id-h1");
+    PriceEntry e1 = new PriceEntry(); e1.setDate(LocalDate.of(2026, 1, 1)); e1.setPrice(10.0); e1.setOvp(20.0);
+    PriceEntry e3 = new PriceEntry(); e3.setDate(LocalDate.of(2026, 3, 1)); e3.setPrice(12.0); e3.setOvp(22.0);
+    supp.setPrices(new ArrayList<>(List.of(e1, e3)));
+
+    when(repo.findById("id-h1")).thenReturn(Optional.of(supp));
+
+    service.addHistoricalPrice("id-h1", LocalDate.of(2026, 2, 1), 11.0, 21.0);
+
+    ArgumentCaptor<Supplement> captor = ArgumentCaptor.forClass(Supplement.class);
+    verify(repo).save(captor.capture());
+
+    List<PriceEntry> prices = captor.getValue().getPrices();
+    assertEquals(3, prices.size());
+    assertEquals(LocalDate.of(2026, 1, 1), prices.get(0).getDate());
+    assertEquals(LocalDate.of(2026, 2, 1), prices.get(1).getDate());
+    assertEquals(11.0, prices.get(1).getPrice(), 0.00001);
+    assertEquals(21.0, prices.get(1).getOvp(), 0.00001);
+    assertEquals(LocalDate.of(2026, 3, 1), prices.get(2).getDate());
+  }
+
+  @Test
+  void addHistoricalPrice_appendsEntryWhenNewest() {
+    SupplementRepository repo = mock(SupplementRepository.class);
+    SupplementService service = new SupplementService(repo, new IngredientHistoryService());
+
+    Supplement supp = new Supplement();
+    supp.setId("id-h2");
+    PriceEntry e1 = new PriceEntry(); e1.setDate(LocalDate.of(2026, 1, 1)); e1.setPrice(10.0); e1.setOvp(20.0);
+    supp.setPrices(new ArrayList<>(List.of(e1)));
+
+    when(repo.findById("id-h2")).thenReturn(Optional.of(supp));
+
+    service.addHistoricalPrice("id-h2", LocalDate.of(2026, 6, 1), 15.0, 25.0);
+
+    ArgumentCaptor<Supplement> captor = ArgumentCaptor.forClass(Supplement.class);
+    verify(repo).save(captor.capture());
+
+    List<PriceEntry> prices = captor.getValue().getPrices();
+    assertEquals(2, prices.size());
+    assertEquals(LocalDate.of(2026, 6, 1), prices.get(1).getDate());
+    assertEquals(15.0, prices.get(1).getPrice(), 0.00001);
+  }
+
+  @Test
+  void addHistoricalPrice_insertsAtBeginningWhenOldest() {
+    SupplementRepository repo = mock(SupplementRepository.class);
+    SupplementService service = new SupplementService(repo, new IngredientHistoryService());
+
+    Supplement supp = new Supplement();
+    supp.setId("id-h3");
+    PriceEntry e1 = new PriceEntry(); e1.setDate(LocalDate.of(2026, 6, 1)); e1.setPrice(15.0); e1.setOvp(25.0);
+    supp.setPrices(new ArrayList<>(List.of(e1)));
+
+    when(repo.findById("id-h3")).thenReturn(Optional.of(supp));
+
+    service.addHistoricalPrice("id-h3", LocalDate.of(2025, 1, 1), 8.0, 18.0);
+
+    ArgumentCaptor<Supplement> captor = ArgumentCaptor.forClass(Supplement.class);
+    verify(repo).save(captor.capture());
+
+    List<PriceEntry> prices = captor.getValue().getPrices();
+    assertEquals(2, prices.size());
+    assertEquals(LocalDate.of(2025, 1, 1), prices.get(0).getDate());
+    assertEquals(8.0, prices.get(0).getPrice(), 0.00001);
+  }
+
+  @Test
+  void addHistoricalPrice_replacesExistingEntryOnSameDate() {
+    SupplementRepository repo = mock(SupplementRepository.class);
+    SupplementService service = new SupplementService(repo, new IngredientHistoryService());
+
+    Supplement supp = new Supplement();
+    supp.setId("id-h4");
+    PriceEntry e1 = new PriceEntry(); e1.setDate(LocalDate.of(2026, 3, 15)); e1.setPrice(10.0); e1.setOvp(20.0);
+    supp.setPrices(new ArrayList<>(List.of(e1)));
+
+    when(repo.findById("id-h4")).thenReturn(Optional.of(supp));
+
+    service.addHistoricalPrice("id-h4", LocalDate.of(2026, 3, 15), 12.5, 22.0);
+
+    ArgumentCaptor<Supplement> captor = ArgumentCaptor.forClass(Supplement.class);
+    verify(repo).save(captor.capture());
+
+    List<PriceEntry> prices = captor.getValue().getPrices();
+    assertEquals(1, prices.size(), "Same date -> replace, not duplicate");
+    assertEquals(12.5, prices.get(0).getPrice(), 0.00001);
+    assertEquals(22.0, prices.get(0).getOvp(), 0.00001);
+  }
+
+  @Test
+  void addHistoricalPrice_worksOnEmptyPricesList() {
+    SupplementRepository repo = mock(SupplementRepository.class);
+    SupplementService service = new SupplementService(repo, new IngredientHistoryService());
+
+    Supplement supp = new Supplement();
+    supp.setId("id-h5");
+    supp.setPrices(new ArrayList<>());
+
+    when(repo.findById("id-h5")).thenReturn(Optional.of(supp));
+
+    service.addHistoricalPrice("id-h5", LocalDate.of(2025, 6, 1), 9.99, 14.99);
+
+    ArgumentCaptor<Supplement> captor = ArgumentCaptor.forClass(Supplement.class);
+    verify(repo).save(captor.capture());
+
+    List<PriceEntry> prices = captor.getValue().getPrices();
+    assertEquals(1, prices.size());
+    assertEquals(9.99, prices.get(0).getPrice(), 0.00001);
+  }
+
+  @Test
+  void addHistoricalPrice_throwsWhenSupplementNotFound() {
+    SupplementRepository repo = mock(SupplementRepository.class);
+    SupplementService service = new SupplementService(repo, new IngredientHistoryService());
+
+    when(repo.findById("not-existing")).thenReturn(Optional.empty());
+
+    assertThrows(IllegalArgumentException.class,
+        () -> service.addHistoricalPrice("not-existing", LocalDate.now(), 10.0, 20.0));
+  }
 }

@@ -171,15 +171,23 @@
         <div class="calc-inputs">
             <div class="calc-input-item">
                 <label for="shakes-per-day">Shakes pro Tag (Whey)</label>
-                <input id="shakes-per-day" type="number" value="3" min="0.5" step="0.5"/>
+                <input id="shakes-per-day" type="number" value="3" min="0.5" step="0.5"
+                       oninput="onGlobalInputChange()"/>
             </div>
             <div class="calc-input-item">
                 <label for="workouts-per-week">Workouts pro Woche</label>
-                <input id="workouts-per-week" type="number" value="3" min="0" max="14" step="1"/>
+                <input id="workouts-per-week" type="number" value="3" min="0" max="14" step="1"
+                       oninput="onGlobalInputChange()"/>
             </div>
             <div class="calc-input-item">
                 <label for="portions-per-workout">Portionen pro Workout (Sport)</label>
-                <input id="portions-per-workout" type="number" value="1" min="0.5" step="0.5"/>
+                <input id="portions-per-workout" type="number" value="1" min="0.5" step="0.5"
+                       oninput="onGlobalInputChange()"/>
+            </div>
+            <div class="calc-input-item">
+                <label for="snacks-per-week">Snacks/Riegel pro Woche</label>
+                <input id="snacks-per-week" type="number" value="7" min="0" step="1"
+                       oninput="onGlobalInputChange()"/>
             </div>
         </div>
 
@@ -187,6 +195,7 @@
         <div class="quick-add-row">
             <button class="btn-all whey"  onclick="addAllByType('WHEY')">+ Alle Wheys</button>
             <button class="btn-all sport" onclick="addAllByType('SPORT')">+ Alle Sport</button>
+            <button class="btn-all" style="background:#c0392b;" onclick="addAllByType('PROTEINSNACK')">+ Alle Snacks</button>
             <button class="btn-all all"   onclick="addAllWithStock()">+ Alle mit Bestand</button>
             <button class="btn-clear"     onclick="clearCalc()">Leeren</button>
         </div>
@@ -255,15 +264,64 @@ function addDays(n) {
 
 // ── Default daily rate per supplement ────────────────────────────────────
 
-function getDefaultRate(supp) {
-    var shakesPerDay    = parseFloat(document.getElementById('shakes-per-day').value)       || 1;
-    var workoutsPerWeek = parseFloat(document.getElementById('workouts-per-week').value)    || 3;
-    var portionsPerWO   = parseFloat(document.getElementById('portions-per-workout').value) || 1;
+function getGlobalInputs() {
+    return {
+        shakesPerDay:    parseFloat(document.getElementById('shakes-per-day').value)      || 1,
+        workoutsPerWeek: parseFloat(document.getElementById('workouts-per-week').value)   || 3,
+        portionsPerWO:   parseFloat(document.getElementById('portions-per-workout').value)|| 1,
+        snacksPerWeek:   parseFloat(document.getElementById('snacks-per-week').value)     || 0
+    };
+}
 
-    if (supp.supplementType === 'WHEY')  return shakesPerDay;
-    if (supp.supplementType === 'SPORT') return (workoutsPerWeek * portionsPerWO) / 7;
+function getDefaultRate(supp) {
+    var g = getGlobalInputs();
+    if (supp.supplementType === 'WHEY') {
+        var numWheys = _calcItems.filter(function(ci) {
+            return _supplements[ci.suppIdx].supplementType === 'WHEY';
+        }).length;
+        // +1 because the new item hasn't been pushed yet when called from addToCalc
+        numWheys = Math.max(numWheys + 1, 1);
+        return g.shakesPerDay / numWheys;
+    }
+    if (supp.supplementType === 'SPORT')        return (g.workoutsPerWeek * g.portionsPerWO) / 7;
+    if (supp.supplementType === 'PROTEINSNACK') return g.snacksPerWeek / 7;
     if (supp.nonDaily && supp.consumptionIntervalDays > 1) return 1 / supp.consumptionIntervalDays;
     return 1;
+}
+
+// ── Redistribute rates when global inputs or calc list changes ────────────
+
+function redistributeRates() {
+    var g = getGlobalInputs();
+
+    // Wheys: split shakes/day evenly
+    var wheyItems = _calcItems.filter(function(ci) {
+        return _supplements[ci.suppIdx].supplementType === 'WHEY';
+    });
+    if (wheyItems.length > 0) {
+        var ratePerWhey = Math.round((g.shakesPerDay / wheyItems.length) * 1000) / 1000;
+        wheyItems.forEach(function(ci) { ci.rate = ratePerWhey; });
+    }
+
+    // SPORT: recalculate from global inputs
+    _calcItems.forEach(function(ci) {
+        if (_supplements[ci.suppIdx].supplementType === 'SPORT') {
+            ci.rate = Math.round(((g.workoutsPerWeek * g.portionsPerWO) / 7) * 1000) / 1000;
+        }
+    });
+
+    // PROTEINSNACK: snacks/day = snacksPerWeek / 7
+    _calcItems.forEach(function(ci) {
+        if (_supplements[ci.suppIdx].supplementType === 'PROTEINSNACK') {
+            ci.rate = Math.round((g.snacksPerWeek / 7) * 1000) / 1000;
+        }
+    });
+}
+
+function onGlobalInputChange() {
+    redistributeRates();
+    renderCalcZone();
+    document.getElementById('calc-results').innerHTML = '';
 }
 
 // ── Inventory rendering ───────────────────────────────────────────────────
@@ -380,6 +438,8 @@ function addToCalc(id) {
     if (totalRemaining(supp) <= 0) return;
     var rate = Math.round(getDefaultRate(supp) * 1000) / 1000;
     _calcItems.push({ id: id, suppIdx: idx, rate: rate });
+    // Redistribute Whey rates now that the new item is in the list
+    redistributeRates();
     renderCalcZone();
     document.getElementById('calc-results').innerHTML = '';
 }
@@ -398,6 +458,7 @@ function addAllWithStock() {
 
 function removeCalcItem(id) {
     _calcItems = _calcItems.filter(function(ci) { return ci.id !== id; });
+    redistributeRates();
     renderCalcZone();
     document.getElementById('calc-results').innerHTML = '';
 }
@@ -430,9 +491,14 @@ function renderCalcZone() {
         div.className = 'calc-item';
         div.id = 'ci-' + ci.id;
 
-        var rateLabel = supp.supplementType === 'WHEY'  ? 'Portionen/Tag' :
-                        supp.supplementType === 'SPORT' ? 'Portionen/Tag (⌀)' :
-                                                          'Portionen/Tag';
+        var numWheys = _calcItems.filter(function(ci) {
+            return _supplements[ci.suppIdx].supplementType === 'WHEY';
+        }).length;
+        var rateLabel = supp.supplementType === 'WHEY'
+            ? 'Port./Tag' + (numWheys > 1 ? ' (÷&nbsp;' + numWheys + ' Wheys)' : '')
+            : supp.supplementType === 'SPORT'        ? 'Port./Tag (⌀)'
+            : supp.supplementType === 'PROTEINSNACK' ? 'Port./Tag (Snacks)'
+            :                                          'Port./Tag';
         div.innerHTML =
             '<span class="calc-item-name">' + esc(supp.shop ? supp.shop + ' – ' : '') + esc(supp.name) + '</span>' +
             '<span class="calc-item-stock">' + rem + ' Port.</span>' +

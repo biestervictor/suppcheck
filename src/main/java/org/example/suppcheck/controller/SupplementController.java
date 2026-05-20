@@ -158,6 +158,21 @@ public class SupplementController {
     }
 
     /**
+     * Fügt einen historischen Preiseintrag für ein Supplement nachträglich ein.
+     * Der Eintrag wird chronologisch sortiert eingebaut; ein Eintrag mit demselben
+     * Datum wird ersetzt.
+     */
+    @PostMapping("/{id}/prices/add")
+    public String addHistoricalPrice(
+            @PathVariable String id,
+            @RequestParam LocalDate date,
+            @RequestParam double price,
+            @RequestParam double ovp) {
+        supplementService.addHistoricalPrice(id, date, price, ovp);
+        return "redirect:/supplements/" + id + "/prices";
+    }
+
+    /**
      * Delete a supplement.
      *
      * @param id the id of the supplement to delete
