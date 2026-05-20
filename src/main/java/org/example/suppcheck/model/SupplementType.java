@@ -4,5 +4,6 @@ public enum SupplementType {
     BASIC,
     SPORT,
     EXTENDED,
-    WHEY
+    WHEY,
+    RIEGEL
 }
