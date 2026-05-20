@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/head :: common-meta}"></th:block>
+    <title>Lagerbestand & Reichweiten-Rechner</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f6fa; margin: 0; padding: 0; }
+        h1  { margin: 24px 0 0 24px; color: #2d6cdf; font-size: 1.4em; }
+
+        /* ── Layout ── */
+        .lb-layout {
+            display: flex; gap: 20px; padding: 20px 24px 40px;
+            align-items: flex-start;
+        }
+
+        /* ── Inventory Panel ── */
+        .inventory-panel {
+            width: 340px; flex-shrink: 0;
+            background: #fff; border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.07);
+            padding: 16px 18px; max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+        .inventory-panel h2 { margin: 0 0 14px; font-size: 1em; color: #2d6cdf; border-bottom: 2px solid #eaf1fb; padding-bottom: 6px; }
+
+        .type-group { margin-bottom: 18px; }
+        .type-label {
+            font-size: 0.78em; font-weight: 700; letter-spacing: .6px;
+            color: #fff; background: #2d6cdf; display: inline-block;
+            padding: 2px 10px; border-radius: 10px; margin-bottom: 8px; text-transform: uppercase;
+        }
+        .type-label.whey    { background: #1a7a3a; }
+        .type-label.sport   { background: #e67e22; }
+        .type-label.basic   { background: #8e44ad; }
+        .type-label.extended{ background: #2980b9; }
+        .type-label.proteinsnack { background: #c0392b; }
+        .type-label.sonstige{ background: #7f8c8d; }
+
+        .supp-card {
+            background: #f8fafd; border: 1px solid #dce6f0; border-radius: 6px;
+            padding: 10px 12px; margin-bottom: 8px; cursor: grab;
+            transition: box-shadow .15s, border-color .15s;
+            user-select: none;
+        }
+        .supp-card:hover   { box-shadow: 0 2px 8px rgba(45,108,223,.15); border-color: #a8c4e8; }
+        .supp-card.dragging { opacity: .45; border-style: dashed; }
+        .supp-card.zero-stock { opacity: .55; cursor: default; }
+
+        .card-header { display: flex; justify-content: space-between; align-items: center; }
+        .card-name   { font-weight: 600; font-size: .93em; color: #1a2a3a; }
+        .card-shop   { font-size: .78em; color: #777; margin-top: 1px; }
+        .card-add-btn {
+            background: #2d6cdf; color: #fff; border: none; border-radius: 4px;
+            padding: 3px 9px; font-size: .8em; cursor: pointer; flex-shrink: 0; margin-left: 8px;
+        }
+        .card-add-btn:hover { background: #1a55c0; }
+        .card-add-btn:disabled { background: #aaa; cursor: default; }
+
+        .stock-bar-wrap { margin: 7px 0 4px; background: #e8edf2; border-radius: 3px; height: 6px; }
+        .stock-bar-fill { height: 6px; border-radius: 3px; background: #2d6cdf; transition: width .3s; }
+        .stock-bar-fill.low    { background: #e74c3c; }
+        .stock-bar-fill.medium { background: #f39c12; }
+
+        .card-stock-info { font-size: .8em; color: #555; display: flex; justify-content: space-between; }
+        .card-batches    { margin-top: 6px; font-size: .76em; color: #666; }
+        .batch-item      { padding: 1px 0; }
+        .batch-active    { color: #1a7a3a; font-weight: 600; }
+
+        /* ── Calculator Panel ── */
+        .calc-panel {
+            flex: 1; background: #fff; border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.07); padding: 18px 22px;
+        }
+        .calc-panel h2 { margin: 0 0 16px; font-size: 1em; color: #2d6cdf; border-bottom: 2px solid #eaf1fb; padding-bottom: 6px; }
+
+        .calc-inputs {
+            display: flex; gap: 20px; flex-wrap: wrap;
+            background: #f4f8ff; border: 1px solid #d0e0f5;
+            border-radius: 6px; padding: 12px 16px; margin-bottom: 14px;
+        }
+        .calc-input-item { display: flex; flex-direction: column; gap: 3px; }
+        .calc-input-item label { font-size: .82em; color: #555; font-weight: 600; }
+        .calc-input-item input {
+            width: 90px; padding: 5px 8px; border: 1px solid #bfc9d1;
+            border-radius: 4px; font-size: .93em;
+        }
+
+        .quick-add-row { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+        .btn-all {
+            padding: 6px 16px; border: none; border-radius: 4px; font-size: .88em;
+            cursor: pointer; font-weight: 600; color: #fff;
+        }
+        .btn-all.whey  { background: #1a7a3a; }
+        .btn-all.whey:hover  { background: #155f2e; }
+        .btn-all.sport { background: #e67e22; }
+        .btn-all.sport:hover { background: #ca6f1e; }
+        .btn-all.all   { background: #2d6cdf; }
+        .btn-all.all:hover   { background: #1a55c0; }
+        .btn-clear { padding: 6px 14px; border: 1px solid #e0e0e0; border-radius: 4px; background: #fff; font-size: .88em; cursor: pointer; color: #888; }
+        .btn-clear:hover { background: #f8f8f8; }
+
+        .drop-zone {
+            border: 2px dashed #bfc9d1; border-radius: 8px;
+            min-height: 90px; padding: 12px; margin-bottom: 14px;
+            transition: border-color .2s, background .2s;
+        }
+        .drop-zone.drag-over { border-color: #2d6cdf; background: #eaf1fb; }
+        .drop-zone-hint { color: #aaa; font-size: .88em; text-align: center; padding: 20px 0; }
+
+        .calc-item {
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+            background: #f8fafd; border: 1px solid #dce6f0; border-radius: 6px;
+            padding: 8px 12px; margin-bottom: 8px;
+        }
+        .calc-item-name  { font-weight: 600; font-size: .9em; flex: 1; min-width: 120px; }
+        .calc-item-stock { font-size: .8em; color: #666; white-space: nowrap; }
+        .calc-item-rate  { display: flex; align-items: center; gap: 5px; font-size: .83em; color: #555; }
+        .calc-item-rate input {
+            width: 65px; padding: 3px 6px; border: 1px solid #bfc9d1;
+            border-radius: 3px; font-size: .9em; text-align: center;
+        }
+        .calc-item-remove {
+            background: none; border: none; color: #aaa; font-size: 1.1em;
+            cursor: pointer; padding: 0 2px; line-height: 1;
+        }
+        .calc-item-remove:hover { color: #e74c3c; }
+
+        .btn-calculate {
+            width: 100%; padding: 10px; background: #2d6cdf; color: #fff;
+            border: none; border-radius: 6px; font-size: 1em; font-weight: 700;
+            cursor: pointer; margin-bottom: 18px; transition: background .15s;
+        }
+        .btn-calculate:hover { background: #1a55c0; }
+
+        /* ── Results ── */
+        #calc-results table { width: 100%; border-collapse: collapse; }
+        #calc-results th, #calc-results td {
+            padding: 9px 12px; text-align: left;
+            border-bottom: 1px solid #e8edf2; font-size: .88em;
+        }
+        #calc-results th { background: #eaf1fb; font-weight: 600; color: #2d6cdf; }
+        #calc-results tr:last-child td { border-bottom: none; }
+
+        .urgency-ok     { color: #1a7a3a; font-weight: 600; }
+        .urgency-warn   { color: #e67e22; font-weight: 600; }
+        .urgency-danger { color: #e74c3c; font-weight: 600; }
+        .urgency-empty  { color: #999; font-style: italic; }
+
+        .result-days-bar { height: 5px; border-radius: 3px; margin-top: 3px; background: #e8edf2; width: 100%; }
+        .result-days-fill { height: 5px; border-radius: 3px; }
+    </style>
+    <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{fragments/nav :: main-nav}"></th:block>
+<h1>Lagerbestand &amp; Reichweiten-Rechner</h1>
+
+<div class="lb-layout">
+
+    <!-- ══ LINKE SPALTE: Inventar ══════════════════════════════════════════ -->
+    <div class="inventory-panel">
+        <h2>Verfügbare Supplements</h2>
+        <div id="inventory-list"><!-- filled by JS --></div>
+    </div>
+
+    <!-- ══ RECHTE SPALTE: Rechner ═══════════════════════════════════════════ -->
+    <div class="calc-panel">
+        <h2>Reichweiten-Rechner</h2>
+
+        <!-- Global inputs -->
+        <div class="calc-inputs">
+            <div class="calc-input-item">
+                <label for="shakes-per-day">Shakes pro Tag (Whey)</label>
+                <input id="shakes-per-day" type="number" value="3" min="0.5" step="0.5"/>
+            </div>
+            <div class="calc-input-item">
+                <label for="workouts-per-week">Workouts pro Woche</label>
+                <input id="workouts-per-week" type="number" value="3" min="0" max="14" step="1"/>
+            </div>
+            <div class="calc-input-item">
+                <label for="portions-per-workout">Portionen pro Workout (Sport)</label>
+                <input id="portions-per-workout" type="number" value="1" min="0.5" step="0.5"/>
+            </div>
+        </div>
+
+        <!-- Quick-add buttons -->
+        <div class="quick-add-row">
+            <button class="btn-all whey"  onclick="addAllByType('WHEY')">+ Alle Wheys</button>
+            <button class="btn-all sport" onclick="addAllByType('SPORT')">+ Alle Sport</button>
+            <button class="btn-all all"   onclick="addAllWithStock()">+ Alle mit Bestand</button>
+            <button class="btn-clear"     onclick="clearCalc()">Leeren</button>
+        </div>
+
+        <!-- Drop zone -->
+        <div id="drop-zone" class="drop-zone"
+             ondragover="onDragOver(event)"
+             ondragleave="onDragLeave(event)"
+             ondrop="onDrop(event)">
+            <div class="drop-zone-hint" id="drop-hint">
+                Supplements hierher ziehen — oder die Buttons oben nutzen
+            </div>
+        </div>
+
+        <!-- Calculate -->
+        <button class="btn-calculate" onclick="calculate()">Berechnen</button>
+
+        <!-- Results -->
+        <div id="calc-results"></div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<script th:inline="javascript">
+/*<![CDATA[*/
+
+var _supplements = /*[[${supplements}]]*/ [];
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+
+function totalRemaining(supp) {
+    if (!supp.stockBatches || supp.stockBatches.length === 0) return supp.stock || 0;
+    return supp.stockBatches.reduce(function(sum, b) {
+        var rem = (b.remaining != null) ? b.remaining : b.quantity;
+        return sum + (rem || 0);
+    }, 0);
+}
+
+function maxCapacity(supp) {
+    if (!supp.stockBatches || supp.stockBatches.length === 0) return supp.stock || 0;
+    return supp.stockBatches.reduce(function(sum, b) { return sum + (b.quantity || 0); }, 0);
+}
+
+function typeClass(type) {
+    if (!type) return 'sonstige';
+    return type.toLowerCase();
+}
+
+function typeLabel(type) {
+    var map = { WHEY: 'Whey', SPORT: 'Sport', BASIC: 'Basic', EXTENDED: 'Extended', PROTEINSNACK: 'Proteinsnack' };
+    return map[type] || (type || 'Sonstige');
+}
+
+function formatDate(d) {
+    if (!d) return '–';
+    // d may be [year,month,day] array (Jackson LocalDate) or string
+    if (Array.isArray(d)) return d[0] + '-' + String(d[1]).padStart(2,'0') + '-' + String(d[2]).padStart(2,'0');
+    return String(d);
+}
+
+function addDays(n) {
+    var d = new Date();
+    d.setDate(d.getDate() + Math.round(n));
+    return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// ── Default daily rate per supplement ────────────────────────────────────
+
+function getDefaultRate(supp) {
+    var shakesPerDay    = parseFloat(document.getElementById('shakes-per-day').value)       || 1;
+    var workoutsPerWeek = parseFloat(document.getElementById('workouts-per-week').value)    || 3;
+    var portionsPerWO   = parseFloat(document.getElementById('portions-per-workout').value) || 1;
+
+    if (supp.supplementType === 'WHEY')  return shakesPerDay;
+    if (supp.supplementType === 'SPORT') return (workoutsPerWeek * portionsPerWO) / 7;
+    if (supp.nonDaily && supp.consumptionIntervalDays > 1) return 1 / supp.consumptionIntervalDays;
+    return 1;
+}
+
+// ── Inventory rendering ───────────────────────────────────────────────────
+
+function renderInventory() {
+    var groups = {};
+    var order  = ['WHEY', 'SPORT', 'BASIC', 'EXTENDED', 'PROTEINSNACK'];
+
+    _supplements.forEach(function(s) {
+        var t = s.supplementType || 'SONSTIGE';
+        if (!groups[t]) groups[t] = [];
+        groups[t].push(s);
+    });
+
+    // Sort types: known order first, then alphabetical
+    var types = Object.keys(groups).sort(function(a, b) {
+        var ia = order.indexOf(a), ib = order.indexOf(b);
+        if (ia === -1 && ib === -1) return a.localeCompare(b);
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
+    });
+
+    var html = '';
+    types.forEach(function(type) {
+        html += '<div class="type-group">';
+        html += '<span class="type-label ' + typeClass(type) + '">' + typeLabel(type) + '</span>';
+        groups[type].forEach(function(supp) {
+            html += renderCard(supp);
+        });
+        html += '</div>';
+    });
+
+    document.getElementById('inventory-list').innerHTML = html;
+}
+
+function renderCard(supp) {
+    var rem  = totalRemaining(supp);
+    var cap  = maxCapacity(supp) || rem;
+    var pct  = cap > 0 ? Math.min(100, Math.round(rem / cap * 100)) : 0;
+    var barClass = pct > 40 ? '' : pct > 15 ? 'medium' : 'low';
+    var isZero = rem <= 0;
+
+    var batchHtml = '';
+    if (supp.stockBatches && supp.stockBatches.length > 0) {
+        supp.stockBatches.forEach(function(b) {
+            var bRem  = (b.remaining != null) ? b.remaining : b.quantity;
+            var label = b.flavor || 'Standard';
+            var mhd   = b.expiryDate ? ' · MHD ' + formatDate(b.expiryDate) : '';
+            var active = b.inBenutzung ? ' batch-active' : '';
+            batchHtml += '<div class="batch-item' + active + '">' +
+                (b.inBenutzung ? '▶ ' : '· ') + label + ': ' + bRem + ' Port.' + mhd + '</div>';
+        });
+    }
+
+    return '<div class="supp-card' + (isZero ? ' zero-stock' : '') + '"' +
+        (isZero ? '' : ' draggable="true" ondragstart="onDragStart(event,\'' + supp.id + '\')"') +
+        '>' +
+        '<div class="card-header">' +
+        '<div>' +
+        '<div class="card-name">' + esc(supp.name) + '</div>' +
+        '<div class="card-shop">' + esc(supp.shop || '') + '</div>' +
+        '</div>' +
+        '<button class="card-add-btn"' +
+        (isZero ? ' disabled' : ' onclick="addToCalc(\'' + supp.id + '\')"') +
+        '>' + (isZero ? '✗' : '+') + '</button>' +
+        '</div>' +
+        '<div class="stock-bar-wrap"><div class="stock-bar-fill ' + barClass + '" style="width:' + pct + '%"></div></div>' +
+        '<div class="card-stock-info"><span>' + rem + ' Portionen verbleibend</span><span>' + pct + '%</span></div>' +
+        (batchHtml ? '<div class="card-batches">' + batchHtml + '</div>' : '') +
+        '</div>';
+}
+
+// ── Drag & Drop ───────────────────────────────────────────────────────────
+
+var _draggingId = null;
+
+function onDragStart(event, id) {
+    _draggingId = id;
+    event.dataTransfer.effectAllowed = 'copy';
+    event.currentTarget.classList.add('dragging');
+    setTimeout(function() { event.currentTarget.classList.remove('dragging'); }, 0);
+}
+
+function onDragOver(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    document.getElementById('drop-zone').classList.add('drag-over');
+}
+
+function onDragLeave(event) {
+    document.getElementById('drop-zone').classList.remove('drag-over');
+}
+
+function onDrop(event) {
+    event.preventDefault();
+    document.getElementById('drop-zone').classList.remove('drag-over');
+    if (_draggingId) {
+        addToCalc(_draggingId);
+        _draggingId = null;
+    }
+}
+
+// ── Calculator items ──────────────────────────────────────────────────────
+
+var _calcItems = []; // { id, suppIdx, rate }
+
+function addToCalc(id) {
+    // deduplicate
+    if (_calcItems.find(function(ci) { return ci.id === id; })) return;
+    var idx = _supplements.findIndex(function(s) { return s.id === id; });
+    if (idx === -1) return;
+    var supp = _supplements[idx];
+    if (totalRemaining(supp) <= 0) return;
+    var rate = Math.round(getDefaultRate(supp) * 1000) / 1000;
+    _calcItems.push({ id: id, suppIdx: idx, rate: rate });
+    renderCalcZone();
+    document.getElementById('calc-results').innerHTML = '';
+}
+
+function addAllByType(type) {
+    _supplements.forEach(function(s) {
+        if (s.supplementType === type && totalRemaining(s) > 0) addToCalc(s.id);
+    });
+}
+
+function addAllWithStock() {
+    _supplements.forEach(function(s) {
+        if (totalRemaining(s) > 0) addToCalc(s.id);
+    });
+}
+
+function removeCalcItem(id) {
+    _calcItems = _calcItems.filter(function(ci) { return ci.id !== id; });
+    renderCalcZone();
+    document.getElementById('calc-results').innerHTML = '';
+}
+
+function clearCalc() {
+    _calcItems = [];
+    renderCalcZone();
+    document.getElementById('calc-results').innerHTML = '';
+}
+
+function renderCalcZone() {
+    var zone = document.getElementById('drop-zone');
+    var hint = document.getElementById('drop-hint');
+
+    if (_calcItems.length === 0) {
+        hint.style.display = 'block';
+        // remove all calc-item nodes
+        zone.querySelectorAll('.calc-item').forEach(function(el) { el.remove(); });
+        return;
+    }
+    hint.style.display = 'none';
+
+    // Rebuild calc items inside drop zone
+    zone.querySelectorAll('.calc-item').forEach(function(el) { el.remove(); });
+
+    _calcItems.forEach(function(ci) {
+        var supp = _supplements[ci.suppIdx];
+        var rem  = totalRemaining(supp);
+        var div = document.createElement('div');
+        div.className = 'calc-item';
+        div.id = 'ci-' + ci.id;
+
+        var rateLabel = supp.supplementType === 'WHEY'  ? 'Portionen/Tag' :
+                        supp.supplementType === 'SPORT' ? 'Portionen/Tag (⌀)' :
+                                                          'Portionen/Tag';
+        div.innerHTML =
+            '<span class="calc-item-name">' + esc(supp.shop ? supp.shop + ' – ' : '') + esc(supp.name) + '</span>' +
+            '<span class="calc-item-stock">' + rem + ' Port.</span>' +
+            '<span class="calc-item-rate">' +
+                '<label>' + rateLabel + ':</label>' +
+                '<input type="number" min="0.1" step="0.1" value="' + ci.rate + '"' +
+                    ' onchange="updateRate(\'' + ci.id + '\',this.value)"/>' +
+            '</span>' +
+            '<button class="calc-item-remove" onclick="removeCalcItem(\'' + ci.id + '\')" title="Entfernen">×</button>';
+        zone.appendChild(div);
+    });
+}
+
+function updateRate(id, val) {
+    var ci = _calcItems.find(function(x) { return x.id === id; });
+    if (ci) ci.rate = parseFloat(val) || 0;
+}
+
+// ── Calculation ───────────────────────────────────────────────────────────
+
+function calculate() {
+    if (_calcItems.length === 0) {
+        document.getElementById('calc-results').innerHTML =
+            '<p style="color:#888;font-style:italic;">Keine Supplements im Rechner.</p>';
+        return;
+    }
+
+    var today = new Date();
+
+    var rows = _calcItems.map(function(ci) {
+        var supp = _supplements[ci.suppIdx];
+        var rem  = totalRemaining(supp);
+        var rate = ci.rate;
+        var days = rate > 0 ? rem / rate : Infinity;
+        return { supp: supp, rem: rem, rate: rate, days: days };
+    });
+
+    // Sort by days ascending (most urgent first)
+    rows.sort(function(a, b) { return a.days - b.days; });
+
+    var html = '<table>';
+    html += '<thead><tr>' +
+        '<th>Supplement</th>' +
+        '<th>Verbleibend</th>' +
+        '<th>Port./Tag</th>' +
+        '<th>Tage bis leer</th>' +
+        '<th>Nachkaufen bis</th>' +
+        '</tr></thead><tbody>';
+
+    rows.forEach(function(row) {
+        var daysRnd = isFinite(row.days) ? Math.floor(row.days) : null;
+        var urgency = daysRnd === null ? 'urgency-empty' :
+                      daysRnd > 30    ? 'urgency-ok'     :
+                      daysRnd > 14   ? 'urgency-warn'   : 'urgency-danger';
+        var daysLabel = daysRnd === null ? '∞' : daysRnd + ' Tage';
+        var dateLabel = daysRnd === null ? '–' :
+                        daysRnd <= 0   ? 'jetzt!' : addDays(daysRnd);
+        var pct  = maxCapacity(row.supp) > 0
+                   ? Math.min(100, Math.round(row.rem / maxCapacity(row.supp) * 100)) : 0;
+        var barColor = daysRnd === null  ? '#2d6cdf' :
+                       daysRnd > 30     ? '#1a7a3a'  :
+                       daysRnd > 14    ? '#e67e22'  : '#e74c3c';
+
+        html += '<tr>' +
+            '<td><b>' + esc(row.supp.name) + '</b><br><small style="color:#888">' + esc(row.supp.shop || '') + ' · ' + typeLabel(row.supp.supplementType) + '</small></td>' +
+            '<td>' + row.rem + ' Port.' +
+                '<div class="result-days-bar"><div class="result-days-fill" style="background:' + barColor + ';width:' + pct + '%"></div></div>' +
+            '</td>' +
+            '<td>' + row.rate.toLocaleString('de-DE', { maximumFractionDigits: 2 }) + '</td>' +
+            '<td class="' + urgency + '">' + daysLabel + '</td>' +
+            '<td class="' + urgency + '">' + dateLabel + '</td>' +
+            '</tr>';
+    });
+
+    html += '</tbody></table>';
+
+    // Summary line
+    var minDays = rows.reduce(function(m, r) { return Math.min(m, isFinite(r.days) ? r.days : Infinity); }, Infinity);
+    if (isFinite(minDays)) {
+        var mostUrgent = rows.find(function(r) { return r.days === minDays; });
+        html += '<p style="margin-top:14px;font-size:.88em;color:#555;">' +
+            '📦 Als nächstes nachkaufen: <b>' + esc(mostUrgent.supp.name) + '</b> in <b>' + Math.floor(minDays) + ' Tagen</b> (' + addDays(minDays) + ').</p>';
+    }
+
+    document.getElementById('calc-results').innerHTML = html;
+}
+
+// ── Utility ───────────────────────────────────────────────────────────────
+
+function esc(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+renderInventory();
+
+/*]]>*/
+</script>
+</body>
+</html>
