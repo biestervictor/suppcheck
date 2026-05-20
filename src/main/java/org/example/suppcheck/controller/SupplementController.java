@@ -324,6 +324,24 @@ public class SupplementController {
     }
 
     /**
+     * Parses a raw ingredient text directly (no image/OCR needed).
+     * Used when the user pastes label text into the "Text-Eingabe" tab.
+     *
+     * @param text the raw ingredient text
+     * @return 200 with parsed ingredient list, or 500 on failure
+     */
+    @PostMapping(value = "/ocr/text", produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<OcrResult> ocrText(@RequestParam String text) {
+        try {
+            OcrResult result = ocrService.parseText(text);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
      * Accepts one or more image uploads, runs Tesseract OCR on each, and returns
      * the merged + deduplicated ingredient list as JSON so the form can
      * auto-populate the ingredient rows.

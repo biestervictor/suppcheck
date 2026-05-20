@@ -109,6 +109,12 @@ public class Supplement {
   private Integer portionenProPackung;
 
   /**
+   * Freitext-Inhaltsstoffe (z.B. Zutaten-Auflistung vom Etikett).
+   * Optional, wird nicht für Berechnungen genutzt.
+   */
+  private String inhaltsstoffe;
+
+  /**
    * Returns the latest historical price if present.
    */
   public double getPrice() {

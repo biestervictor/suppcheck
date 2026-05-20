@@ -55,6 +55,23 @@ public class OcrService {
     // -------------------------------------------------------------------------
 
     /**
+     * Parses a raw ingredient text directly without OCR image processing.
+     * Useful when the user pastes the label text manually.
+     *
+     * @param text the raw ingredient text (may use tab-separated format)
+     * @return parsed result; empty result if text is blank
+     */
+    public OcrResult parseText(String text) {
+        if (text == null || text.isBlank()) {
+            return new OcrResult("", List.of());
+        }
+        List<IngredientDto> ingredients = OcrTextParser.parse(text);
+        translationService.translateAll(ingredients);
+        boolean per100g = OcrTextParser.detectPer100g(text);
+        return new OcrResult(text, ingredients, per100g);
+    }
+
+    /**
      * Runs Tesseract OCR on all uploaded images, then merges and deduplicates
      * the parsed ingredient lists.
      *

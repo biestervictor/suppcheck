@@ -646,5 +646,42 @@ class SupplementControllerTest {
 
         verify(service).addHistoricalPrice("abc", date, 9.50, 0.0);
     }
+
+    // --- ocrText ---
+
+    @Test
+    void ocrText_validText_returns200WithResult() {
+        OcrResult expected = new OcrResult("Protein\t25000",
+                List.of(new IngredientDto()), false);
+        when(ocrService.parseText("Protein\t25000")).thenReturn(expected);
+
+        ResponseEntity<OcrResult> resp = controller.ocrText("Protein\t25000");
+
+        assertEquals(HttpStatus.OK, resp.getStatusCode());
+        assertNotNull(resp.getBody());
+        assertEquals("Protein\t25000", resp.getBody().getRawText());
+        verify(ocrService).parseText("Protein\t25000");
+    }
+
+    @Test
+    void ocrText_emptyText_returns200WithEmptyResult() {
+        OcrResult empty = new OcrResult("", List.of());
+        when(ocrService.parseText("")).thenReturn(empty);
+
+        ResponseEntity<OcrResult> resp = controller.ocrText("");
+
+        assertEquals(HttpStatus.OK, resp.getStatusCode());
+        assertNotNull(resp.getBody());
+        assertTrue(resp.getBody().getIngredients().isEmpty());
+    }
+
+    @Test
+    void ocrText_serviceThrows_returns500() {
+        when(ocrService.parseText(any())).thenThrow(new RuntimeException("unexpected"));
+
+        ResponseEntity<OcrResult> resp = controller.ocrText("anything");
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, resp.getStatusCode());
+    }
 }
 

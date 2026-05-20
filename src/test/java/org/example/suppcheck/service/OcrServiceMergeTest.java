@@ -1,6 +1,7 @@
 package org.example.suppcheck.service;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 import java.util.List;
 
@@ -217,5 +218,73 @@ class OcrServiceMergeTest {
         dto.setName(name);
         dto.setMg(mg);
         return dto;
+    }
+
+    // -------------------------------------------------------------------------
+    // parseText – direct text parsing without image/OCR
+    // -------------------------------------------------------------------------
+
+    private static OcrService ocrServiceWithNoopTranslation() {
+        IngredientTranslationService noopTranslation = mock(IngredientTranslationService.class);
+        when(noopTranslation.translateAll(any())).thenAnswer(inv -> inv.getArgument(0));
+        return new OcrService(noopTranslation);
+    }
+
+    @Test
+    void parseText_blankText_returnsEmptyResult() {
+        OcrService svc = ocrServiceWithNoopTranslation();
+        OcrResult result = svc.parseText("   ");
+        assertEquals("", result.getRawText());
+        assertTrue(result.getIngredients().isEmpty());
+        assertFalse(result.isPer100g());
+    }
+
+    @Test
+    void parseText_nullText_returnsEmptyResult() {
+        OcrService svc = ocrServiceWithNoopTranslation();
+        OcrResult result = svc.parseText(null);
+        assertEquals("", result.getRawText());
+        assertTrue(result.getIngredients().isEmpty());
+    }
+
+    @Test
+    void parseText_singleIngredient_parsed() {
+        OcrService svc = ocrServiceWithNoopTranslation();
+        OcrResult result = svc.parseText("Protein 25 g");
+        assertEquals(1, result.getIngredients().size());
+        assertEquals("Protein", result.getIngredients().getFirst().getName());
+        assertEquals(25_000.0, result.getIngredients().getFirst().getMg(), 0.001);
+    }
+
+    @Test
+    void parseText_multipleIngredients_allParsed() {
+        OcrService svc = ocrServiceWithNoopTranslation();
+        String text = "Protein 25 g\nKohlenhydrate 3 g\nFett 2 g";
+        OcrResult result = svc.parseText(text);
+        assertEquals(3, result.getIngredients().size());
+    }
+
+    @Test
+    void parseText_rawTextPreserved() {
+        OcrService svc = ocrServiceWithNoopTranslation();
+        String text = "Protein 25 g";
+        OcrResult result = svc.parseText(text);
+        assertEquals(text, result.getRawText());
+    }
+
+    @Test
+    void parseText_per100gKeyword_detectedTrue() {
+        OcrService svc = ocrServiceWithNoopTranslation();
+        // OcrTextParser.detectPer100g looks for "pro 100" or "je 100"
+        String text = "je 100 g\nProtein\t20000";
+        OcrResult result = svc.parseText(text);
+        assertTrue(result.isPer100g());
+    }
+
+    @Test
+    void parseText_noPer100gKeyword_detectedFalse() {
+        OcrService svc = ocrServiceWithNoopTranslation();
+        OcrResult result = svc.parseText("Protein\t25000");
+        assertFalse(result.isPer100g());
     }
 }

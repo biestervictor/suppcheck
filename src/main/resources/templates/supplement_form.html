@@ -51,31 +51,70 @@
         .subingredient-list {
             margin-left: 32px;
         }
-        .ocr-section {
-            background: #f0f4ff;
-            border: 1px solid #c0d0f0;
-            border-radius: 5px;
-            padding: 14px 18px;
-            margin-bottom: 18px;
-            transition: border-color 0.2s, background 0.2s;
-        }
-        .ocr-section.paste-active {
-            border-color: #4a90d9;
-            background: #e6f0ff;
-        }
         .ocr-paste-hint {
             font-size: 0.82em;
             color: #7a8aaa;
             margin-top: 5px;
         }
-        .ocr-section label {
-            display: block;
-            margin-bottom: 8px;
-        }
-        #ocr-status {
+        #ocr-status, #nr-text-status {
             margin-left: 10px;
             font-style: italic;
             color: #555;
+        }
+        .nr-tab-btn {
+            background: #e8edf5;
+            color: #555;
+            border: 1px solid #c0d0f0;
+            border-radius: 4px 4px 0 0;
+            padding: 5px 18px;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-right: 2px;
+        }
+        .nr-tab-btn.nr-tab-active {
+            background: #fff;
+            color: #2d6cdf;
+            font-weight: bold;
+            border-bottom-color: #fff;
+        }
+        .nr-tab-content {
+            border: 1px solid #c0d0f0;
+            border-radius: 0 4px 4px 4px;
+            padding: 12px 14px;
+            background: #fff;
+            margin-bottom: 10px;
+        }
+        .nr-tab-content.paste-active {
+            border-color: #4a90d9;
+            background: #e6f0ff;
+        }
+        textarea.inhaltsstoffe-ta {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 6px 8px;
+            border: 1px solid #bfc9d1;
+            border-radius: 3px;
+            font-family: inherit;
+            font-size: 0.95em;
+            margin: 4px 0 12px;
+            resize: vertical;
+        }
+        .inline-flex-wrap {
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        textarea.nr-text-ta {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 6px 8px;
+            border: 1px solid #bfc9d1;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.88em;
+            resize: vertical;
+            margin-bottom: 8px;
         }
         .whey-hint {
             display: none;
@@ -252,7 +291,12 @@
     </label>
     <input id="portionenProPackung" th:field="*{portionenProPackung}" type="number" min="1" step="1"
            placeholder="z.B. 60"/><br/><br/>
-    <br/><br/>
+    <label for="inhaltsstoffe">Inhaltsstoffe
+        <span style="font-weight:normal;color:#888;font-size:.88em;">(optionaler Freitext, z.B. Zutaten-Auflistung vom Etikett)</span>:
+    </label>
+    <textarea id="inhaltsstoffe" th:field="*{inhaltsstoffe}" rows="3" class="inhaltsstoffe-ta"
+              placeholder="z.B. Whey Protein Konzentrat, Kakaopulver, Süßungsmittel (Sucralose)..."></textarea>
+    <br/>
     <label for="type">Typ:</label>
     <select id="type" th:field="*{supplementType}" onchange="onTypeChanged(this.value)">
         <option th:value="''" th:text="'-- bitte wählen --'"></option>
@@ -449,42 +493,64 @@
     <button type="submit">Speichern</button>
 
     <br/><br/>
-    <div class="ocr-section" id="ocr-section">
-        <label>Bilder hochladen (mehrere möglich für bessere Erkennung kleiner Zeichen):</label>
-        <input type="file" id="ocr-image" accept="image/*" multiple onchange="autoRunOcr()"/>
-        <button type="button" onclick="extractFromImage()">Zutaten erkennen</button>
-        <button type="button" th:if="*{id != null}" onclick="checkFromImage()"
-                style="background:#f5a623; color:#fff; margin-left:6px;">🔍 Zutaten prüfen</button>
-        <span id="ocr-status"></span>
-        <div class="ocr-paste-hint">Tipp: Bild in Zwischenablage kopieren und <kbd>Strg+V</kbd> drücken, um es direkt einzufügen.</div>
-        <details id="ocr-raw-box" style="display:none; margin-top:10px;">
-            <summary style="cursor:pointer; color:#555; font-style:italic;">OCR-Rohtext anzeigen</summary>
-            <pre id="ocr-raw-text" style="background:#f8f8f8; border:1px solid #ddd; padding:8px; font-size:0.8em; white-space:pre-wrap; max-height:200px; overflow-y:auto; margin-top:6px;"></pre>
-        </details>
+    <details class="section-details" id="ocr-section" open>
+        <summary>Nährwerte ermitteln</summary>
+        <div class="details-body">
 
-        <!-- ── Per-100g Konvertierungs-Banner ─────────────────────────────── -->
-        <div id="per100g-banner" style="display:none; margin-top:14px;
-             background:#fef9e7; border:1px solid #f9ca24; border-radius:5px; padding:12px 16px;">
-            <b>Angaben pro 100 g erkannt.</b>
-            Gib die Portionsgröße ein um auf Pro-Portion-Werte umzurechnen:
-            <span style="display:inline-flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;">
-                <input id="per100g-portion" type="number" min="1" step="any"
-                       placeholder="Portionsgröße (g)"
-                       style="width:160px; padding:5px 8px; border:1px solid #bfc9d1;
-                              border-radius:4px; font-size:0.95em;"/>
-                <button type="button" onclick="convertPer100g()"
-                        style="padding:5px 16px; background:#2d6cdf; color:#fff;
-                               border:none; border-radius:4px; font-size:0.95em; cursor:pointer; font-weight:600;">
-                    Umrechnen
-                </button>
-                <button type="button" onclick="document.getElementById('per100g-banner').style.display='none'"
-                        style="padding:5px 12px; background:#aaa; color:#fff;
-                               border:none; border-radius:4px; font-size:0.9em; cursor:pointer;">
-                    Schließen
-                </button>
-            </span>
+            <!-- Tab buttons -->
+            <div style="margin-bottom:0;">
+                <button type="button" id="nr-tab-bild-btn" class="nr-tab-btn nr-tab-active" onclick="showNrTab('bild')">Bild-Upload</button>
+                <button type="button" id="nr-tab-text-btn" class="nr-tab-btn" onclick="showNrTab('text')">Text-Eingabe</button>
+            </div>
+
+            <!-- Tab: Bild-Upload -->
+            <div id="nr-content-bild" class="nr-tab-content">
+                <label style="display:block;margin-bottom:8px;">Bilder hochladen (mehrere möglich für bessere Erkennung kleiner Zeichen):</label>
+                <input type="file" id="ocr-image" accept="image/*" multiple onchange="autoRunOcr()"/>
+                <button type="button" onclick="extractFromImage()">Zutaten erkennen</button>
+                <button type="button" th:if="*{id != null}" onclick="checkFromImage()"
+                        style="background:#f5a623; color:#fff; margin-left:6px;">&#x1F50D; Zutaten prüfen</button>
+                <span id="ocr-status"></span>
+                <div class="ocr-paste-hint">Tipp: Bild in Zwischenablage kopieren und <kbd>Strg+V</kbd> drücken, um es direkt einzufügen.</div>
+                <details id="ocr-raw-box" style="display:none; margin-top:10px;">
+                    <summary style="cursor:pointer; color:#555; font-style:italic;">OCR-Rohtext anzeigen</summary>
+                    <pre id="ocr-raw-text" style="background:#f8f8f8; border:1px solid #ddd; padding:8px; font-size:0.8em; white-space:pre-wrap; max-height:200px; overflow-y:auto; margin-top:6px;"></pre>
+                </details>
+            </div>
+
+            <!-- Tab: Text-Eingabe -->
+            <div id="nr-content-text" class="nr-tab-content" style="display:none;">
+                <label style="display:block;margin-bottom:6px;">Zutaten-Text einkopieren
+                    <span style="font-weight:normal;color:#888;font-size:.88em;">(Format: Name Tab mg, "davon Sub Tab mg" für Sub-Zutaten)</span>:
+                </label>
+                <textarea id="nr-text-input" class="nr-text-ta" rows="10"
+                          placeholder="Beispiel:&#10;Protein 25 g&#10;davon BCAA 5 g&#10;Kohlenhydrate 3 g&#10;Fett 2 g&#10;Vitamin D3 25 µg"></textarea>
+                <button type="button" onclick="extractFromText()">Analysieren</button>
+                <span id="nr-text-status"></span>
+            </div>
+
+            <!-- Shared: Pro 100g Umrechnung -->
+            <div style="margin-top:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:8px 0;">
+                <label style="font-weight:normal; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                    <input type="checkbox" id="per100g-checkbox" onchange="onPer100gCheck()"/>
+                    Angaben pro 100 g
+                </label>
+                <span id="per100g-portionwrap" style="display:none; gap:8px; align-items:center;"
+                      class="inline-flex-wrap">
+                    <input id="per100g-portion" type="number" min="1" step="any"
+                           placeholder="Portionsgröße (g)"
+                           style="width:160px; padding:5px 8px; border:1px solid #bfc9d1;
+                                  border-radius:4px; font-size:0.95em;"/>
+                    <button type="button" onclick="convertPer100g()"
+                            style="padding:5px 16px; background:#2d6cdf; color:#fff;
+                                   border:none; border-radius:4px; font-size:0.95em; cursor:pointer; font-weight:600;">
+                        Umrechnen
+                    </button>
+                </span>
+            </div>
+
         </div>
-    </div>
+    </details>
 </form>
 
 <th:block th:if="${param.success}">
@@ -678,21 +744,8 @@
             const info = count > 1 ? ' (aus ' + count + ' Bildern, Duplikate entfernt)' : '';
             status.textContent = ingredients.length + ' Zutat(en) erkannt und eingetragen' + info + '.';
 
-            // Per-100g Konvertierungs-Banner
-            var banner = document.getElementById('per100g-banner');
-            if (banner) {
-                if (result.per100g) {
-                    // Auto-befülle Portionsgröße aus dem Formularfeld
-                    var portionField = document.getElementById('portions');
-                    var portionInput = document.getElementById('per100g-portion');
-                    if (portionField && portionInput && portionField.value) {
-                        portionInput.value = portionField.value;
-                    }
-                    banner.style.display = 'block';
-                } else {
-                    banner.style.display = 'none';
-                }
-            }
+            // Per-100g Umrechnung anzeigen/ausblenden
+            showPer100gIf(result.per100g);
         })
         .catch(function(err) {
             status.textContent = 'Fehler: ' + err.message;
@@ -737,9 +790,10 @@
             if (portionField && !portionField.value) {
                 portionField.value = portionSize;
             }
-            document.getElementById('per100g-banner').style.display = 'none';
+            document.getElementById('per100g-checkbox').checked = false;
+            document.getElementById('per100g-portionwrap').style.display = 'none';
             document.getElementById('ocr-status').textContent +=
-                ' ✓ ' + changed + ' Werte auf Portionsgröße ' + portionSize + ' g umgerechnet.';
+                ' \u2713 ' + changed + ' Werte auf Portionsgröße ' + portionSize + ' g umgerechnet.';
         } else {
             alert('Keine Werte zum Umrechnen gefunden.');
         }
@@ -807,7 +861,7 @@
             fileInput.files = dt.files;
 
             // Auto flash feedback
-            var section = document.getElementById('ocr-section');
+            var section = document.getElementById('nr-content-bild');
             section.classList.add('paste-active');
             setTimeout(function() { section.classList.remove('paste-active'); }, 800);
 
@@ -1102,6 +1156,91 @@
         if (mg === null || mg === undefined) return '?';
         if (mg === Math.floor(mg)) return mg.toString();
         return mg.toFixed(1).replace('.', ',');
+    }
+
+    // =====================================================================
+    // Nährwerte ermitteln – Tab-Steuerung & Text-Analyse
+    // =====================================================================
+
+    function showNrTab(tab) {
+        document.getElementById('nr-content-bild').style.display = tab === 'bild' ? '' : 'none';
+        document.getElementById('nr-content-text').style.display = tab === 'text' ? '' : 'none';
+        document.getElementById('nr-tab-bild-btn').classList.toggle('nr-tab-active', tab === 'bild');
+        document.getElementById('nr-tab-text-btn').classList.toggle('nr-tab-active', tab === 'text');
+    }
+
+    function extractFromText() {
+        var text = document.getElementById('nr-text-input').value;
+        var status = document.getElementById('nr-text-status');
+
+        if (!text || !text.trim()) {
+            status.textContent = 'Bitte zuerst Text eingeben.';
+            return;
+        }
+
+        status.textContent = 'Wird analysiert\u2026';
+
+        var formData = new FormData();
+        formData.append('text', text);
+
+        fetch('/supplements/ocr/text', {
+            method: 'POST',
+            body: formData
+        })
+        .then(function(r) {
+            if (!r.ok) throw new Error('Fehler (HTTP ' + r.status + ')');
+            return r.json();
+        })
+        .then(function(result) {
+            var ingredients = result.ingredients || [];
+            if (!ingredients || ingredients.length === 0) {
+                status.textContent = 'Keine Zutaten erkannt \u2013 bitte Format prüfen.';
+                return;
+            }
+            var list = document.getElementById('ingredients-list');
+            list.innerHTML = '';
+            ingredients.forEach(function(ing) {
+                addIngredientFromTemplate(ing);
+            });
+            updateIngredientIndices();
+            status.textContent = ingredients.length + ' Zutat(en) erkannt und eingetragen.';
+
+            // Show raw text in the Bild-tab's raw box (reuse)
+            var rawBox = document.getElementById('ocr-raw-box');
+            var rawPre = document.getElementById('ocr-raw-text');
+            if (rawBox && rawPre) {
+                rawPre.textContent = result.rawText || text;
+                rawBox.style.display = 'block';
+            }
+
+            showPer100gIf(result.per100g);
+        })
+        .catch(function(err) {
+            status.textContent = 'Fehler: ' + err.message;
+        });
+    }
+
+    /** Shows/hides the Pro-100g checkbox row and optionally auto-checks it. */
+    function showPer100gIf(isPer100g) {
+        var checkbox = document.getElementById('per100g-checkbox');
+        var wrap = document.getElementById('per100g-portionwrap');
+        if (!checkbox || !wrap) return;
+        if (isPer100g) {
+            checkbox.checked = true;
+            wrap.style.display = 'inline-flex';
+            // Auto-fill portion size from the main form field
+            var portionField = document.getElementById('portions');
+            var portionInput = document.getElementById('per100g-portion');
+            if (portionField && portionInput && portionField.value) {
+                portionInput.value = portionField.value;
+            }
+        }
+    }
+
+    function onPer100gCheck() {
+        var checkbox = document.getElementById('per100g-checkbox');
+        var wrap = document.getElementById('per100g-portionwrap');
+        wrap.style.display = checkbox.checked ? 'inline-flex' : 'none';
     }
 
     // =====================================================================
