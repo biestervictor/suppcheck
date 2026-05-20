@@ -234,6 +234,29 @@ function totalRemaining(supp) {
     }, 0);
 }
 
+/**
+ * Berechnet die geschätzte Portionen-Anzahl für den Reichweiten-Rechner.
+ *
+ * Wenn portionenProPackung gesetzt ist:
+ *   - Jede Packung NICHT in Benutzung → volle Portionen  (packages × ppp)
+ *   - Jede Packung IN Benutzung        → halbe Portionen (packages × ppp × 0.5)
+ * Sonst: Fallback auf totalRemaining (Rohwert).
+ */
+function calcPortions(supp) {
+    var ppp = supp.portionenProPackung;
+    if (!ppp || ppp <= 0) {
+        return totalRemaining(supp);
+    }
+    if (!supp.stockBatches || supp.stockBatches.length === 0) {
+        return (supp.stock || 0) * ppp;
+    }
+    return supp.stockBatches.reduce(function(sum, b) {
+        var packages = (b.remaining != null) ? b.remaining : b.quantity;
+        var factor   = b.inBenutzung ? 0.5 : 1.0;
+        return sum + Math.round(packages * ppp * factor);
+    }, 0);
+}
+
 function maxCapacity(supp) {
     if (!supp.stockBatches || supp.stockBatches.length === 0) return supp.stock || 0;
     return supp.stockBatches.reduce(function(sum, b) { return sum + (b.quantity || 0); }, 0);
@@ -359,11 +382,18 @@ function renderInventory() {
 }
 
 function renderCard(supp) {
-    var rem  = totalRemaining(supp);
+    var rem  = totalRemaining(supp);   // Pakete/Einheiten
+    var port = calcPortions(supp);     // geschätzte Portionen
+    var ppp  = supp.portionenProPackung;
     var cap  = maxCapacity(supp) || rem;
     var pct  = cap > 0 ? Math.min(100, Math.round(rem / cap * 100)) : 0;
     var barClass = pct > 40 ? '' : pct > 15 ? 'medium' : 'low';
-    var isZero = rem <= 0;
+    var isZero = port <= 0;
+
+    var stockLabel = ppp
+        ? rem + ' Pak. (~' + port + ' Port.)'
+        : rem + ' Einheit(en)';
+    var inBenutzungCount = (supp.stockBatches || []).filter(function(b) { return b.inBenutzung; }).length;
 
     var batchHtml = '';
     if (supp.stockBatches && supp.stockBatches.length > 0) {
@@ -390,7 +420,9 @@ function renderCard(supp) {
         '>' + (isZero ? '✗' : '+') + '</button>' +
         '</div>' +
         '<div class="stock-bar-wrap"><div class="stock-bar-fill ' + barClass + '" style="width:' + pct + '%"></div></div>' +
-        '<div class="card-stock-info"><span>' + rem + ' Portionen verbleibend</span><span>' + pct + '%</span></div>' +
+        '<div class="card-stock-info"><span>' + stockLabel + '</span><span>' + pct + '%</span></div>' +
+        (inBenutzungCount > 0 ? '<div style="font-size:.76em;color:#e67e22;margin-top:2px;">▶ ' + inBenutzungCount + ' in Benutzung (50% angesetzt)</div>' : '') +
+        (!ppp ? '<div style="font-size:.74em;color:#aaa;margin-top:2px;">Portionen/Pak. nicht gesetzt</div>' : '') +
         (batchHtml ? '<div class="card-batches">' + batchHtml + '</div>' : '') +
         '</div>';
 }
@@ -435,7 +467,7 @@ function addToCalc(id) {
     var idx = _supplements.findIndex(function(s) { return s.id === id; });
     if (idx === -1) return;
     var supp = _supplements[idx];
-    if (totalRemaining(supp) <= 0) return;
+    if (calcPortions(supp) <= 0) return;
     var rate = Math.round(getDefaultRate(supp) * 1000) / 1000;
     _calcItems.push({ id: id, suppIdx: idx, rate: rate });
     // Redistribute Whey rates now that the new item is in the list
@@ -530,7 +562,7 @@ function calculate() {
 
     var rows = _calcItems.map(function(ci) {
         var supp = _supplements[ci.suppIdx];
-        var rem  = totalRemaining(supp);
+        var rem  = calcPortions(supp);
         var rate = ci.rate;
         var days = rate > 0 ? rem / rate : Infinity;
         return { supp: supp, rem: rem, rate: rate, days: days };
@@ -564,7 +596,7 @@ function calculate() {
 
         html += '<tr>' +
             '<td><b>' + esc(row.supp.name) + '</b><br><small style="color:#888">' + esc(row.supp.shop || '') + ' · ' + typeLabel(row.supp.supplementType) + '</small></td>' +
-            '<td>' + row.rem + ' Port.' +
+            '<td>' + row.rem + ' Port.' + (row.supp.portionenProPackung ? '<br><small style="color:#aaa;">(' + totalRemaining(row.supp) + ' Pak. × ' + row.supp.portionenProPackung + ')</small>' : '') +
                 '<div class="result-days-bar"><div class="result-days-fill" style="background:' + barColor + ';width:' + pct + '%"></div></div>' +
             '</td>' +
             '<td>' + row.rate.toLocaleString('de-DE', { maximumFractionDigits: 2 }) + '</td>' +

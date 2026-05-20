@@ -102,6 +102,13 @@ public class Supplement {
   private String nachfolgerId;
 
   /**
+   * Portionen pro Packung/Produkt (z.B. 60 Shakes pro Whey-Beutel).
+   * Wird vom Lagerbestand-Rechner genutzt um Pakete in Portionen umzurechnen.
+   * Null = nicht gesetzt, Rechner fällt auf Rohwert zurück.
+   */
+  private Integer portionenProPackung;
+
+  /**
    * Returns the latest historical price if present.
    */
   public double getPrice() {

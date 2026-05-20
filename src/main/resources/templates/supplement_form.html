@@ -245,8 +245,13 @@
     <label for="price">Preis (berechnet):</label>
     <input id="price" required th:field="*{price}" type="number" step="any" readonly
            style="background:#eef3fa; cursor:not-allowed;"/><br/><br/>
-    <label for="portions">Portionen:</label>
+    <label for="portions">Portionsgröße (g):</label>
     <input id="portions" required th:field="*{portionSize}" type="number"/><br/><br/>
+    <label for="portionenProPackung">Portionen pro Packung
+        <span style="font-weight:normal;color:#888;font-size:.88em;">(z.B. 60 Shakes pro Whey-Beutel — für den Reichweiten-Rechner)</span>:
+    </label>
+    <input id="portionenProPackung" th:field="*{portionenProPackung}" type="number" min="1" step="1"
+           placeholder="z.B. 60"/><br/><br/>
     <br/><br/>
     <label for="type">Typ:</label>
     <select id="type" th:field="*{supplementType}" onchange="onTypeChanged(this.value)">
