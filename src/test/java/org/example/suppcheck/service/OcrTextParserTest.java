@@ -2263,4 +2263,46 @@ class OcrTextParserTest {
         assertTrue(names.stream().noneMatch(n -> n.matches(".*Vitamin [a-z].*")),
                 "No lowercase vitamin letter should remain: " + names);
     }
+
+    // ── detectPer100g ────────────────────────────────────────────────────────
+
+    @Test
+    void detectPer100g_nullOrBlank_returnsFalse() {
+        assertFalse(OcrTextParser.detectPer100g(null));
+        assertFalse(OcrTextParser.detectPer100g("   "));
+    }
+
+    @Test
+    void detectPer100g_hasPer100gNoPerPortion_returnsTrue() {
+        String text = "Nährwerte pro 100g\nProtein 20 g\nKohlenhydrate 5 g";
+        assertTrue(OcrTextParser.detectPer100g(text));
+    }
+
+    @Test
+    void detectPer100g_hasPer100gAndPerPortion_returnsFalse() {
+        String text = "Vitamine Pro 100G Pro Portion\nVitamin C 200 mg 100 mg";
+        assertFalse(OcrTextParser.detectPer100g(text));
+    }
+
+    @Test
+    void detectPer100g_onlyPerPortion_returnsFalse() {
+        String text = "Angaben pro Portion\nL-Leucin 2100 mg";
+        assertFalse(OcrTextParser.detectPer100g(text));
+    }
+
+    @Test
+    void detectPer100g_je100gVariant_returnsTrue() {
+        String text = "Nährwertangaben je 100 g\nEiweiß 26 g";
+        assertTrue(OcrTextParser.detectPer100g(text));
+    }
+    @Test
+    void detectPer100g_caseInsensitive_returnsTrue() {
+        assertTrue(OcrTextParser.detectPer100g("Werte PRO 100G\nVitamin C 200 mg"));
+    }
+
+    @Test
+    void detectPer100g_perServingCountsAsPerPortion_returnsFalse() {
+        String text = "per 100g\nVitamin D 10 mcg\nper serving: 5 mcg";
+        assertFalse(OcrTextParser.detectPer100g(text));
+    }
 }

@@ -107,6 +107,38 @@ public final class OcrTextParser {
     }
 
     /**
+     * Detects whether the OCR text originates from a <em>per-100 g</em> nutrition table
+     * that has no separate "per-portion" column.
+     *
+     * <p>Returns {@code true} when the text contains a "pro 100 g" / "je 100 g" /
+     * "per 100 g" marker <em>and</em> does <strong>not</strong> contain a
+     * "pro Portion" / "je Portion" / "per Serving" marker.  In that case every
+     * extracted {@link org.example.suppcheck.dto.IngredientDto#getMg()} value
+     * represents the amount per 100 g and must be scaled by
+     * {@code portionSize / 100.0} before use.</p>
+     *
+     * @param ocrText raw text as returned by Tesseract; may be null
+     * @return {@code true} if the text appears to be a per-100 g table only
+     */
+    public static boolean detectPer100g(String ocrText) {
+        if (ocrText == null || ocrText.isBlank()) return false;
+
+        boolean hasPer100g  = PER_100G_MARKER.matcher(ocrText).find();
+        boolean hasPerPortion = PER_PORTION_MARKER.matcher(ocrText).find();
+        return hasPer100g && !hasPerPortion;
+    }
+
+    /** Matches "pro/je/per 100 g" (with optional space between number and unit). */
+    private static final Pattern PER_100G_MARKER = Pattern.compile(
+            "(?i)\\b(pro|je|per)\\s+100\\s*g\\b"
+    );
+
+    /** Matches "pro/je/per Portion" or "per serving". */
+    private static final Pattern PER_PORTION_MARKER = Pattern.compile(
+            "(?i)\\b(pro|je|per)\\s+(portion|serving)\\b"
+    );
+
+    /**
      * Parses the given OCR text and returns a list of detected ingredients.
      *
      * <p>Each returned {@link IngredientDto#getMg()} value is the

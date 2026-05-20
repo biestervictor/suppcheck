@@ -132,7 +132,9 @@ public class OcrService {
                 mergeIngredient(ing, merged, seen);
             }
         }
-        return new OcrResult(combinedRaw.toString(), merged);
+        // per100g = true when ANY of the merged results detected a per-100g-only table
+        boolean per100g = results.stream().anyMatch(OcrResult::isPer100g);
+        return new OcrResult(combinedRaw.toString(), merged, per100g);
     }
 
     // -------------------------------------------------------------------------
@@ -189,7 +191,8 @@ public class OcrService {
 
             List<IngredientDto> ingredients = OcrTextParser.parse(ocrText);
             translationService.translateAll(ingredients);
-            return new OcrResult(ocrText, ingredients);
+            boolean per100g = OcrTextParser.detectPer100g(ocrText);
+            return new OcrResult(ocrText, ingredients, per100g);
 
         } finally {
             Files.deleteIfExists(tempInput);

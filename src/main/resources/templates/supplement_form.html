@@ -456,6 +456,29 @@
             <summary style="cursor:pointer; color:#555; font-style:italic;">OCR-Rohtext anzeigen</summary>
             <pre id="ocr-raw-text" style="background:#f8f8f8; border:1px solid #ddd; padding:8px; font-size:0.8em; white-space:pre-wrap; max-height:200px; overflow-y:auto; margin-top:6px;"></pre>
         </details>
+
+        <!-- ── Per-100g Konvertierungs-Banner ─────────────────────────────── -->
+        <div id="per100g-banner" style="display:none; margin-top:14px;
+             background:#fef9e7; border:1px solid #f9ca24; border-radius:5px; padding:12px 16px;">
+            <b>Angaben pro 100 g erkannt.</b>
+            Gib die Portionsgröße ein um auf Pro-Portion-Werte umzurechnen:
+            <span style="display:inline-flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;">
+                <input id="per100g-portion" type="number" min="1" step="any"
+                       placeholder="Portionsgröße (g)"
+                       style="width:160px; padding:5px 8px; border:1px solid #bfc9d1;
+                              border-radius:4px; font-size:0.95em;"/>
+                <button type="button" onclick="convertPer100g()"
+                        style="padding:5px 16px; background:#2d6cdf; color:#fff;
+                               border:none; border-radius:4px; font-size:0.95em; cursor:pointer; font-weight:600;">
+                    Umrechnen
+                </button>
+                <button type="button" onclick="document.getElementById('per100g-banner').style.display='none'"
+                        style="padding:5px 12px; background:#aaa; color:#fff;
+                               border:none; border-radius:4px; font-size:0.9em; cursor:pointer;">
+                    Schließen
+                </button>
+            </span>
+        </div>
     </div>
 </form>
 
@@ -649,6 +672,22 @@
             updateIngredientIndices();
             const info = count > 1 ? ' (aus ' + count + ' Bildern, Duplikate entfernt)' : '';
             status.textContent = ingredients.length + ' Zutat(en) erkannt und eingetragen' + info + '.';
+
+            // Per-100g Konvertierungs-Banner
+            var banner = document.getElementById('per100g-banner');
+            if (banner) {
+                if (result.per100g) {
+                    // Auto-befülle Portionsgröße aus dem Formularfeld
+                    var portionField = document.getElementById('portions');
+                    var portionInput = document.getElementById('per100g-portion');
+                    if (portionField && portionInput && portionField.value) {
+                        portionInput.value = portionField.value;
+                    }
+                    banner.style.display = 'block';
+                } else {
+                    banner.style.display = 'none';
+                }
+            }
         })
         .catch(function(err) {
             status.textContent = 'Fehler: ' + err.message;
@@ -661,6 +700,44 @@
                   .replace(/"/g, '&quot;')
                   .replace(/</g, '&lt;')
                   .replace(/>/g, '&gt;');
+    }
+
+    /**
+     * Skaliert alle mg-Felder in der Zutatenliste mit (portionSize / 100).
+     * Wird aufgerufen wenn das Etikett Angaben nur pro 100 g enthält.
+     */
+    function convertPer100g() {
+        var portionInput = document.getElementById('per100g-portion');
+        var portionSize = parseFloat(portionInput ? portionInput.value : '');
+        if (!portionSize || portionSize <= 0) {
+            alert('Bitte eine gültige Portionsgröße eingeben (> 0 g).');
+            return;
+        }
+        var factor = portionSize / 100.0;
+        var changed = 0;
+
+        document.querySelectorAll('#ingredients-list .ingredient-mg, #ingredients-list .subingredient-mg')
+            .forEach(function(input) {
+                var val = parseFloat(input.value);
+                if (!isNaN(val) && val !== 0) {
+                    // Round to 4 decimal places to avoid floating-point noise
+                    input.value = Math.round(val * factor * 10000) / 10000;
+                    changed++;
+                }
+            });
+
+        if (changed > 0) {
+            // Auch das Portionsgröße-Feld im Formular befüllen wenn noch leer
+            var portionField = document.getElementById('portions');
+            if (portionField && !portionField.value) {
+                portionField.value = portionSize;
+            }
+            document.getElementById('per100g-banner').style.display = 'none';
+            document.getElementById('ocr-status').textContent +=
+                ' ✓ ' + changed + ' Werte auf Portionsgröße ' + portionSize + ' g umgerechnet.';
+        } else {
+            alert('Keine Werte zum Umrechnen gefunden.');
+        }
     }
 
     function toggleIntervalField(checked) {
