@@ -443,8 +443,6 @@ public class SupplementService {
         boolean flavorMatch = Objects.equals(batch.getFlavor(), normalizedFlavor);
         boolean expiryMatch = Objects.equals(batch.getExpiryDate(), expiryDate);
         if (flavorMatch && expiryMatch) {
-          // Alle Batches dieses Supplements erst zurücksetzen, dann diesen setzen
-          supp.getStockBatches().forEach(b -> b.setInBenutzung(false));
           batch.setInBenutzung(true);
           found = true;
           break;

@@ -322,7 +322,7 @@
                             th:name="|stockBatches[${bStat.index}].inBenutzung|"
                             th:checked="${batch.inBenutzung}"
                             th:value="true"
-                            onchange="setInBenutzungSingle(this)"
+
                             title="In Benutzung"/>
                      <label style="font-size:.8em;color:#2d6cdf;white-space:nowrap;cursor:pointer;"
                             th:for="|inBenutzung_${bStat.index}|">In Benutzung</label>
@@ -757,13 +757,6 @@
             row.querySelectorAll('[name]').forEach(input => {
                 input.name = input.name.replace(/stockBatches\[\d+\]/, `stockBatches[${idx}]`);
             });
-        });
-    }
-
-    // Ensure only one "In Benutzung" checkbox is checked at a time (radio semantics)
-    function setInBenutzungSingle(checkbox) {
-        document.querySelectorAll('.inbenutzung-cb').forEach(cb => {
-            if (cb !== checkbox) cb.checked = false;
         });
     }
 
