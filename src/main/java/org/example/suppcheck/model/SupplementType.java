@@ -5,5 +5,5 @@ public enum SupplementType {
     SPORT,
     EXTENDED,
     WHEY,
-    RIEGEL
+    PROTEINSNACK
 }
