@@ -37,7 +37,7 @@ public class StockBatch {
 
     /**
      * True wenn dieser Batch/Flavor aktuell in Benutzung ist.
-     * Global darf immer nur ein Batch dieses Flag tragen.
+     * Pro Supplement darf immer nur ein Batch dieses Flag tragen.
      */
     private boolean inBenutzung = false;
 

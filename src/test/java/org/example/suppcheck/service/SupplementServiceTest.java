@@ -470,10 +470,10 @@ class SupplementServiceTest {
         assertEquals(List.of(), existing.getStockBatches());
     }
 
-    // --- inBenutzung uniqueness (Batch-Level) ---
+    // --- inBenutzung: mehrere Supplements gleichzeitig erlaubt ---
 
     @Test
-    void saveSupplement_batchSetInBenutzung_clearsOtherSupplementsBatches() {
+    void saveSupplement_batchSetInBenutzung_doesNotClearOtherSupplements() {
         // existing supplement being saved — with a batch marked inBenutzung
         Supplement existing = new Supplement();
         existing.setId("id-1");
@@ -482,13 +482,12 @@ class SupplementServiceTest {
         existing.setPrices(new ArrayList<>(List.of(entry)));
         when(repository.findById("id-1")).thenReturn(Optional.of(existing));
 
-        // another supplement has a batch marked as in-use
+        // another supplement also has a batch marked as in-use — must remain untouched
         StockBatch otherBatch = new StockBatch("Mango", null, LocalDate.now(), 3);
         otherBatch.setInBenutzung(true);
         Supplement other = new Supplement();
         other.setId("id-2");
         other.setStockBatches(new ArrayList<>(List.of(otherBatch)));
-        when(repository.findByStockBatchesInBenutzungIsTrue()).thenReturn(new ArrayList<>(List.of(other)));
 
         // incoming with a batch marked inBenutzung
         StockBatch incomingBatch = new StockBatch("Vanilla", null, LocalDate.now(), 2);
@@ -500,8 +499,9 @@ class SupplementServiceTest {
 
         service.saveSupplement(incoming);
 
-        assertFalse(otherBatch.isInBenutzung());
-        verify(repository).save(other);
+        // other supplement's batch must NOT be cleared
+        assertTrue(otherBatch.isInBenutzung());
+        verify(repository, never()).findByStockBatchesInBenutzungIsTrue();
     }
 
     @Test
@@ -526,14 +526,13 @@ class SupplementServiceTest {
     }
 
     @Test
-    void saveSupplement_newBatchInBenutzung_clearsOtherSupplementsBatches() {
-        // new supplement (no id)
+    void saveSupplement_newBatchInBenutzung_doesNotClearOtherSupplements() {
+        // new supplement (no id) with a batch in use
         StockBatch otherBatch = new StockBatch("Choco", null, LocalDate.now(), 1);
         otherBatch.setInBenutzung(true);
         Supplement other = new Supplement();
         other.setId("id-other");
         other.setStockBatches(new ArrayList<>(List.of(otherBatch)));
-        when(repository.findByStockBatchesInBenutzungIsTrue()).thenReturn(new ArrayList<>(List.of(other)));
 
         StockBatch newBatch = new StockBatch("Vanilla", null, LocalDate.now(), 5);
         newBatch.setInBenutzung(true);
@@ -542,8 +541,9 @@ class SupplementServiceTest {
 
         service.saveSupplement(incoming);
 
-        assertFalse(otherBatch.isInBenutzung());
-        verify(repository).save(other);
+        // other supplement's batch must NOT be cleared
+        assertTrue(otherBatch.isInBenutzung());
+        verify(repository, never()).findByStockBatchesInBenutzungIsTrue();
     }
 
     // --- Hilfsmethode ---

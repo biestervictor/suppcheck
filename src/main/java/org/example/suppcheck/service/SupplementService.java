@@ -285,13 +285,6 @@ public class SupplementService {
 
       supplementRepository.save(existing);
 
-      // Uniqueness: nur ein Batch (global) darf inBenutzung=true tragen
-      boolean hasInBenutzungBatch = existing.getStockBatches() != null &&
-          existing.getStockBatches().stream().anyMatch(StockBatch::isInBenutzung);
-      if (hasInBenutzungBatch) {
-        clearInBenutzungBatchesExcept(existing.getId());
-      }
-
       return;
     }
 
@@ -308,13 +301,6 @@ public class SupplementService {
 
 
     supplementRepository.save(supplement);
-
-    // Uniqueness: nur ein Batch (global) darf inBenutzung=true tragen
-    boolean hasInBenutzungBatch = supplement.getStockBatches() != null &&
-        supplement.getStockBatches().stream().anyMatch(StockBatch::isInBenutzung);
-    if (hasInBenutzungBatch) {
-      clearInBenutzungBatchesExcept(supplement.getId());
-    }
   }
 
   /**
@@ -326,19 +312,6 @@ public class SupplementService {
     } else if (!(supp.getPrices() instanceof ArrayList)) {
       supp.setPrices(new ArrayList<>(supp.getPrices()));
     }
-  }
-
-  /**
-   * Clears the {@code inBenutzung} flag on all batches of all supplements except the one
-   * with the given id. Called after saving a supplement whose batch has {@code inBenutzung=true}.
-   */
-  private void clearInBenutzungBatchesExcept(String excludeId) {
-    supplementRepository.findByStockBatchesInBenutzungIsTrue().forEach(other -> {
-      if (!other.getId().equals(excludeId)) {
-        other.getStockBatches().forEach(b -> b.setInBenutzung(false));
-        supplementRepository.save(other);
-      }
-    });
   }
 
   /**
@@ -375,7 +348,7 @@ public class SupplementService {
    *
    * @param id          die Supplement-ID
    * @param batch       der hinzuzufügende Batch (Flavor, MHD, Datum, Menge)
-   * @param inBenutzung wenn true: globale Uniqueness erzwingen (alle anderen Batches werden auf false gesetzt)
+   * @param inBenutzung wenn true: dieser Batch wird als aktuell in Benutzung markiert
    * @return neuer Gesamtbestand
    * @throws IllegalArgumentException wenn kein Supplement mit der ID gefunden wurde
    */
@@ -386,9 +359,6 @@ public class SupplementService {
     supp.getStockBatches().add(batch);
     supp.setStock(supp.getStock() + batch.getQuantity());
     supplementRepository.save(supp);
-    if (inBenutzung) {
-      clearInBenutzungBatchesExcept(supp.getId());
-    }
     return supp.getStock();
   }
 
@@ -452,7 +422,7 @@ public class SupplementService {
 
   /**
    * Setzt den {@code inBenutzung}-Flag auf dem Batch, der durch Flavor + MHD identifiziert wird,
-   * und löscht das Flag von allen anderen Batches (global).
+   * und löscht das Flag von allen anderen Batches desselben Supplements.
    *
    * @param id            die Supplement-ID
    * @param flavor        Flavor/Geschmacksrichtung (null oder leer = kein Flavor)
@@ -485,8 +455,6 @@ public class SupplementService {
       throw new IllegalArgumentException("Kein passender Batch gefunden (Flavor=" + normalizedFlavor + ", MHD=" + expiryDate + ")");
     }
     supplementRepository.save(supp);
-    // Globale Uniqueness: alle anderen Supplements zurücksetzen
-    clearInBenutzungBatchesExcept(supp.getId());
   }
 
   /**
