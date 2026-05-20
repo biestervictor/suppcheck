@@ -353,6 +353,75 @@
         </div>
     </details>
 
+    <!-- ── Vorgänger / Nachfolger-Verknüpfung ──────────────────────────────── -->
+    <details class="section-details"
+             th:open="${supplement.nachfolgerId != null or vorgaenger != null}">
+        <summary>Produktversion verknüpfen
+            <span th:if="${supplement.nachfolgerId != null}"
+                  style="font-weight:normal;color:#27ae60;margin-left:8px;font-size:.9em;">
+                &#10132; Nachfolger gesetzt
+            </span>
+            <span th:if="${vorgaenger != null}"
+                  style="font-weight:normal;color:#2d6cdf;margin-left:8px;font-size:.9em;">
+                &#8592; Vorgänger gesetzt
+            </span>
+        </summary>
+        <div class="details-body">
+            <p style="font-size:0.88em;color:#555;margin:0 0 12px;">
+                Verknüpfe dieses Produkt mit seiner Vorgänger- oder Nachfolger-Version
+                (z.B. Crank Pump Pro V1 ↔ V2).
+            </p>
+
+            <!-- Radio-Auswahl -->
+            <div style="margin-bottom:12px;display:flex;flex-direction:column;gap:6px;">
+                <label style="font-weight:normal;cursor:pointer;">
+                    <input type="radio" name="produktRelation" value="none"
+                           id="rel-none" onchange="onRelationChange('none')"/>
+                    Keine Verknüpfung
+                </label>
+                <label style="font-weight:normal;cursor:pointer;">
+                    <input type="radio" name="produktRelation" value="vorgaenger"
+                           id="rel-vorgaenger" onchange="onRelationChange('vorgaenger')"/>
+                    Dieses Produkt hat einen <b>Vorgänger</b>
+                    <span style="color:#888;font-size:0.85em;">(ich erstelle V2 und wähle V1 aus)</span>
+                </label>
+                <label style="font-weight:normal;cursor:pointer;">
+                    <input type="radio" name="produktRelation" value="nachfolger"
+                           id="rel-nachfolger" onchange="onRelationChange('nachfolger')"/>
+                    Dieses Produkt hat einen <b>Nachfolger</b>
+                    <span style="color:#888;font-size:0.85em;">(ich bearbeite V1 und wähle V2 aus)</span>
+                </label>
+            </div>
+
+            <!-- Dropdown: Produkt auswählen -->
+            <div id="relation-select-group" style="display:none;margin-top:4px;">
+                <label for="relation-select" style="font-size:0.9em;">Produkt auswählen:</label><br/>
+                <select id="relation-select"
+                        onchange="onRelationSelectChange()"
+                        style="width:100%;box-sizing:border-box;padding:7px 10px;
+                               border:1px solid #bfc9d1;border-radius:4px;
+                               font-size:0.95em;background:#fff;margin-top:4px;">
+                    <option value="">-- bitte wählen --</option>
+                    <option th:each="s : ${allSupplements}"
+                            th:if="${s.id != supplement.id}"
+                            th:value="${s.id}"
+                            th:text="${s.shop + ' – ' + s.name}">
+                    </option>
+                </select>
+                <div id="relation-hint"
+                     style="display:none;margin-top:6px;font-size:0.82em;
+                            color:#27ae60;background:#f0fff4;border:1px solid #b7ebc8;
+                            border-radius:4px;padding:4px 8px;">
+                </div>
+            </div>
+
+            <!-- Hidden Fields: werden mit dem Formular abgeschickt -->
+            <input type="hidden" id="vorgaengerId-input" name="vorgaengerId" value=""/>
+            <input type="hidden" id="nachfolgerId-input" name="nachfolgerId"
+                   th:value="${supplement.nachfolgerId != null ? supplement.nachfolgerId : ''}"/>
+        </div>
+    </details>
+
     <div id="ingredients-list">
         <div class="ingredient-row" th:each="ingredient, iStat : *{ingredients}">
             <input placeholder="Name" th:field="*{ingredients[__${iStat.index}__].name}" type="text"/>
@@ -958,6 +1027,72 @@
         if (mg === null || mg === undefined) return '?';
         if (mg === Math.floor(mg)) return mg.toString();
         return mg.toFixed(1).replace('.', ',');
+    }
+
+    // =====================================================================
+    // Vorgänger / Nachfolger Verknüpfung
+    // =====================================================================
+
+    // Initialzustand aus Thymeleaf-Daten ableiten
+    (function initRelation() {
+        const nachfolgerId = document.getElementById('nachfolgerId-input').value;
+        const vorgaengerIdFromServer = /*[[${vorgaenger != null ? vorgaenger.id : ''}]]*/ '';
+
+        if (vorgaengerIdFromServer) {
+            document.getElementById('rel-vorgaenger').checked = true;
+            onRelationChange('vorgaenger');
+            document.getElementById('relation-select').value = vorgaengerIdFromServer;
+            onRelationSelectChange();
+        } else if (nachfolgerId) {
+            document.getElementById('rel-nachfolger').checked = true;
+            onRelationChange('nachfolger');
+            document.getElementById('relation-select').value = nachfolgerId;
+            onRelationSelectChange();
+        } else {
+            document.getElementById('rel-none').checked = true;
+        }
+    })();
+
+    function onRelationChange(value) {
+        const group = document.getElementById('relation-select-group');
+        group.style.display = value === 'none' ? 'none' : 'block';
+        // Hidden-Fields zurücksetzen wenn "keine Verknüpfung"
+        if (value === 'none') {
+            document.getElementById('vorgaengerId-input').value = '';
+            document.getElementById('nachfolgerId-input').value = '';
+            document.getElementById('relation-select').value = '';
+            document.getElementById('relation-hint').style.display = 'none';
+        }
+    }
+
+    function onRelationSelectChange() {
+        const rel = document.querySelector('input[name="produktRelation"]:checked');
+        if (!rel) return;
+        const selectedId = document.getElementById('relation-select').value;
+        const hint = document.getElementById('relation-hint');
+
+        if (!selectedId) {
+            document.getElementById('vorgaengerId-input').value = '';
+            document.getElementById('nachfolgerId-input').value = '';
+            hint.style.display = 'none';
+            return;
+        }
+
+        const selectedText = document.getElementById('relation-select').selectedOptions[0].text;
+
+        if (rel.value === 'vorgaenger') {
+            // Dieses Produkt ist NEU (V2), selectedId ist der Vorgänger (V1)
+            document.getElementById('vorgaengerId-input').value = selectedId;
+            document.getElementById('nachfolgerId-input').value = '';
+            hint.textContent = 'Beim Speichern wird "' + selectedText + '" als Vorgänger verknüpft.';
+            hint.style.display = 'block';
+        } else if (rel.value === 'nachfolger') {
+            // Dieses Produkt ist ALT (V1), selectedId ist der Nachfolger (V2)
+            document.getElementById('nachfolgerId-input').value = selectedId;
+            document.getElementById('vorgaengerId-input').value = '';
+            hint.textContent = 'Beim Speichern wird "' + selectedText + '" als Nachfolger gesetzt.';
+            hint.style.display = 'block';
+        }
     }
 </script>
 </body>

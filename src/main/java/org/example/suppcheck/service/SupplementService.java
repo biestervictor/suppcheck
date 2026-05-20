@@ -242,6 +242,7 @@ public class SupplementService {
       existing.setMhdProdukt(supplement.isMhdProdukt());
       existing.setNonDaily(supplement.isNonDaily());
       existing.setConsumptionIntervalDays(supplement.getConsumptionIntervalDays());
+      existing.setNachfolgerId(supplement.getNachfolgerId());
 
       // Bestände und Flavors aktualisieren (leere Liste = alle Batches löschen)
       List<StockBatch> incomingBatches = supplement.getStockBatches();
@@ -508,8 +509,7 @@ public class SupplementService {
   }
 
   /**
-   * Builds a template ingredient list from all active WHEY supplements.
-   *
+   * Builds a template ingredient list from all active WHEY supplements.   *
    * <p>The template contains the union of all ingredient names (and their
    * sub-ingredient names) found across existing WHEY supplements.  Amounts
    * (mg) are set to 0 so the user only has to fill in the quantities.</p>
@@ -557,5 +557,47 @@ public class SupplementService {
     }
 
     return new ArrayList<>(topLevel.values());
+  }
+
+  /**
+   * Findet den Vorgänger eines Supplements, d.h. das Supplement, dessen
+   * {@code nachfolgerId} auf die gegebene ID zeigt.
+   *
+   * @param supplementId die ID des potenziellen Nachfolgers
+   * @return Optional mit dem Vorgänger-Supplement, oder leer wenn keiner existiert
+   */
+  public Optional<Supplement> findVorgaenger(String supplementId) {
+    List<Supplement> candidates = supplementRepository.findByNachfolgerId(supplementId);
+    return candidates.isEmpty() ? Optional.empty() : Optional.of(candidates.get(0));
+  }
+
+  /**
+   * Setzt die {@code nachfolgerId} des angegebenen Vorgänger-Supplements
+   * auf die ID des Nachfolgers. Damit wird die Verknüpfung V1 → V2 hergestellt.
+   *
+   * @param vorgaengerId  ID des Vorgänger-Supplements (V1)
+   * @param nachfolgerId  ID des Nachfolger-Supplements (V2)
+   * @throws IllegalArgumentException wenn das Vorgänger-Supplement nicht gefunden wurde
+   */
+  public void setNachfolgerOf(String vorgaengerId, String nachfolgerId) {
+    Supplement vorgaenger = supplementRepository.findById(vorgaengerId)
+        .orElseThrow(() -> new IllegalArgumentException(
+            "Vorgänger-Supplement mit ID " + vorgaengerId + " nicht gefunden"));
+    vorgaenger.setNachfolgerId(nachfolgerId);
+    supplementRepository.save(vorgaenger);
+  }
+
+  /**
+   * Berechnet die Zutatendifferenz zwischen zwei Supplement-Versionen (V1 → V2).
+   * Nutzt intern den {@link IngredientHistoryService}.
+   *
+   * @param v1 das ältere Supplement (Vorgänger)
+   * @param v2 das neuere Supplement (Nachfolger)
+   * @return Optional mit dem IngredientHistoryEntry der Unterschiede,
+   *         leer wenn keine Änderungen festgestellt wurden
+   */
+  public Optional<org.example.suppcheck.model.IngredientHistoryEntry> computeVersionDiff(
+      Supplement v1, Supplement v2) {
+    return ingredientHistoryService.buildEntry(v1.getIngredients(), v2.getIngredients());
   }
 }

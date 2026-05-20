@@ -74,12 +74,14 @@ public class SupplementController {
         return perPortion;
     }
 
-    private void addFormAttributes(Model model) {        model.addAttribute("types", Arrays.stream(SupplementType.values())
-                .map(SupplementType::name)
-                .toList());
+    private void addFormAttributes(Model model) {
+        model.addAttribute("types", Arrays.stream(SupplementType.values())
+                 .map(SupplementType::name)
+                 .toList());
         model.addAttribute(SHOPS, Arrays.stream(Shop.values())
-                .map(Shop::name)
-                .toList());
+                 .map(Shop::name)
+                 .toList());
+        model.addAttribute("allSupplements", supplementService.getAllSupplements());
     }
 
     /**
@@ -111,6 +113,8 @@ public class SupplementController {
                 .orElseThrow(() -> new IllegalArgumentException("Supplement mit ID " + id + " nicht gefunden"));
         model.addAttribute(MODEL_SUPPLEMENT, supplement);
         addFormAttributes(model);
+        // Vorgänger dieses Supplements (falls vorhanden) für die Formular-Vorauswahl
+        supplementService.findVorgaenger(id).ifPresent(v -> model.addAttribute("vorgaenger", v));
         return "supplement_form";
     }
 
@@ -128,6 +132,25 @@ public class SupplementController {
                 supplement.getIngredientHistory() != null ? supplement.getIngredientHistory() : List.of());
         Collections.reverse(historyReversed);
         model.addAttribute("ingredientHistoryReversed", historyReversed);
+
+        // ── Nachfolger (V2) ──────────────────────────────────────────────────
+        if (supplement.getNachfolgerId() != null) {
+            supplementService.getSupplementById(supplement.getNachfolgerId()).ifPresent(nachfolger -> {
+                model.addAttribute("nachfolger", nachfolger);
+                // Release-Datum = erstes Preis-Eintrag des Nachfolgers
+                if (nachfolger.getPrices() != null && !nachfolger.getPrices().isEmpty()) {
+                    model.addAttribute("nachfolgerReleaseDate",
+                            nachfolger.getPrices().get(0).getDate().toString());
+                }
+                // Zutaten-Diff V1 vs V2
+                supplementService.computeVersionDiff(supplement, nachfolger)
+                        .ifPresent(diff -> model.addAttribute("v1v2Diff", diff));
+            });
+        }
+
+        // ── Vorgänger (V1) ───────────────────────────────────────────────────
+        supplementService.findVorgaenger(id).ifPresent(v -> model.addAttribute("vorgaenger", v));
+
         // Auto-Snapshot: speichert den aktuellen Intake-Stand (max. 1× pro Tag)
         snapshotService.saveSnapshot(supplementService.getAllSupplements());
         return "supplement_prices";
@@ -196,6 +219,10 @@ public class SupplementController {
             .map(Enum::name).toList());
         model.addAttribute(SHOPS, Arrays.stream(Shop.values())
             .map(Enum::name).toList());
+        Map<String, Supplement> supplementById = supplements.stream()
+            .filter(s -> s.getId() != null)
+            .collect(java.util.stream.Collectors.toMap(Supplement::getId, s -> s, (a, b) -> a));
+        model.addAttribute("supplementById", supplementById);
 
         return "supplements_list";
     }
@@ -240,6 +267,13 @@ public class SupplementController {
                     ? supplementDto.getInitialFlavor().trim() : null;
             StockBatch batch = new StockBatch(flavor, mhd, LocalDate.now(), supplementDto.getInitialQty());
             supplementService.addStockBatch(targetId, batch);
+        }
+
+        // Vorgänger-Verknüpfung: wenn ein Vorgänger angegeben wurde, dessen
+        // nachfolgerId auf die ID des gerade gespeicherten Supplements setzen.
+        String vorgaengerId = supplementDto.getVorgaengerId();
+        if (vorgaengerId != null && !vorgaengerId.isBlank() && supplement.getId() != null) {
+            supplementService.setNachfolgerOf(vorgaengerId, supplement.getId());
         }
 
         return "redirect:/supplements";

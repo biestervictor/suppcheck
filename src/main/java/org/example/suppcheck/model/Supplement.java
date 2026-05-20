@@ -95,6 +95,13 @@ public class Supplement {
   private List<StockBatch> stockBatches = new ArrayList<>();
 
   /**
+   * ID des Nachfolger-Supplements (z.B. v2.0 eines Produkts).
+   * Null = kein Nachfolger. Die Preishistorie beider Produkte wird in der
+   * Preisentwicklungs-Ansicht kombiniert dargestellt.
+   */
+  private String nachfolgerId;
+
+  /**
    * Returns the latest historical price if present.
    */
   public double getPrice() {

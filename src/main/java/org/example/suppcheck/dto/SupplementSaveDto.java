@@ -49,4 +49,14 @@ public class SupplementSaveDto {
   /** Menge des ersten Batches (0 = kein Batch anlegen). */
   private int initialQty = 0;
 
+  /** ID des Nachfolger-Supplements (null = kein Nachfolger). */
+  private String nachfolgerId;
+
+  /**
+   * ID des Vorgänger-Supplements. Wenn gesetzt, wird beim Speichern
+   * dessen nachfolgerId auf die ID des aktuellen Supplements gesetzt.
+   * Nur bei Neuanlage oder expliziter Verknüpfung relevant.
+   */
+  private String vorgaengerId;
+
 }

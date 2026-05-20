@@ -107,6 +107,29 @@
             font-style: italic;
             padding: 16px 0;
         }
+
+        /* ── Versionsinfo-Banner ──────────────────────────────────────── */
+        .version-banner {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 0.92em;
+        }
+        .version-banner.nachfolger { background: #e8f8ef; border: 1px solid #b7ebc8; color: #1a5c30; }
+        .version-banner.vorgaenger { background: #eaf1fb; border: 1px solid #b0c8f0; color: #1b3a6b; }
+        .version-banner a { color: inherit; font-weight: bold; }
+
+        /* ── V1 vs V2 Diff ────────────────────────────────────────────── */
+        .diff-added    { color: #1a7a3a; background: #d5f5e3; }
+        .diff-removed  { color: #922b21; background: #fadbd8; }
+        .diff-modified { color: #935116; background: #fdebd0; }
+        .diff-added td:first-child::before    { content: '+ '; font-weight: bold; }
+        .diff-removed td:first-child::before  { content: '− '; font-weight: bold; }
+        .diff-modified td:first-child::before { content: '~ '; font-weight: bold; }
+        .diff-empty { color: #888; font-style: italic; padding: 16px 0; }
     </style>
     <th:block th:replace="~{fragments/head :: common-ui-styles}"></th:block>
 </head>
@@ -127,6 +150,25 @@
                 onclick="showTab('prices')">Preisentwicklung</button>
         <button class="tab-btn" id="tab-btn-ingredients"
                 onclick="showTab('ingredients')">Zutaten-Entwicklung</button>
+        <button th:if="${nachfolger != null}" class="tab-btn" id="tab-btn-diff"
+                onclick="showTab('diff')">V1 vs V2 Vergleich</button>
+    </div>
+
+    <!-- ── Versionsinfo-Banner (Nachfolger) ── -->
+    <div th:if="${nachfolger != null}" class="version-banner nachfolger">
+        &#10132; Nachfolger:
+        <a th:href="@{'/supplements/' + ${nachfolger.id} + '/prices'}"
+           th:text="${nachfolger.shop + ' – ' + nachfolger.name}">Nachfolger</a>
+        <span th:if="${nachfolgerReleaseDate != null}"
+              style="color:#888;font-size:0.88em;"
+              th:text="'(seit ' + ${nachfolgerReleaseDate} + ')'"></span>
+    </div>
+
+    <!-- ── Versionsinfo-Banner (Vorgänger) ── -->
+    <div th:if="${vorgaenger != null}" class="version-banner vorgaenger">
+        &#8592; Vorgänger:
+        <a th:href="@{'/supplements/' + ${vorgaenger.id} + '/prices'}"
+           th:text="${vorgaenger.shop + ' – ' + vorgaenger.name}">Vorgänger</a>
     </div>
 
     <!-- ── Tab: Preisentwicklung ── -->
@@ -153,6 +195,21 @@
 
     <!-- ── Tab: Zutaten-Entwicklung ── -->
     <div id="tab-ingredients" style="display:none">
+
+        <!-- Nachfolger-Release-Hinweis -->
+        <div th:if="${nachfolger != null}"
+             style="display:flex;align-items:center;gap:8px;padding:10px 14px;
+                    background:#fffbe6;border:1px solid #ffe58f;border-radius:6px;
+                    margin-bottom:16px;font-size:0.9em;color:#7a5f00;">
+            &#9733; Nachfolger
+            <b th:text="${nachfolger.name}"></b>
+            erschienen
+            <span th:if="${nachfolgerReleaseDate != null}"
+                  th:text="'am ' + ${nachfolgerReleaseDate}"></span>
+            —
+            <a th:href="@{'/supplements/' + ${nachfolger.id} + '/prices'}"
+               style="color:#7a5f00;font-weight:bold;">zum Nachfolger</a>
+        </div>
 
         <th:block th:if="${ingredientHistoryReversed.isEmpty()}">
             <p class="ing-history-empty">Noch keine Zutatenänderungen erfasst.
@@ -189,18 +246,68 @@
         </th:block>
     </div>
 
+    <!-- ── Tab: V1 vs V2 Vergleich ── -->
+    <div id="tab-diff" style="display:none" th:if="${nachfolger != null}">
+
+        <p style="font-size:0.9em;color:#555;margin:0 0 16px;">
+            Zutatenunterschiede zwischen
+            <b th:text="${supplement.name}">V1</b> (dieses Produkt)
+            und
+            <b th:text="${nachfolger.name}">V2</b> (Nachfolger).
+        </p>
+
+        <!-- Diff vorhanden -->
+        <th:block th:if="${v1v2Diff != null and !v1v2Diff.changes.isEmpty()}">
+            <table>
+                <thead>
+                <tr>
+                    <th>Zutat</th>
+                    <th>Änderung</th>
+                    <th>V1 (vorher)</th>
+                    <th>V2 (nachher)</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="c : ${v1v2Diff.changes}"
+                    th:classappend="${c.changeType == 'ADDED'}   ? 'diff-added'   :
+                                    (${c.changeType == 'REMOVED'} ? 'diff-removed' : 'diff-modified')">
+                    <td th:text="${c.name}">Zutat</td>
+                    <td th:text="${c.changeType == 'ADDED'}   ? 'Neu in V2'  :
+                                  (${c.changeType == 'REMOVED'} ? 'Entfernt'  : 'Wert geändert')">-</td>
+                    <td th:text="${c.oldMg != null} ? ${#numbers.formatDecimal(c.oldMg, 1, 3)} + ' mg' : '–'">–</td>
+                    <td th:text="${c.newMg != null} ? ${#numbers.formatDecimal(c.newMg, 1, 3)} + ' mg' : '–'">–</td>
+                </tr>
+                </tbody>
+            </table>
+        </th:block>
+
+        <!-- Kein Diff -->
+        <p th:if="${v1v2Diff == null or v1v2Diff.changes.isEmpty()}"
+           class="diff-empty">
+            Keine Zutatenunterschiede zwischen V1 und V2 gefunden.
+        </p>
+    </div>
+
 </div>
 
 <script th:inline="javascript">
     /*<![CDATA[*/
     // ── Tab switching ──────────────────────────────────────────────────────
     function showTab(name) {
-        document.getElementById('tab-prices').style.display     = name === 'prices'      ? '' : 'none';
+        document.getElementById('tab-prices').style.display      = name === 'prices'      ? '' : 'none';
         document.getElementById('tab-ingredients').style.display = name === 'ingredients' ? '' : 'none';
-        document.getElementById('tab-btn-prices').classList.toggle('active',     name === 'prices');
+        const diffEl = document.getElementById('tab-diff');
+        if (diffEl) diffEl.style.display = name === 'diff' ? '' : 'none';
+        document.getElementById('tab-btn-prices').classList.toggle('active',      name === 'prices');
         document.getElementById('tab-btn-ingredients').classList.toggle('active', name === 'ingredients');
+        const diffBtn = document.getElementById('tab-btn-diff');
+        if (diffBtn) diffBtn.classList.toggle('active', name === 'diff');
         if (name === 'prices') draw();
     }
+
+    // ── Nachfolger-Release-Datum für Stern-Marker im Chart ────────────────
+    const nachfolgerReleaseDate = /*[[${nachfolgerReleaseDate}]]*/ null;
+    const nachfolgerName        = /*[[${nachfolger != null ? nachfolger.name : ''}]]*/ '';
 
     // ── Price chart (unchanged) ────────────────────────────────────────────
     const prices = /*[[${supplement.prices}]]*/ [];
@@ -312,6 +419,53 @@
 
         drawLine(p => Number(p.price), '#2d6cdf');
         drawLine(p => Number(p.ovp), '#e68a00');
+
+        // ── Nachfolger-Release-Marker (Stern) ──────────────────────────────
+        if (nachfolgerReleaseDate && prices.length > 0) {
+            // Alle Preis-Daten in "YYYY-MM-DD" konvertieren für Vergleich
+            function toIso(d) {
+                if (typeof d === 'string') return d;
+                if (typeof d === 'object' && d !== null) {
+                    const year  = d.year  || d.Year;
+                    let   month = d.monthValue || d.Month || d.month;
+                    if (typeof month === 'string') month = monthMap[month.toUpperCase()] || 1;
+                    const day   = d.dayOfMonth || d.Day || d.day || 1;
+                    return year + '-' + String(month).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+                }
+                return '';
+            }
+
+            // Letzten Index finden, dessen Datum <= Release-Datum ist
+            let starIdx = 0;
+            for (let i = 0; i < prices.length; i++) {
+                if (toIso(prices[i].date) <= nachfolgerReleaseDate) starIdx = i;
+            }
+            const starX = padding + starIdx * xStep;
+            const starY = padding + 4;
+
+            // Vertikale gestrichelte Linie
+            ctx.save();
+            ctx.setLineDash([5, 4]);
+            ctx.strokeStyle = '#27ae60';
+            ctx.lineWidth   = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(starX, padding + 35);
+            ctx.lineTo(starX, h - bottomPadding);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+
+            // Stern + Label
+            ctx.fillStyle = '#27ae60';
+            ctx.font = 'bold 18px Arial';
+            ctx.fillText('\u2605', starX - 9, starY + 20);
+            ctx.font = 'bold 10px Arial';
+            const label = nachfolgerName || 'Nachfolger';
+            const lw = ctx.measureText(label).width;
+            // Links positionieren wenn zu weit rechts
+            const labelX = (starX + lw + 4 > w - padding) ? starX - lw - 4 : starX + 2;
+            ctx.fillText(label, labelX, starY + 32);
+        }
 
         const legends = [
             { label: 'Preis', color: '#2d6cdf' },

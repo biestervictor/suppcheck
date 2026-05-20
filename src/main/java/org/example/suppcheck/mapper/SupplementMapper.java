@@ -31,6 +31,7 @@ public final class SupplementMapper {
     supp.setMhdProdukt(dto.isMhdProdukt());
     supp.setNonDaily(dto.isNonDaily());
     supp.setConsumptionIntervalDays(dto.getConsumptionIntervalDays() > 1 ? dto.getConsumptionIntervalDays() : 1);
+    supp.setNachfolgerId(trimToNull(dto.getNachfolgerId()));
 
     // Map stock batches
     List<StockBatch> stockBatches = new ArrayList<>();

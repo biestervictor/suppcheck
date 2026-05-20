@@ -24,4 +24,11 @@ public interface SupplementRepository extends MongoRepository<Supplement, String
    * Under normal conditions this list has at most one element.
    */
   List<Supplement> findByStockBatchesInBenutzungIsTrue();
+
+  /**
+   * Returns all supplements whose nachfolgerId matches the given ID.
+   * Used to find the predecessor (Vorgänger) of a supplement.
+   * Under normal conditions this list has at most one element.
+   */
+  List<Supplement> findByNachfolgerId(String nachfolgerId);
 }

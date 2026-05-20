@@ -360,7 +360,7 @@
     <th:block th:each="supp : ${supplements}">
         <th:block th:if="${supp.stockBatches != null}">
             <th:block th:each="batch : ${supp.stockBatches}">
-                <th:block th:if="${batch.expiryDate != null and (batch.remaining == null or batch.remaining > 0)}">
+                <th:block th:if="${batch.expiryDate != null and (batch.remaining == null or batch.remaining > 0) and !supp.mhdProdukt}">
                     <div th:if="${!batch.expiryDate.isAfter(today)}"
                          style="width:90%;max-width:1400px;margin:6px auto;padding:10px 16px;border-radius:6px;
                                 background:#f8d7da;border:1px solid #f5c6cb;color:#721c24;font-size:0.9em;">
@@ -407,6 +407,14 @@
         <td th:text="${supplement.shop}">Shop</td>
         <td>
             <a class="price-link" th:href="@{'/supplements/' + ${supplement.id} + '/prices'}" th:text="${supplement.name}">Name</a>
+            <span th:if="${supplement.nachfolgerId != null and supplementById[supplement.nachfolgerId] != null}"
+                  style="display:block;font-size:0.78em;margin-top:3px;">
+                <span style="color:#888;">&#10132;</span>
+                <a style="color:#27ae60;font-weight:bold;text-decoration:none;"
+                   th:href="@{'/supplements/' + ${supplement.nachfolgerId} + '/prices'}"
+                   th:text="${supplementById[supplement.nachfolgerId].name}">Nachfolger</a>
+                <span style="color:#27ae60;font-size:0.9em;">(Nachfolger)</span>
+            </span>
         </td>
         <td th:text="${supplement.ovp > 0 ? T(java.lang.String).format('%.2f €', supplement.ovp) : '-'}">OVP</td>
         <td th:text="${supplement.discount != null ? T(java.lang.String).format('%.1f %%', supplement.discount) : '-'}">Rabatt</td>
